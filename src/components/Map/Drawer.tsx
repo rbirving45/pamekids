@@ -6,15 +6,30 @@ import { X, Phone, Globe, MapPin, ChevronDown } from 'lucide-react';
 import { fetchPlaceDetails } from '../../utils/places-api';
 import RatingDisplay from './RatingDisplay';
 import ReportIssueModal from '../ReportIssue/ReportIssueModal';
+import LocationTile from './LocationTile';
 
 interface DrawerProps {
   location: Location | null;
   onClose: () => void;
   activityConfig: Record<ActivityType, { name: string; color: string }>;
+  visibleLocations?: Location[];
+  onLocationSelect?: (location: Location) => void;
+  activeFilters?: ActivityType[];
+  selectedAge?: number | null;
+  openNowFilter?: boolean;
 }
 
 // Using memo to prevent unnecessary re-renders when props don't change
-const Drawer: React.FC<DrawerProps> = memo(({ location, onClose, activityConfig }) => {
+const Drawer: React.FC<DrawerProps> = memo(({
+  location,
+  onClose,
+  activityConfig,
+  visibleLocations = [],
+  onLocationSelect,
+  activeFilters = [],
+  selectedAge = null,
+  openNowFilter = false
+}) => {
   // Store location ID to prevent unnecessary effect triggers
   const locationId = location?.id;
   
@@ -472,8 +487,112 @@ const Drawer: React.FC<DrawerProps> = memo(({ location, onClose, activityConfig 
     );
   }, [location]);
 
-  // Early return if no location is selected
-  if (!location) return null;
+  // If no location is selected, show the location tiles list on desktop
+  if (!location) {
+    // Only show in desktop view
+    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+    if (isMobile) return null;
+
+    // Filter locations based on active filters
+    const filteredLocations = visibleLocations.filter(location => {
+      // Activity type filter
+      if (activeFilters.length > 0 && !location.types.some(type => activeFilters.includes(type))) {
+        return false;
+      }
+      
+      // Age filter
+      if (selectedAge !== null) {
+        if (selectedAge < location.ageRange.min || selectedAge > location.ageRange.max) {
+          return false;
+        }
+      }
+      
+      // Open now filter
+      if (openNowFilter) {
+        const now = new Date();
+        const day = now.toLocaleDateString('en-US', { weekday: 'long' });
+        const hours = location.openingHours[day];
+
+        if (!hours || hours === 'Closed' || hours === 'Hours not available') {
+          return false;
+        }
+        if (hours === 'Open 24 hours') {
+          return true;
+        }
+
+        try {
+          const timeParts = hours.split(/[–-]/).map(t => t.trim());
+          if (timeParts.length !== 2) return false;
+          const [start, end] = timeParts;
+          
+          const parseTime = (timeStr: string) => {
+            if (!timeStr) return 0;
+            const parts = timeStr.split(' ');
+            if (parts.length !== 2) return 0;
+            
+            const [time, period] = parts;
+            if (!time || !period) return 0;
+            
+            const [hours, minutes] = time.split(':').map(Number);
+            if (isNaN(hours)) return 0;
+            
+            let totalHours = hours;
+            if (period === 'PM' && hours !== 12) totalHours += 12;
+            if (period === 'AM' && hours === 12) totalHours = 0;
+            
+            return totalHours * 60 + (minutes || 0);
+          };
+
+          const startMinutes = parseTime(start);
+          const endMinutes = parseTime(end);
+          const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+          if (endMinutes < startMinutes) {
+            return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+          }
+
+          return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+        } catch (error) {
+          // Silent error in production
+          return false;
+        }
+      }
+      
+      return true;
+    });
+
+    // Limit to first 15 locations to prevent performance issues
+    const displayedLocations = filteredLocations.slice(0, 15) || [];
+
+    return (
+      <div className="hidden md:block fixed z-40 bg-white shadow-lg w-[533px] left-0 top-[calc(4rem+3.25rem)] rounded-r-lg bottom-0 overflow-hidden">
+        <div className="p-6 border-b">
+          <h2 className="text-2xl font-bold text-gray-900">Nearby Activities</h2>
+          <p className="text-gray-600 mt-2">Select a location to view details</p>
+        </div>
+        
+        <div className="overflow-y-auto h-[calc(100vh-4rem-3.25rem-76px)]">
+          {displayedLocations.length === 0 ? (
+            <div className="p-6 text-center text-gray-500">
+              <p>No locations in current view</p>
+              <p className="text-sm mt-2">Try zooming out or panning the map</p>
+            </div>
+          ) : (
+            <div className="divide-y">
+              {displayedLocations.map(loc => (
+                <LocationTile
+                  key={loc.id}
+                  location={loc}
+                  activityConfig={activityConfig}
+                  onSelect={() => onLocationSelect && onLocationSelect(loc)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // Function to get directions URL
   const getDirectionsUrl = () => {
@@ -535,19 +654,20 @@ const Drawer: React.FC<DrawerProps> = memo(({ location, onClose, activityConfig 
       <div 
         ref={drawerRef}
         className={`
-          fixed md:absolute z-40 bg-white shadow-lg
-          md:w-[533px] left-0 md:top-0 md:rounded-r-lg
+          fixed z-40 bg-white shadow-lg
+          md:w-[533px] left-0 md:top-[calc(4rem+3.25rem)] md:rounded-r-lg md:bottom-0
           w-full rounded-t-xl
           transition-all duration-300 ease-in-out
-          ${location ? 'translate-y-0 md:translate-x-0' : 'translate-y-full md:-translate-x-full'}
+          ${location ? 'translate-y-0' : 'translate-y-full md:translate-y-0'}
+          ${!location && 'md:translate-x-0'}
           ${isExpanded ? 'top-0 h-full' : 'bottom-0 h-[50vh]'}
-          md:h-full
+          md:h-[calc(100vh-4rem-3.25rem)] md:translate-x-0
           flex flex-col
-          ${location ? 'visible' : 'invisible'}
+          ${location ? 'visible' : 'md:visible invisible'}
         `}
         style={{
           // Only enable pointer events after transition completes
-          pointerEvents: location ? 'auto' : 'none',
+          pointerEvents: location ? 'auto' : (window.innerWidth >= 768 ? 'auto' : 'none'),
           // Add slight delay to pointer events to allow transitions to complete first
           transitionDelay: location ? '0ms' : '0ms',
           // Control drawer behavior with transform instead of top/bottom values

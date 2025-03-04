@@ -50,6 +50,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
     lat: 37.9838,
     lng: 23.7275
   });
+  const [visibleLocations, setVisibleLocations] = useState<Location[]>([]);
 
   const searchRef = useRef<HTMLDivElement>(null);
   const ageDropdownRef = useRef<HTMLDivElement>(null);
@@ -342,7 +343,19 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
       setSelectedLocation(null);
       setHoveredLocation(null);
     });
-  }, []);
+
+    // Add listener for bounds_changed to update visible locations
+    map.addListener('bounds_changed', () => {
+      const bounds = map.getBounds();
+      if (bounds) {
+        // Filter locations to those within current bounds
+        const locationsInView = locations.filter(location => {
+          return bounds.contains(location.coordinates);
+        });
+        setVisibleLocations(locationsInView);
+      }
+    });
+  }, [locations]);
 
   const ageOptions = Array.from({ length: 19 }, (_, i) => i);
 
@@ -496,7 +509,8 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               top: 0,
               left: 0,
               right: 0,
-              bottom: 0
+              bottom: 0,
+              marginLeft: window.innerWidth >= 768 ? '533px' : 0, // Add margin for drawer in desktop view
             }}
           center={userLocation}
           zoom={13}
@@ -606,21 +620,18 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
                   }
                   trackMarkerClick(location.name);
                                     
-                  // Adjust map bounds if marker would be obscured by drawer
-                  if (map) {
+                  // Only adjust map bounds on mobile devices
+                  if (map && checkIsMobile()) {
                     const bounds = map.getBounds();
                     if (bounds) {
                       const point = location.coordinates;
                       const projection = map.getProjection();
                       
                       if (projection) {
-                        const isMobile = window.innerWidth < 768;
                         // Calculate visible area considering drawer dimensions
-                        const drawerWidth = isMobile ? 0 : 533; // 533px drawer on desktop
-                        const drawerHeight = isMobile ? window.innerHeight * 0.5 : 0; // 50vh on mobile
+                        const drawerHeight = window.innerHeight * 0.5; // 50vh on mobile
                         const mapWidth = map.getDiv().offsetWidth;
                         const mapHeight = map.getDiv().offsetHeight;
-                        const visibleWidth = mapWidth - drawerWidth;
                         
                         // Convert marker position to pixels
                         const pointPx = projection.fromLatLngToPoint(new google.maps.LatLng(point.lat, point.lng));
@@ -629,35 +640,21 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
                         if (pointPx && centerPx) {
                           const scale = Math.pow(2, map.getZoom() || 0);
                           
-                          // Check if marker would be under drawer
-                          const markerScreenX = (pointPx.x - centerPx.x) * scale + mapWidth / 2;
-                          
                           const markerScreenY = (pointPx.y - centerPx.y) * scale + mapHeight / 2;
-                          const isMobile = checkIsMobile();
-
-                          if (!checkIsMobile() && markerScreenX < drawerWidth + 50) {
-                            // Desktop: Pan horizontally if marker is under drawer
-                            const newCenterPx = new google.maps.Point(
-                              centerPx.x - (drawerWidth - markerScreenX + 100) / scale,
-                              centerPx.y
-                            );
-                            const newCenter = projection.fromPointToLatLng(newCenterPx);
-                            if (newCenter) map.panTo(newCenter);
-                          } else if (checkIsMobile()) {
-                            // Mobile: Ensure marker is in view above the drawer
-                            // Always pan to position the marker in the upper half of visible area
-                            const targetY = mapHeight * 0.25; // Position marker at 1/4 from top
-                            const newCenterPx = new google.maps.Point(
-                              centerPx.x,
-                              centerPx.y + (markerScreenY - targetY) / scale
-                            );
-                            const newCenter = projection.fromPointToLatLng(newCenterPx);
-                            if (newCenter) {
-                              // Use a small delay to ensure marker click is processed before panning
-                              setTimeout(() => {
-                                map.panTo(newCenter);
-                              }, 20);
-                            }
+                          
+                          // Mobile: Ensure marker is in view above the drawer
+                          // Always pan to position the marker in the upper half of visible area
+                          const targetY = mapHeight * 0.25; // Position marker at 1/4 from top
+                          const newCenterPx = new google.maps.Point(
+                            centerPx.x,
+                            centerPx.y + (markerScreenY - targetY) / scale
+                          );
+                          const newCenter = projection.fromPointToLatLng(newCenterPx);
+                          if (newCenter) {
+                            // Use a small delay to ensure marker click is processed before panning
+                            setTimeout(() => {
+                              map.panTo(newCenter);
+                            }, 20);
                           }
                         }
                       }
@@ -697,11 +694,24 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
             />
           )}
 
-          {/* Drawer Component */}
+          {/* Drawer Component - Always visible on desktop */}
           <Drawer
             location={selectedLocation}
             onClose={() => setSelectedLocation(null)}
             activityConfig={activityConfig}
+            visibleLocations={visibleLocations}
+            activeFilters={activeFilters}
+            selectedAge={selectedAge}
+            openNowFilter={openNowFilter}
+            onLocationSelect={(location) => {
+              setSelectedLocation(location);
+              trackMarkerClick(location.name);
+              
+              // Pan to the location
+              if (map) {
+                map.panTo(location.coordinates);
+              }
+            }}
           />
 
           {/* Hover InfoWindow is handled via useEffect with infoWindowRef */}
