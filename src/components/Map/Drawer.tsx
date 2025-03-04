@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, memo, useMemo, useRef } from '
 import ImageCarousel from './ImageCarousel';
 import { Location, ActivityType } from '../../data/locations';
 import { addUtmParams, trackExternalLink } from '../../utils/analytics';
-import { X, Phone, Globe, MapPin, ChevronDown } from 'lucide-react';
+import { X, Phone, Globe, MapPin, ChevronDown, ArrowLeft } from 'lucide-react';
 import { fetchPlaceDetails } from '../../utils/places-api';
 import RatingDisplay from './RatingDisplay';
 import ReportIssueModal from '../ReportIssue/ReportIssueModal';
@@ -17,6 +17,7 @@ interface DrawerProps {
   activeFilters?: ActivityType[];
   selectedAge?: number | null;
   openNowFilter?: boolean;
+  mobileDrawerOpen?: boolean; // Add this prop to control mobile drawer state
 }
 
 // Using memo to prevent unnecessary re-renders when props don't change
@@ -28,7 +29,8 @@ const Drawer: React.FC<DrawerProps> = memo(({
   onLocationSelect,
   activeFilters = [],
   selectedAge = null,
-  openNowFilter = false
+  openNowFilter = false,
+  mobileDrawerOpen = true
 }) => {
   // Store location ID to prevent unnecessary effect triggers
   const locationId = location?.id;
@@ -41,6 +43,9 @@ const Drawer: React.FC<DrawerProps> = memo(({
   
   // Mobile drawer state
   const [isExpanded, setIsExpanded] = useState(false);
+  const [mobileMode, setMobileMode] = useState<'list' | 'detail'>('list');
+  const isMobile = useRef(window.matchMedia('(max-width: 767px)').matches);
+  
   const drawerRef = useRef<HTMLDivElement>(null);
   const pullHandleRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -53,13 +58,39 @@ const Drawer: React.FC<DrawerProps> = memo(({
   const isScrolling = useRef<boolean>(false);
   const lastScrollTop = useRef<number>(0);
   
+  // Determine which view to show on mobile
+  useEffect(() => {
+    if (isMobile.current) {
+      if (location) {
+        setMobileMode('detail');
+      } else {
+        setMobileMode('list');
+      }
+    }
+  }, [location]);
+  
+  // Return early if mobile drawer should be closed
+  useEffect(() => {
+    if (isMobile.current && !mobileDrawerOpen && !location) {
+      // Reset any transform and animation when drawer is closed
+      if (drawerRef.current) {
+        drawerRef.current.style.transform = '';
+        drawerRef.current.style.transition = 'transform 0.3s ease-out';
+      }
+    }
+  }, [mobileDrawerOpen, location]);
+  
   // Clear state when location changes
   useEffect(() => {
     setPlaceData(undefined);
     setIsLoading(false);
     setHasAttemptedFetch(false);
     setFetchTimestamp(Date.now()); // Use timestamp to force new photo loading
-    setIsExpanded(false); // Reset drawer expansion state
+    
+    // Only reset expansion state when switching to detail view
+    if (location && isMobile.current) {
+      setIsExpanded(false);
+    }
     
     // Reset any active drag when location changes
     if (drawerRef.current) {
@@ -125,37 +156,40 @@ const Drawer: React.FC<DrawerProps> = memo(({
 
   // Mobile overflow handling
   useEffect(() => {
-    const isMobile = window.matchMedia('(max-width: 767px)').matches;
-    if (location && isMobile) {
+    if (isMobile.current && ((location || (mobileDrawerOpen && visibleLocations.length > 0)))) {
       document.body.style.overflow = 'hidden';
       return () => {
         document.body.style.overflow = 'unset';
       };
     }
-  }, [location]);
+  }, [location, visibleLocations, mobileDrawerOpen]);
 
   // Handle wheel events for scrolling
   useEffect(() => {
-    const isMobile = window.matchMedia('(max-width: 767px)').matches;
-    if (!isMobile || !location || !drawerRef.current) return;
+    if (!isMobile.current || (!location && mobileMode !== 'list' && !mobileDrawerOpen) || !drawerRef.current) return;
     
     const drawer = drawerRef.current;
+    const content = contentRef.current;
+    
+    if (!content) return;
     
     const handleWheel = (e: WheelEvent) => {
-      // If scrolling down (deltaY > 0) and drawer is in half state, expand it
-      if (!isExpanded && e.deltaY > 0) {
+      // Only intercept wheel events if they would expand the drawer and we're at the top
+      // This allows natural scrolling otherwise
+      if (!isExpanded && e.deltaY > 0 && content.scrollTop <= 0) {
         setIsExpanded(true);
-        e.preventDefault(); // Prevent actual scrolling during transition
+        e.preventDefault(); // Prevent actual scrolling during expansion
       }
     };
     
-    drawer.addEventListener('wheel', handleWheel, { passive: false });
-    return () => drawer.removeEventListener('wheel', handleWheel);
-  }, [location, isExpanded]);
+    // Attach to content area, not the entire drawer
+    content.addEventListener('wheel', handleWheel, { passive: false });
+    return () => content.removeEventListener('wheel', handleWheel);
+  }, [location, isExpanded, mobileMode, mobileDrawerOpen]);
   
   // Add effect to ensure drawer gets proper pointer events after rendering
   useEffect(() => {
-    if (location) {
+    if (location || (isMobile.current && mobileMode === 'list')) {
       // Small delay to let the drawer positioning settle before enabling interactions
       const timer = setTimeout(() => {
         if (drawerRef.current) {
@@ -165,259 +199,162 @@ const Drawer: React.FC<DrawerProps> = memo(({
       
       return () => clearTimeout(timer);
     }
-  }, [location]);
+  }, [location, mobileMode]);
 
-  // Handle touch events for the pull handle and header
+  // Unified touch event handling for the drawer
   useEffect(() => {
-    const isMobile = window.matchMedia('(max-width: 767px)').matches;
-    if (!isMobile || !location) return;
+    if (!isMobile.current || (!location && mobileMode !== 'list' && !mobileDrawerOpen) || !drawerRef.current) return;
     
+    const drawer = drawerRef.current;
     const handle = pullHandleRef.current;
     const header = headerRef.current;
+    const content = contentRef.current;
     
-    if (!handle || !header || !drawerRef.current) return;
+    if (!handle || !header || !content) return;
     
-    const draggableElements = [handle, header];
+    // Track if we should intercept touch events
+    let shouldHandleDrag = false;
+    let initialTouchY = 0;
+    let initialScrollTop = 0;
     
+    // Handle touch start events
     const handleTouchStart = (e: TouchEvent) => {
-      // Only initiate drag if the touch started on the handle or header
-      isDragging.current = true;
-      isScrolling.current = false;
-      
       // Store initial touch position
-      dragStartY.current = e.touches[0].clientY;
-      lastTouchY.current = e.touches[0].clientY;
+      initialTouchY = e.touches[0].clientY;
+      dragStartY.current = initialTouchY;
+      lastTouchY.current = initialTouchY;
       touchStartTime.current = Date.now();
-      touchDragDistance.current = 0;
       
-      // Remove transition during drag for immediate response
-      if (drawerRef.current) {
-        drawerRef.current.style.transition = 'none';
+      // Store scroll position to determine if we're at the top
+      initialScrollTop = content.scrollTop;
+      
+      // Determine if we should handle this touch as a drawer drag
+      // If touch started on handle or header, always handle it
+      if (e.target === handle || header.contains(e.target as Node)) {
+        shouldHandleDrag = true;
+        // Remove transition during drag for immediate response
+        drawer.style.transition = 'none';
+      } else if (content.contains(e.target as Node)) {
+        // For content area, only handle drag if we're at the top and moving down
+        shouldHandleDrag = false; // We'll decide this in touchmove
       }
+      
+      // Reset tracking
+      isDragging.current = false;
+      isScrolling.current = false;
     };
     
+    // Handle touch move events
     const handleTouchMove = (e: TouchEvent) => {
-      if (!isDragging.current || dragStartY.current === null || lastTouchY.current === null) return;
-      
       const currentY = e.touches[0].clientY;
-      const deltaY = currentY - dragStartY.current;
+      const deltaY = currentY - initialTouchY;
+      const isScrollingDown = currentY > lastTouchY.current!;
       
-      // Update tracking variables
+      // Update last touch position for next move event
       lastTouchY.current = currentY;
-      touchDragDistance.current = deltaY;
       
-      // Apply resistance factor for downward dragging
-      let moveY;
-      if (deltaY > 0) { // Dragging downward
-        const resistance = isExpanded ? 0.5 : 0.3;
-        moveY = deltaY * resistance;
-      } else { // Dragging upward
-        const resistance = isExpanded ? 0.8 : 0.5;
-        moveY = deltaY * resistance;
+      // For content area, decide if this is a scroll or drawer drag
+      if (!isDragging.current && !isScrolling.current && content.contains(e.target as Node)) {
+        // If we're at the top (or near top with some threshold) and trying to pull down
+        if (initialScrollTop <= 1 && isScrollingDown) {
+          isDragging.current = true;
+          drawer.style.transition = 'none';
+          shouldHandleDrag = true;
+        } else {
+          // Otherwise, this is just a normal content scroll - let the browser handle it
+          isScrolling.current = true;
+          return;
+        }
       }
       
-      // Apply transform to follow finger with the current offset
-      if (drawerRef.current) {
-        drawerRef.current.style.transform = `translateY(${moveY}px)`;
+      // If this is a header/handle drag or a content drag that we decided to handle
+      if (shouldHandleDrag || isDragging.current) {
+        // Calculate how much to move the drawer
+        let moveY;
+        if (deltaY > 0) { // Dragging downward
+          const resistance = isExpanded ? 0.5 : 0.3;
+          moveY = deltaY * resistance;
+        } else { // Dragging upward
+          const resistance = isExpanded ? 0.8 : 0.5;
+          moveY = deltaY * resistance;
+        }
+        
+        // Move the drawer
+        drawer.style.transform = `translateY(${moveY}px)`;
+        
+        // Prevent default ONLY if we're actually dragging the drawer
+        e.preventDefault();
+        isDragging.current = true;
       }
-      
-      // Prevent default to avoid page scrolling while dragging the drawer
-      e.preventDefault();
     };
     
+    // Handle touch end events
     const handleTouchEnd = (e: TouchEvent) => {
-      if (!isDragging.current || dragStartY.current === null || lastTouchY.current === null) {
-        // Reset state
-        isDragging.current = false;
-        dragStartY.current = null;
-        lastTouchY.current = null;
+      // Skip if we weren't dragging
+      if (!isDragging.current && !shouldHandleDrag) {
         return;
       }
       
-      // Re-enable transition for smooth animation to final state
-      if (drawerRef.current) {
-        drawerRef.current.style.transition = 'transform 0.3s ease-out';
-      }
+      // Re-enable transition for smooth animation
+      drawer.style.transition = 'transform 0.3s ease-out';
       
-      // Calculate total movement distance
-      const totalDeltaY = lastTouchY.current - dragStartY.current;
-      
-      // Measure swipe speed
-      const touchEndTime = Date.now();
-      const touchDuration = touchEndTime - touchStartTime.current;
-      const swipeVelocity = Math.abs(totalDeltaY) / touchDuration;
-      
-      // Apply logic based on distance, velocity and current state
-      if (isExpanded) {
-        // Currently expanded
-        if (totalDeltaY > 100 || (totalDeltaY > 50 && swipeVelocity > 0.5)) {
-          // Collapse to half state with significant downward swipe or moderate swipe with speed
-          setIsExpanded(false);
-        } else if (totalDeltaY > 250 || (totalDeltaY > 150 && swipeVelocity > 0.8)) {
-          // Very large swipe or fast large swipe - close drawer
-          onClose();
-        } else {
-          // Not enough movement - reset to expanded state
-          if (drawerRef.current) {
-            drawerRef.current.style.transform = '';
-          }
-        }
-      } else {
-        // Currently in half state
-        if (totalDeltaY < -80 || (totalDeltaY < -40 && swipeVelocity > 0.5)) {
-          // Expand with significant upward swipe or moderate swipe with speed
-          setIsExpanded(true);
-        } else if (totalDeltaY > 180 || (totalDeltaY > 100 && swipeVelocity > 0.8)) {
-          // Close drawer with significant downward swipe or moderate fast swipe
-          onClose();
-        } else {
-          // Not enough movement - reset to half state
-          if (drawerRef.current) {
-            drawerRef.current.style.transform = '';
-          }
-        }
-      }
-      
-      // Reset state
-      isDragging.current = false;
-      dragStartY.current = null;
-      lastTouchY.current = null;
-    };
-    
-    // Add events to handle and header for dragging
-    draggableElements.forEach(element => {
-      element.addEventListener('touchstart', handleTouchStart, { passive: true });
-      element.addEventListener('touchmove', handleTouchMove, { passive: false });
-      element.addEventListener('touchend', handleTouchEnd);
-    });
-    
-    return () => {
-      draggableElements.forEach(element => {
-        element.removeEventListener('touchstart', handleTouchStart);
-        element.removeEventListener('touchmove', handleTouchMove);
-        element.removeEventListener('touchend', handleTouchEnd);
-      });
-    };
-  }, [location, isExpanded, onClose]);
-
-  // Handle special touch events for the content area
-  // This allows content scrolling but also detects swipe-to-close when at the top
-  useEffect(() => {
-    const isMobile = window.matchMedia('(max-width: 767px)').matches;
-    if (!isMobile || !location || !contentRef.current || !drawerRef.current) return;
-    
-    const content = contentRef.current;
-    
-    // Track scroll position to determine if we're at the top
-    const handleScroll = () => {
-      lastScrollTop.current = content.scrollTop;
-    };
-    
-    // This handles the initial touch on the content area
-    const handleContentTouchStart = (e: TouchEvent) => {
-      // Store the initial position but don't start dragging yet
-      dragStartY.current = e.touches[0].clientY;
-      lastTouchY.current = e.touches[0].clientY;
-      touchStartTime.current = Date.now();
-      
-      // We're not dragging or scrolling yet - we'll determine which in touchmove
-      isDragging.current = false;
-      isScrolling.current = false;
-    };
-    
-    // This determines if we're scrolling content or trying to close the drawer
-    const handleContentTouchMove = (e: TouchEvent) => {
-      if (dragStartY.current === null || lastTouchY.current === null) return;
-      
-      const currentY = e.touches[0].clientY;
-      const deltaY = currentY - lastTouchY.current; // Movement since last event
-      const totalDeltaY = currentY - dragStartY.current; // Total movement
-      
-      // Update for next event
-      lastTouchY.current = currentY;
-      
-      // If we haven't decided yet whether this is a scroll or drawer drag
-      if (!isDragging.current && !isScrolling.current) {
-        // If we're at the top and trying to drag down, it's a drawer drag
-        if (content.scrollTop <= 0 && deltaY > 0) {
-          isDragging.current = true;
-          
-          // Remove transition for immediate response
-          if (drawerRef.current) {
-            drawerRef.current.style.transition = 'none';
-          }
-        } else {
-          // Otherwise it's a normal content scroll
-          isScrolling.current = true;
-        }
-      }
-      
-      // If we determined this is a drawer drag
-      if (isDragging.current && drawerRef.current) {
-        // Apply resistance for smoother dragging
-        const resistance = isExpanded ? 0.5 : 0.3;
-        const moveY = totalDeltaY * resistance;
-        
-        // Move the drawer
-        drawerRef.current.style.transform = `translateY(${moveY}px)`;
-        
-        // Prevent default to avoid content scrolling simultaneously
-        e.preventDefault();
-      }
-      // If it's a normal scroll, let the browser handle it
-    };
-    
-    // Handle the end of touch on content
-    const handleContentTouchEnd = (e: TouchEvent) => {
-      // If we were dragging the drawer via content
-      if (isDragging.current && dragStartY.current !== null && lastTouchY.current !== null && drawerRef.current) {
-        // Re-enable transitions
-        drawerRef.current.style.transition = 'transform 0.3s ease-out';
-        
-        // Calculate movement metrics
+      // Calculate swipe metrics
+      if (dragStartY.current !== null && lastTouchY.current !== null) {
         const totalDeltaY = lastTouchY.current - dragStartY.current;
         const touchEndTime = Date.now();
         const touchDuration = touchEndTime - touchStartTime.current;
         const swipeVelocity = Math.abs(totalDeltaY) / touchDuration;
         
-        // Apply drawer state changes based on gesture
+        // Apply drawer logic based on swipe distance/velocity
         if (isExpanded) {
+          // Currently expanded
           if (totalDeltaY > 100 || (totalDeltaY > 50 && swipeVelocity > 0.5)) {
+            // Collapse to half state with significant downward swipe
             setIsExpanded(false);
           } else if (totalDeltaY > 250 || (totalDeltaY > 150 && swipeVelocity > 0.8)) {
-            onClose();
+            // Very large swipe or fast large swipe - close drawer
+            handleCloseAction();
           } else {
-            drawerRef.current.style.transform = '';
+            // Not enough movement - reset to expanded state
+            drawer.style.transform = '';
           }
         } else {
-          if (totalDeltaY > 180 || (totalDeltaY > 100 && swipeVelocity > 0.8)) {
-            onClose();
+          // Currently in half state
+          if (totalDeltaY < -80 || (totalDeltaY < -40 && swipeVelocity > 0.5)) {
+            // Expand with significant upward swipe
+            setIsExpanded(true);
+          } else if (totalDeltaY > 180 || (totalDeltaY > 100 && swipeVelocity > 0.8)) {
+            // Close drawer with significant downward swipe
+            handleCloseAction();
           } else {
-            drawerRef.current.style.transform = '';
+            // Not enough movement - reset to half state
+            drawer.style.transform = '';
           }
         }
       }
       
-      // Reset all tracking state
+      // Reset all tracking variables
       isDragging.current = false;
       isScrolling.current = false;
+      shouldHandleDrag = false;
       dragStartY.current = null;
       lastTouchY.current = null;
     };
     
-    // Add event listeners to content area
-    content.addEventListener('scroll', handleScroll, { passive: true });
-    content.addEventListener('touchstart', handleContentTouchStart, { passive: true });
-    content.addEventListener('touchmove', handleContentTouchMove, { passive: false });
-    content.addEventListener('touchend', handleContentTouchEnd);
+    // Add unified touch handlers to the entire drawer
+    // Using capture phase to intercept events before they reach content elements
+    drawer.addEventListener('touchstart', handleTouchStart, { passive: true });
+    drawer.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
+    drawer.addEventListener('touchend', handleTouchEnd);
+    drawer.addEventListener('touchcancel', handleTouchEnd);
     
     return () => {
-      content.removeEventListener('scroll', handleScroll);
-      content.removeEventListener('touchstart', handleContentTouchStart);
-      content.removeEventListener('touchmove', handleContentTouchMove);
-      content.removeEventListener('touchend', handleContentTouchEnd);
+      drawer.removeEventListener('touchstart', handleTouchStart);
+      drawer.removeEventListener('touchmove', handleTouchMove, { capture: true });
+      drawer.removeEventListener('touchend', handleTouchEnd);
+      drawer.removeEventListener('touchcancel', handleTouchEnd);
     };
-  }, [location, isExpanded, onClose]);
+  }, [location, isExpanded, onClose, mobileMode, mobileDrawerOpen]);
 
   // Reset transform when expanded state changes
   useEffect(() => {
@@ -440,6 +377,30 @@ const Drawer: React.FC<DrawerProps> = memo(({
     handle.addEventListener('click', handleClick);
     return () => handle.removeEventListener('click', handleClick);
   }, []);
+
+  // Handle close action for different states
+  const handleCloseAction = () => {
+    if (isMobile.current) {
+      if (mobileMode === 'detail') {
+        // If we're in detail view on mobile, go back to list view
+        onClose();
+      } else {
+        // If we're in list view on mobile, close the drawer completely
+        onClose();
+      }
+    } else {
+      // On desktop, just close the drawer
+      onClose();
+    }
+  };
+
+  // Handle closing the location list (mobile only)
+  const handleCloseList = () => {
+    // On mobile, this should trigger the onClose to hide the drawer completely
+    if (isMobile.current) {
+      onClose();
+    }
+  };
 
   // Memoize ActionButtons to prevent unnecessary re-renders
   const ActionButtons = useMemo(() => {
@@ -487,14 +448,55 @@ const Drawer: React.FC<DrawerProps> = memo(({
     );
   }, [location]);
 
-  // If no location is selected, show the location tiles list on desktop
-  if (!location) {
-    // Only show in desktop view
-    const isMobile = window.matchMedia('(max-width: 767px)').matches;
-    if (isMobile) return null;
+  // Function to get directions URL
+  const getDirectionsUrl = () => {
+    return location ? `https://www.google.com/maps/dir/?api=1&destination=${location.coordinates.lat},${location.coordinates.lng}` : '';
+  };
 
-    // Filter locations based on active filters
-    const filteredLocations = visibleLocations.filter(location => {
+  // Make sure placeData object is valid
+  const ensurePhotoData = (data: Location['placeData'] | undefined) => {
+    if (!data) return undefined;
+    
+    // Ensure photos array is clean - only include photos with getUrl method
+    const validPhotos = data.photos?.filter(
+      photo => photo && typeof photo.getUrl === 'function'
+    );
+    
+    return {
+      ...data,
+      photos: validPhotos,
+      photoCount: validPhotos?.length || data.photoUrls?.length || 0
+    };
+  };
+  
+  // Compute merged place data once
+  const mergedPlaceData = (() => {
+    // Use most recent placeData
+    if (placeData) {
+      return ensurePhotoData(placeData);
+    }
+    
+    // Fall back to location's built-in place data if available
+    if (location?.placeData) {
+      return ensurePhotoData(location.placeData);
+    }
+    
+    // No data available
+    return undefined;
+  })();
+  
+  // Check if we have photos (either objects or URLs)
+  const hasPhotos = Boolean(
+    (mergedPlaceData?.photos && mergedPlaceData.photos.length > 0) ||
+    (mergedPlaceData?.photoUrls && mergedPlaceData.photoUrls.length > 0)
+  );
+    
+  // Only show loading state when actively fetching and don't have any photos yet
+  const isLoadingPhotos = isLoading && !hasPhotos;
+
+  // Filter locations based on active filters for the list view
+  const filteredLocations = useMemo(() => {
+    return visibleLocations.filter(location => {
       // Activity type filter
       if (activeFilters.length > 0 && !location.types.some(type => activeFilters.includes(type))) {
         return false;
@@ -560,10 +562,21 @@ const Drawer: React.FC<DrawerProps> = memo(({
       
       return true;
     });
+  }, [visibleLocations, activeFilters, selectedAge, openNowFilter]);
 
-    // Limit to first 15 locations to prevent performance issues
-    const displayedLocations = filteredLocations.slice(0, 15) || [];
+  // Limit to first 15 locations to prevent performance issues
+  const displayedLocations = filteredLocations.slice(0, 15) || [];
 
+  // Check if we should render the drawer at all
+  const shouldRenderDrawer = isMobile.current 
+    ? (location !== null || (mobileMode === 'list' && mobileDrawerOpen && visibleLocations.length > 0))
+    : true;
+  
+  // If nothing to display on mobile, return null
+  if (!shouldRenderDrawer) return null;
+
+  // Desktop location list view (when no location is selected)
+  if (!location && !isMobile.current) {
     return (
       <div className="hidden md:block fixed z-40 bg-white shadow-lg w-[533px] left-0 top-[calc(4rem+3.25rem)] rounded-r-lg bottom-0 overflow-hidden">
         <div className="p-6 border-b">
@@ -578,7 +591,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
               <p className="text-sm mt-2">Try zooming out or panning the map</p>
             </div>
           ) : (
-            <div className="divide-y">
+            <div>
               {displayedLocations.map(loc => (
                 <LocationTile
                   key={loc.id}
@@ -594,60 +607,14 @@ const Drawer: React.FC<DrawerProps> = memo(({
     );
   }
 
-  // Function to get directions URL
-  const getDirectionsUrl = () => {
-    return `https://www.google.com/maps/dir/?api=1&destination=${location.coordinates.lat},${location.coordinates.lng}`;
-  };
-
-  // Make sure placeData object is valid
-  const ensurePhotoData = (data: Location['placeData'] | undefined) => {
-    if (!data) return undefined;
-    
-    // Ensure photos array is clean - only include photos with getUrl method
-    const validPhotos = data.photos?.filter(
-      photo => photo && typeof photo.getUrl === 'function'
-    );
-    
-    return {
-      ...data,
-      photos: validPhotos,
-      photoCount: validPhotos?.length || data.photoUrls?.length || 0
-    };
-  };
-  
-  // Compute merged place data once
-  const mergedPlaceData = (() => {
-    // Use most recent placeData
-    if (placeData) {
-      return ensurePhotoData(placeData);
-    }
-    
-    // Fall back to location's built-in place data if available
-    if (location.placeData) {
-      return ensurePhotoData(location.placeData);
-    }
-    
-    // No data available
-    return undefined;
-  })();
-  
-  // Check if we have photos (either objects or URLs)
-  const hasPhotos = Boolean(
-    (mergedPlaceData?.photos && mergedPlaceData.photos.length > 0) ||
-    (mergedPlaceData?.photoUrls && mergedPlaceData.photoUrls.length > 0)
-  );
-    
-  // Only show loading state when actively fetching and don't have any photos yet
-  const isLoadingPhotos = isLoading && !hasPhotos;
-
   return (
     <>
       {/* Backdrop */}
       <div
         className={`fixed inset-0 bg-black bg-opacity-25 z-30 md:hidden ${
-          location && drawerRef.current ? 'pointer-events-auto' : 'pointer-events-none'
+          (location || (isMobile.current && mobileMode === 'list')) && drawerRef.current ? 'pointer-events-auto' : 'pointer-events-none'
         }`}
-        onClick={onClose}
+        onClick={handleCloseAction}
       />
       
       {/* Drawer Container */}
@@ -658,18 +625,18 @@ const Drawer: React.FC<DrawerProps> = memo(({
           md:w-[533px] left-0 md:top-[calc(4rem+3.25rem)] md:rounded-r-lg md:bottom-0
           w-full rounded-t-xl
           transition-all duration-300 ease-in-out
-          ${location ? 'translate-y-0' : 'translate-y-full md:translate-y-0'}
+          ${(location || (isMobile.current && mobileMode === 'list' && mobileDrawerOpen)) ? 'translate-y-0' : 'translate-y-full md:translate-y-0'}
           ${!location && 'md:translate-x-0'}
           ${isExpanded ? 'top-0 h-full' : 'bottom-0 h-[50vh]'}
           md:h-[calc(100vh-4rem-3.25rem)] md:translate-x-0
           flex flex-col
-          ${location ? 'visible' : 'md:visible invisible'}
+          ${(location || (isMobile.current && mobileMode === 'list' && mobileDrawerOpen)) ? 'visible' : 'md:visible invisible'}
         `}
         style={{
           // Only enable pointer events after transition completes
-          pointerEvents: location ? 'auto' : (window.innerWidth >= 768 ? 'auto' : 'none'),
+          pointerEvents: (location || (isMobile.current && mobileMode === 'list')) ? 'auto' : (window.innerWidth >= 768 ? 'auto' : 'none'),
           // Add slight delay to pointer events to allow transitions to complete first
-          transitionDelay: location ? '0ms' : '0ms',
+          transitionDelay: (location || (isMobile.current && mobileMode === 'list')) ? '0ms' : '0ms',
           // Control drawer behavior with transform instead of top/bottom values
           willChange: 'transform',
         }}
@@ -682,174 +649,235 @@ const Drawer: React.FC<DrawerProps> = memo(({
           <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
         </div>
         
-        {/* Header - Fixed at top */}
-        <div 
-          ref={headerRef}
-          className={`flex-shrink-0 bg-white border-b ${isExpanded ? 'sticky top-0 z-10' : ''}`}
-        >
-          <div className="flex flex-col p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">{location.name}</h2>
-                {mergedPlaceData?.rating && mergedPlaceData.userRatingsTotal && (
-                  <div className="mt-2">
-                    <RatingDisplay
-                      rating={mergedPlaceData.rating}
-                      totalRatings={mergedPlaceData.userRatingsTotal}
-                      placeId={location.id}
-                      businessName={location.name}
-                    />
+        {/* Location Detail View */}
+        {location && (
+          <>
+            {/* Header - Fixed at top */}
+            <div 
+              ref={headerRef}
+              className={`flex-shrink-0 bg-white border-b ${isExpanded ? 'sticky top-0 z-10' : ''}`}
+            >
+              <div className="flex flex-col p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    {isMobile.current && (
+                      <button 
+                        onClick={handleCloseAction}
+                        className="mb-2 p-1 -ml-1 rounded-full hover:bg-gray-100"
+                      >
+                        <ArrowLeft size={20} className="text-gray-500" />
+                      </button>
+                    )}
+                    <h2 className="text-2xl font-bold text-gray-900">{location.name}</h2>
+                    {mergedPlaceData?.rating && mergedPlaceData.userRatingsTotal && (
+                      <div className="mt-2">
+                        <RatingDisplay
+                          rating={mergedPlaceData.rating}
+                          totalRatings={mergedPlaceData.userRatingsTotal}
+                          placeId={location.id}
+                          businessName={location.name}
+                        />
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {location.types.map(type => (
+                        <span
+                          key={type}
+                          className="inline-block px-3 py-1.5 text-sm font-medium rounded-full"
+                          style={{
+                            backgroundColor: activityConfig[type].color + '20',
+                            color: activityConfig[type].color
+                          }}
+                        >
+                          {activityConfig[type].name}
+                        </span>
+                      ))}
+                    </div>
                   </div>
+                  <button
+                    onClick={handleCloseAction}
+                    className="p-2 rounded-full hover:bg-gray-100 hidden md:block"
+                  >
+                    <X size={24} className="text-gray-500" />
+                  </button>
+                </div>
+
+                {/* Action Buttons - Show at top on mobile */}
+                <div className="md:hidden">
+                  <ActionButtons />
+                </div>
+              </div>
+            </div>
+
+            {/* Scrollable Content */}
+            <div 
+              ref={contentRef}
+              className="flex-1 overflow-y-auto overscroll-contain"
+            >
+              <div className="p-6 space-y-6">
+                {/* Image Carousel */}
+                {isLoadingPhotos ? (
+                  <div className="aspect-video w-full bg-gray-100 rounded-lg flex items-center justify-center">
+                    <div className="animate-pulse flex flex-col items-center">
+                      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="mt-2 text-gray-500">Loading photos...</span>
+                    </div>
+                  </div>
+                ) : (
+                  <ImageCarousel
+                    photos={mergedPlaceData?.photos}
+                    photoUrls={mergedPlaceData?.photoUrls}
+                    businessName={location.name}
+                    placeId={location.id}
+                  />
                 )}
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {location.types.map(type => (
-                    <span
-                      key={type}
-                      className="inline-block px-3 py-1.5 text-sm font-medium rounded-full"
-                      style={{
-                        backgroundColor: activityConfig[type].color + '20',
-                        color: activityConfig[type].color
-                      }}
-                    >
-                      {activityConfig[type].name}
+
+                {/* Description */}
+                <p className="text-lg text-gray-600">{location.description}</p>
+
+                {/* Action Buttons - Show in content on desktop */}
+                <div className="hidden md:block">
+                  <ActionButtons />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center text-lg">
+                    <span className="font-medium">Ages:</span>
+                    <span className="ml-3 text-gray-600">
+                      {location.ageRange.min}-{location.ageRange.max} years
                     </span>
-                  ))}
-                </div>
-              </div>
-              <button
-                onClick={onClose}
-                className="p-2 rounded-full hover:bg-gray-100"
-              >
-                <X size={24} className="text-gray-500" />
-              </button>
-            </div>
-
-            {/* Action Buttons - Show at top on mobile */}
-            <div className="md:hidden">
-              <ActionButtons />
-            </div>
-          </div>
-        </div>
-
-        {/* Scrollable Content */}
-        <div 
-          ref={contentRef}
-          className="flex-1 overflow-y-auto"
-        >
-          <div className="p-6 space-y-6">
-            {/* Image Carousel */}
-            {isLoadingPhotos ? (
-              <div className="aspect-video w-full bg-gray-100 rounded-lg flex items-center justify-center">
-                <div className="animate-pulse flex flex-col items-center">
-                  <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="mt-2 text-gray-500">Loading photos...</span>
-                </div>
-              </div>
-            ) : (
-              <ImageCarousel
-                photos={mergedPlaceData?.photos}
-                photoUrls={mergedPlaceData?.photoUrls}
-                businessName={location.name}
-                placeId={location.id}
-              />
-            )}
-
-            {/* Description */}
-            <p className="text-lg text-gray-600">{location.description}</p>
-
-            {/* Action Buttons - Show in content on desktop */}
-            <div className="hidden md:block">
-              <ActionButtons />
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center text-lg">
-                <span className="font-medium">Ages:</span>
-                <span className="ml-3 text-gray-600">
-                  {location.ageRange.min}-{location.ageRange.max} years
-                </span>
-              </div>
-
-              {location.priceRange && (
-                <div className="flex items-center text-lg">
-                  <span className="font-medium">Price:</span>
-                  <span className="ml-3 text-gray-600">{location.priceRange}</span>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <h3 className="text-xl font-medium text-gray-900 mb-3">Opening Hours</h3>
-              <div className="space-y-2">
-                {Object.entries(location.openingHours).map(([day, hours]) => (
-                  <div key={day} className="text-base grid grid-cols-2">
-                    <span className="text-gray-600">{day}</span>
-                    <span className="text-gray-900">{hours}</span>
                   </div>
-                ))}
+
+                  {location.priceRange && (
+                    <div className="flex items-center text-lg">
+                      <span className="font-medium">Price:</span>
+                      <span className="ml-3 text-gray-600">{location.priceRange}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-medium text-gray-900 mb-3">Opening Hours</h3>
+                  <div className="space-y-2">
+                    {Object.entries(location.openingHours).map(([day, hours]) => (
+                      <div key={day} className="text-base grid grid-cols-2">
+                        <span className="text-gray-600">{day}</span>
+                        <span className="text-gray-900">{hours}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pb-6">
+                  <h3 className="text-xl font-medium text-gray-900 mb-3">Contact Information</h3>
+                  <div className="space-y-2 text-base text-gray-600">
+                    {location.contact.phone && (
+                      <p>
+                        Phone:{" "}
+                        <a
+                          href={`tel:${location.contact.phone}`}
+                          onClick={() => trackExternalLink('phone', location.name, `tel:${location.contact.phone}`)}
+                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {location.contact.phone}
+                        </a>
+                      </p>
+                    )}
+                    {location.contact.email && location.contact.email !== 'email' && (
+                      <p>
+                        Email:{" "}
+                        <a
+                          href={`mailto:${location.contact.email}`}
+                          onClick={() => trackExternalLink('website', location.name, `mailto:${location.contact.email}`)}
+                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {location.contact.email}
+                        </a>
+                      </p>
+                    )}
+                    {location.contact.website && location.contact.website !== 'website' && (
+                      <p>
+                        Website:{" "}
+                        <a
+                          href={addUtmParams(location.contact.website)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => trackExternalLink('website', location.name, location.contact.website!)}
+                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {location.contact.website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
+                        </a>
+                      </p>
+                    )}
+                    <p>Address: {location.address}</p>
+                  </div>
+                </div>
+                
+                {/* Report Issue Link */}
+                <div className="mt-4 flex justify-center pb-6">
+                  <button
+                    onClick={() => setShowReportIssueModal(true)}
+                    className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-flag">
+                      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                      <line x1="4" x2="4" y1="22" y2="15"></line>
+                    </svg>
+                    Report an issue with this listing
+                  </button>
+                </div>
               </div>
             </div>
-
-            <div className="pb-6">
-              <h3 className="text-xl font-medium text-gray-900 mb-3">Contact Information</h3>
-              <div className="space-y-2 text-base text-gray-600">
-                {location.contact.phone && (
-                  <p>
-                    Phone:{" "}
-                    <a
-                      href={`tel:${location.contact.phone}`}
-                      onClick={() => trackExternalLink('phone', location.name, `tel:${location.contact.phone}`)}
-                      className="text-blue-600 hover:text-blue-800 hover:underline"
-                    >
-                      {location.contact.phone}
-                    </a>
-                  </p>
-                )}
-                {location.contact.email && location.contact.email !== 'email' && (
-                  <p>
-                    Email:{" "}
-                    <a
-                      href={`mailto:${location.contact.email}`}
-                      onClick={() => trackExternalLink('website', location.name, `mailto:${location.contact.email}`)}
-                      className="text-blue-600 hover:text-blue-800 hover:underline"
-                    >
-                      {location.contact.email}
-                    </a>
-                  </p>
-                )}
-                {location.contact.website && location.contact.website !== 'website' && (
-                  <p>
-                    Website:{" "}
-                    <a
-                      href={addUtmParams(location.contact.website)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => trackExternalLink('website', location.name, location.contact.website!)}
-                      className="text-blue-600 hover:text-blue-800 hover:underline"
-                    >
-                      {location.contact.website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
-                    </a>
-                  </p>
-                )}
-                <p>Address: {location.address}</p>
+          </>
+        )}
+        
+        {/* Mobile Location List View */}
+        {!location && isMobile.current && mobileMode === 'list' && (
+          <>
+            {/* List Header */}
+            <div 
+              ref={headerRef}
+              className="flex-shrink-0 bg-white border-b"
+            >
+              <div className="flex items-center justify-between p-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Nearby Activities</h2>
+                  <p className="text-gray-600 mt-2">Select a location to view details</p>
+                </div>
+                <button
+                  onClick={handleCloseList}
+                  className="p-2 rounded-full hover:bg-gray-100"
+                >
+                  <X size={24} className="text-gray-500" />
+                </button>
               </div>
             </div>
             
-            {/* Report Issue Link */}
-            <div className="mt-4 flex justify-center pb-6">
-              <button
-                onClick={() => setShowReportIssueModal(true)}
-                className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-flag">
-                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
-                  <line x1="4" x2="4" y1="22" y2="15"></line>
-                </svg>
-                Report an issue with this listing
-              </button>
+            {/* List Content */}
+            <div 
+              ref={contentRef}
+              className="flex-1 overflow-y-auto overscroll-contain"
+            >
+              {displayedLocations.length === 0 ? (
+                <div className="p-6 text-center text-gray-500">
+                  <p>No locations in current view</p>
+                  <p className="text-sm mt-2">Try zooming out or panning the map</p>
+                </div>
+              ) : (
+                <div>
+                  {displayedLocations.map(loc => (
+                    <LocationTile
+                      key={loc.id}
+                      location={loc}
+                      activityConfig={activityConfig}
+                      onSelect={() => onLocationSelect && onLocationSelect(loc)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </div>
       
       {/* Report Issue Modal */}

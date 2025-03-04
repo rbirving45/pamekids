@@ -35,6 +35,9 @@ const activityConfig = {
 };
 
 const MapComponent: React.FC<MapProps> = ({ locations }) => {
+  // State to track if drawer is open on mobile for showing location list
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(checkIsMobile());
+  
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [hoveredLocation, setHoveredLocation] = useState<Location | null>(null);
   const [openNowFilter, setOpenNowFilter] = useState(false);
@@ -340,6 +343,18 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
     setMaps(window.google.maps);
     
     map.addListener('click', () => {
+      // On mobile, clicking the map should close the drawer
+      if (checkIsMobile()) {
+        setMobileDrawerOpen(false);
+        
+        // Small delay to make sure the animation starts properly
+        setTimeout(() => {
+          // Force CSS updates
+          if (document.body.style.overflow === 'hidden') {
+            document.body.style.overflow = 'auto';
+          }
+        }, 50);
+      }
       setSelectedLocation(null);
       setHoveredLocation(null);
     });
@@ -356,6 +371,82 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
       }
     });
   }, [locations]);
+
+  // Handle drawer close action 
+  const handleDrawerClose = () => {
+    if (checkIsMobile()) {
+      if (selectedLocation) {
+        // If a location is selected, go back to list view
+        setSelectedLocation(null);
+      } else {
+        // If in list view, close drawer completely
+        setMobileDrawerOpen(false);
+        
+        // Small delay to make sure the animation starts properly
+        setTimeout(() => {
+          // Force CSS updates
+          if (document.body.style.overflow === 'hidden') {
+            document.body.style.overflow = 'auto';
+          }
+        }, 50);
+      }
+    } else {
+      // On desktop, just deselect the location
+      setSelectedLocation(null);
+    }
+  };
+
+  // Handle location selection from tile or marker
+  const handleLocationSelect = (location: Location) => {
+    setSelectedLocation(location);
+    trackMarkerClick(location.name);
+    
+    // Pan to the location
+    if (map) {
+      map.panTo(location.coordinates);
+      
+      // Mobile: Ensure marker is in good viewing position
+      if (checkIsMobile()) {
+        const bounds = map.getBounds();
+        if (bounds) {
+          const point = location.coordinates;
+          const projection = map.getProjection();
+          
+          if (projection) {
+            // Calculate visible area considering drawer dimensions
+            const drawerHeight = window.innerHeight * 0.5; // 50vh on mobile
+            const mapWidth = map.getDiv().offsetWidth;
+            const mapHeight = map.getDiv().offsetHeight;
+            
+            // Convert marker position to pixels
+            const pointPx = projection.fromLatLngToPoint(new google.maps.LatLng(point.lat, point.lng));
+            const centerPx = projection.fromLatLngToPoint(map.getCenter()!);
+            
+            if (pointPx && centerPx) {
+              const scale = Math.pow(2, map.getZoom() || 0);
+              
+              const markerScreenY = (pointPx.y - centerPx.y) * scale + mapHeight / 2;
+              
+              // Mobile: Ensure marker is in view above the drawer
+              // Always pan to position the marker in the upper half of visible area
+              const targetY = mapHeight * 0.25; // Position marker at 1/4 from top
+              const newCenterPx = new google.maps.Point(
+                centerPx.x,
+                centerPx.y + (markerScreenY - targetY) / scale
+              );
+              const newCenter = projection.fromPointToLatLng(newCenterPx);
+              if (newCenter) {
+                // Use a small delay to ensure marker click is processed before panning
+                setTimeout(() => {
+                  map.panTo(newCenter);
+                }, 20);
+              }
+            }
+          }
+        }
+      }
+    }
+  };
 
   const ageOptions = Array.from({ length: 19 }, (_, i) => i);
 
@@ -512,212 +603,173 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               bottom: 0,
               marginLeft: window.innerWidth >= 768 ? '533px' : 0, // Add margin for drawer in desktop view
             }}
-          center={userLocation}
-          zoom={13}
-          onLoad={onMapLoad}
-          options={{
-            styles: [
-              {
-                featureType: "poi",
-                elementType: "labels",
-                stylers: [{ visibility: "off" }]
-              },
-              {
-                featureType: "transit",
-                elementType: "labels",
-                stylers: [{ visibility: "off" }]
-              }
-            ],
-            zoomControl: true,
-            mapTypeControl: false,
-            scaleControl: true,
-            streetViewControl: false,
-            rotateControl: false,
-            fullscreenControl: false,
-            clickableIcons: false
-          }}
-        >
-          {/* Markers */}
-          {useMemo(() => {
-            // Memoize the filtered locations to avoid re-filtering on every render
-            const filteredLocations = locations.filter(location => {
-              if (activeFilters.length > 0 && !location.types.some(type => activeFilters.includes(type))) {
-                return false;
-              }
-              if (selectedAge !== null) {
-                if (selectedAge < location.ageRange.min || selectedAge > location.ageRange.max) {
-                  return false;
+            center={userLocation}
+            zoom={13}
+            onLoad={onMapLoad}
+            options={{
+              styles: [
+                {
+                  featureType: "poi",
+                  elementType: "labels",
+                  stylers: [{ visibility: "off" }]
+                },
+                {
+                  featureType: "transit",
+                  elementType: "labels",
+                  stylers: [{ visibility: "off" }]
                 }
-              }
-              if (openNowFilter) {
-                const now = new Date();
-                const day = now.toLocaleDateString('en-US', { weekday: 'long' });
-                const hours = location.openingHours[day];
-
-                if (!hours || hours === 'Closed' || hours === 'Hours not available') {
-                  return false;
-                }
-                if (hours === 'Open 24 hours') {
-                  return true;
-                }
-
-                try {
-                  const timeParts = hours.split(/[–-]/).map(t => t.trim());
-                  if (timeParts.length !== 2) return false;
-                  const [start, end] = timeParts;
-                  
-                  const parseTime = (timeStr: string) => {
-                    if (!timeStr) return 0;
-                    const parts = timeStr.split(' ');
-                    if (parts.length !== 2) return 0;
-                    
-                    const [time, period] = parts;
-                    if (!time || !period) return 0;
-                    
-                    const [hours, minutes] = time.split(':').map(Number);
-                    if (isNaN(hours)) return 0;
-                    
-                    let totalHours = hours;
-                    if (period === 'PM' && hours !== 12) totalHours += 12;
-                    if (period === 'AM' && hours === 12) totalHours = 0;
-                    
-                    return totalHours * 60 + (minutes || 0);
-                  };
-
-                  const startMinutes = parseTime(start);
-                  const endMinutes = parseTime(end);
-                  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-                  if (endMinutes < startMinutes) {
-                    return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
-                  }
-
-                  return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
-                } catch (error) {
-                  // Silent error in production
-                  return false;
-                }
-              }
-              return true;
-            });
-
-            return filteredLocations.map(location => (
-              <Marker
-                key={location.id}
-                position={location.coordinates}
-                onClick={() => {
-                  // Add a slight delay on mobile to allow map panning to complete first
-                  if (checkIsMobile()) {
-                    // On mobile, ensure the marker is centered first, then open drawer
-                    setTimeout(() => {
-                      setSelectedLocation(location);
-                      setHoveredLocation(null); // Move inside timeout to ensure it happens after drawer opens
-                    }, 50);
-                  } else {
-                    // On desktop, open drawer immediately
-                    setSelectedLocation(location);
-                    setHoveredLocation(null);
-                  }
-                  trackMarkerClick(location.name);
-                                    
-                  // Only adjust map bounds on mobile devices
-                  if (map && checkIsMobile()) {
-                    const bounds = map.getBounds();
-                    if (bounds) {
-                      const point = location.coordinates;
-                      const projection = map.getProjection();
-                      
-                      if (projection) {
-                        // Calculate visible area considering drawer dimensions
-                        const drawerHeight = window.innerHeight * 0.5; // 50vh on mobile
-                        const mapWidth = map.getDiv().offsetWidth;
-                        const mapHeight = map.getDiv().offsetHeight;
-                        
-                        // Convert marker position to pixels
-                        const pointPx = projection.fromLatLngToPoint(new google.maps.LatLng(point.lat, point.lng));
-                        const centerPx = projection.fromLatLngToPoint(map.getCenter()!);
-                        
-                        if (pointPx && centerPx) {
-                          const scale = Math.pow(2, map.getZoom() || 0);
-                          
-                          const markerScreenY = (pointPx.y - centerPx.y) * scale + mapHeight / 2;
-                          
-                          // Mobile: Ensure marker is in view above the drawer
-                          // Always pan to position the marker in the upper half of visible area
-                          const targetY = mapHeight * 0.25; // Position marker at 1/4 from top
-                          const newCenterPx = new google.maps.Point(
-                            centerPx.x,
-                            centerPx.y + (markerScreenY - targetY) / scale
-                          );
-                          const newCenter = projection.fromPointToLatLng(newCenterPx);
-                          if (newCenter) {
-                            // Use a small delay to ensure marker click is processed before panning
-                            setTimeout(() => {
-                              map.panTo(newCenter);
-                            }, 20);
-                          }
-                        }
-                      }
-                    }
-                  }
-                }}
-                onMouseOver={() => {
-                  // Allow hovering over any location, even if drawer is open
-                  // Just don't show hover for the currently selected location
-                  if (selectedLocation?.id !== location.id) {
-                    setHoveredLocation(location);
-                  }
-                }}
-                onMouseOut={() => {
-                  if (hoveredLocation?.id === location.id) {
-                    setHoveredLocation(null);
-                  }
-                }}
-                options={{
-                  zIndex: selectedLocation?.id === location.id ? 1000 : 1
-                }}
-                icon={{
-                  ...getMarkerIcon(location),
-                  scale: selectedLocation?.id === location.id ? 2 : 1.5
-                }}
-            />
-          ))}
-          // Close the useMemo callback and dependencies array
-          , [locations, activeFilters, selectedAge, openNowFilter, selectedLocation, map, hoveredLocation])}
-
-          {/* User location marker */}
-          {maps && (
-            <Marker
-              position={userLocation}
-              icon={getUserLocationIcon()}
-              zIndex={1000}
-            />
-          )}
-
-          {/* Drawer Component - Always visible on desktop */}
-          <Drawer
-            location={selectedLocation}
-            onClose={() => setSelectedLocation(null)}
-            activityConfig={activityConfig}
-            visibleLocations={visibleLocations}
-            activeFilters={activeFilters}
-            selectedAge={selectedAge}
-            openNowFilter={openNowFilter}
-            onLocationSelect={(location) => {
-              setSelectedLocation(location);
-              trackMarkerClick(location.name);
-              
-              // Pan to the location
-              if (map) {
-                map.panTo(location.coordinates);
-              }
+              ],
+              zoomControl: true,
+              mapTypeControl: false,
+              scaleControl: true,
+              streetViewControl: false,
+              rotateControl: false,
+              fullscreenControl: false,
+              clickableIcons: false
             }}
-          />
+          >
+            {/* Markers */}
+            {useMemo(() => {
+              // Memoize the filtered locations to avoid re-filtering on every render
+              const filteredLocations = locations.filter(location => {
+                if (activeFilters.length > 0 && !location.types.some(type => activeFilters.includes(type))) {
+                  return false;
+                }
+                if (selectedAge !== null) {
+                  if (selectedAge < location.ageRange.min || selectedAge > location.ageRange.max) {
+                    return false;
+                  }
+                }
+                if (openNowFilter) {
+                  const now = new Date();
+                  const day = now.toLocaleDateString('en-US', { weekday: 'long' });
+                  const hours = location.openingHours[day];
 
-          {/* Hover InfoWindow is handled via useEffect with infoWindowRef */}
-          </GoogleMap>
-        </div>
-      </LoadScriptNext>
+                  if (!hours || hours === 'Closed' || hours === 'Hours not available') {
+                    return false;
+                  }
+                  if (hours === 'Open 24 hours') {
+                    return true;
+                  }
+
+                  try {
+                    const timeParts = hours.split(/[–-]/).map(t => t.trim());
+                    if (timeParts.length !== 2) return false;
+                    const [start, end] = timeParts;
+                    
+                    const parseTime = (timeStr: string) => {
+                      if (!timeStr) return 0;
+                      const parts = timeStr.split(' ');
+                      if (parts.length !== 2) return 0;
+                      
+                      const [time, period] = parts;
+                      if (!time || !period) return 0;
+                      
+                      const [hours, minutes] = time.split(':').map(Number);
+                      if (isNaN(hours)) return 0;
+                      
+                      let totalHours = hours;
+                      if (period === 'PM' && hours !== 12) totalHours += 12;
+                      if (period === 'AM' && hours === 12) totalHours = 0;
+                      
+                      return totalHours * 60 + (minutes || 0);
+                    };
+
+                    const startMinutes = parseTime(start);
+                    const endMinutes = parseTime(end);
+                    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+                    if (endMinutes < startMinutes) {
+                      return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+                    }
+
+                    return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+                  } catch (error) {
+                    // Silent error in production
+                    return false;
+                  }
+                }
+                return true;
+              });
+
+              return filteredLocations.map(location => (
+                <Marker
+                  key={location.id}
+                  position={location.coordinates}
+                  onClick={() => {
+                    // Add a slight delay on mobile to allow map panning to complete first
+                    if (checkIsMobile()) {
+                      // On mobile, ensure the marker is centered first, then open drawer
+                      setTimeout(() => {
+                        handleLocationSelect(location);
+                        // Also make sure drawer is open on mobile
+                        setMobileDrawerOpen(true);
+                      }, 50);
+                    } else {
+                      // On desktop, open drawer immediately
+                      handleLocationSelect(location);
+                    }
+                  }}
+                  onMouseOver={() => {
+                    // Allow hovering over any location, even if drawer is open
+                    // Just don't show hover for the currently selected location
+                    if (selectedLocation?.id !== location.id) {
+                      setHoveredLocation(location);
+                    }
+                  }}
+                  onMouseOut={() => {
+                    if (hoveredLocation?.id === location.id) {
+                      setHoveredLocation(null);
+                    }
+                  }}
+                  options={{
+                    zIndex: selectedLocation?.id === location.id ? 1000 : 1
+                  }}
+                  icon={{
+                    ...getMarkerIcon(location),
+                    scale: selectedLocation?.id === location.id ? 2 : 1.5
+                  }}
+              />
+            ))}
+            // Close the useMemo callback and dependencies array
+            , [locations, activeFilters, selectedAge, openNowFilter, selectedLocation, map, hoveredLocation])}
+
+            {/* User location marker */}
+            {maps && (
+              <Marker
+                position={userLocation}
+                icon={getUserLocationIcon()}
+                zIndex={1000}
+              />
+            )}
+
+            {/* Drawer Component */}
+            <Drawer
+              location={selectedLocation}
+              onClose={handleDrawerClose}
+              activityConfig={activityConfig}
+              visibleLocations={visibleLocations}
+              activeFilters={activeFilters}
+              selectedAge={selectedAge}
+              openNowFilter={openNowFilter}
+              onLocationSelect={handleLocationSelect}
+              mobileDrawerOpen={mobileDrawerOpen}
+            />
+
+            {/* Hover InfoWindow is handled via useEffect with infoWindowRef */}
+            </GoogleMap>
+          </div>
+        </LoadScriptNext>
+        
+      {/* Mobile Drawer Floating Button - Shows when drawer is closed on mobile */}
+      {checkIsMobile() && !mobileDrawerOpen && (
+        <button
+          onClick={() => setMobileDrawerOpen(true)}
+          className="fixed z-40 bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center"
+        >
+          <ChevronDown size={24} className="transform rotate-180" />
+        </button>
+      )}
     </div>
   );
 };
