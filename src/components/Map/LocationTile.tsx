@@ -122,7 +122,7 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
         </div>
         
         {/* Right side - Featured image (square with rounded corners) */}
-        <div className="flex-shrink-0 w-20 h-20 md:w-24 md:h-24 overflow-hidden rounded-lg bg-gray-100">
+        <div className="flex-shrink-0 w-28 h-28 md:w-24 md:h-24 overflow-hidden rounded-lg bg-gray-100 border border-gray-100">
           {featuredImageUrl ? (
             <img
               src={featuredImageUrl}
@@ -138,7 +138,7 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
               style={{ backgroundColor: fallbackImageColor + '20' }}
             >
               <span
-                className="text-2xl font-bold"
+                className="text-3xl font-bold"
                 style={{ color: fallbackImageColor }}
               >
                 {initialLetter}

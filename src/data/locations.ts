@@ -63,7 +63,7 @@ export const sampleLocations: Location[] = [
       Saturday: '8:00 AM – 11:30 PM',
       Sunday: '8:00 AM – 11:30 PM'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
       phone: '697 167 1114',
       email: 'contact@eurohoopsacademy.com',
@@ -95,7 +95,7 @@ export const sampleLocations: Location[] = [
         Saturday: '8:00 AM – 10:00 PM',
         Sunday: '8:00 AM – 10:00 PM'
     },
-    priceRange: '$',
+    priceRange: '€',
     contact: {
         phone: '21 5215 1807',
         email: 'email',
@@ -127,7 +127,7 @@ export const sampleLocations: Location[] = [
         Saturday: '11:00 AM – 10:00 PM',
         Sunday: '11:00 AM – 10:00 PM'
     },
-    priceRange: '$',
+    priceRange: '€',
     contact: {
         phone: '',
         email: 'email',
@@ -159,7 +159,7 @@ export const sampleLocations: Location[] = [
         Saturday: '10:30 AM – 9:30 PM',
         Sunday: '10:30 AM – 9:30 PM'
     },
-    priceRange: '$',
+    priceRange: '€',
     contact: {
         phone: '21 0620 0255',
         email: 'email',
@@ -191,7 +191,7 @@ export const sampleLocations: Location[] = [
         Saturday: '10:00 AM – 9:00 PM',
         Sunday: '10:00 AM – 9:00 PM'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
         phone: '21 0800 0018',
         email: 'email',
@@ -255,7 +255,7 @@ export const sampleLocations: Location[] = [
       Saturday: '10:00 AM – 3:00 PM',
       Sunday: '10:00 AM – 3:00 PM'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
       phone: '21 0801 5870',
       email: 'email',
@@ -319,7 +319,7 @@ export const sampleLocations: Location[] = [
       Saturday: '10:00 AM – 6:00 PM',
       Sunday: '10:00 AM – 6:00 PM'
     },
-    priceRange: '$',
+    priceRange: '€',
     contact: {
       phone: '698 396 7409',
       email: 'email',
@@ -383,7 +383,7 @@ export const sampleLocations: Location[] = [
       Saturday: '10:00 AM – 9:00 PM',
       Sunday: '11:00 AM – 7:00 PM'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
       phone: '21 0688 5450',
       email: 'email',
@@ -415,7 +415,7 @@ export const sampleLocations: Location[] = [
       Saturday: 'Hours not available',
       Sunday: 'Hours not available'
     },
-    priceRange: '$',
+    priceRange: '€',
     contact: {
       phone: '21 0800 1610',
       email: 'email',
@@ -543,7 +543,7 @@ export const sampleLocations: Location[] = [
       Saturday: '9:00 AM – 5:00 PM',
       Sunday: '9:00 AM – 5:00 PM'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
       phone: '21 0663 4725',
       email: 'email',
@@ -575,7 +575,7 @@ export const sampleLocations: Location[] = [
       Saturday: '10:00 AM – 6:00 PM',
       Sunday: 'Closed'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
       phone: '698 707 2816',
       email: 'email',
@@ -639,7 +639,7 @@ export const sampleLocations: Location[] = [
       Saturday: '1:00 PM – 12:00 AM',
       Sunday: '1:00 – 7:00 PM'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
       phone: '21 0807 0969',
       email: 'email@email.com',
@@ -671,7 +671,7 @@ export const sampleLocations: Location[] = [
       Saturday: '1:00 – 11:30 PM',
       Sunday: '1:00 – 11:30 PM'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
       phone: 'phone',
       email: 'email',
@@ -703,7 +703,7 @@ export const sampleLocations: Location[] = [
       Saturday: '10:00 AM – 9:00 PM',
       Sunday: '10:00 AM – 9:00 PM'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
       phone: '21 0220 1610',
       email: 'email',
@@ -739,7 +739,7 @@ export const sampleLocations: Location[] = [
       Saturday: '10:00 AM – 6:00 PM',
       Sunday: '10:00 AM – 6:00 PM'
     },
-    priceRange: '$',
+    priceRange: '€',
     contact: {
       phone: '694 462 0825',
       email: 'email',
@@ -775,7 +775,7 @@ export const sampleLocations: Location[] = [
       Saturday: 'Closed',
       Sunday: 'Closed'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
       phone: '21 0677 7017',
       email: 'contact@gymboreepsychiko.com',
@@ -811,7 +811,7 @@ export const sampleLocations: Location[] = [
       Saturday: '10:00 AM – 9:00 PM',
       Sunday: '10:00 AM – 9:00 PM'
     },
-    priceRange: '$',
+    priceRange: '€',
     contact: {
       phone: '21 0284 3500',
       email: 'contact@toyslandathenskidssoftplaypartyvenue.com',
@@ -847,7 +847,7 @@ export const sampleLocations: Location[] = [
       Saturday: "11:00 AM – 10:00 PM",
       Sunday: "11:00 AM – 9:30 PM"
     },
-    priceRange: "$$",
+    priceRange: "€€",
     contact: {
       phone: "21 0810 5300",
       email: "contact@funmilyeatdrinkplay.com",
@@ -883,7 +883,7 @@ export const sampleLocations: Location[] = [
       Saturday: "10:00 AM – 10:00 PM",
       Sunday: "10:00 AM – 10:00 PM"
     },
-    priceRange: "$$",
+    priceRange: "€€",
     contact: {
       phone: "21 1213 3172",
       email: "contact@kindercitypartyhall.com",
@@ -919,7 +919,7 @@ export const sampleLocations: Location[] = [
       Saturday: "10:00 AM – 10:00 PM",
       Sunday: "10:00 AM – 10:00 PM"
     },
-    priceRange: "$",
+    priceRange: "€",
     contact: {
       phone: "697 447 4878",
       email: "contact@magicland.com",
@@ -955,7 +955,7 @@ export const sampleLocations: Location[] = [
       Saturday: "10:00 AM – 10:30 PM",
       Sunday: "10:00 AM – 10:00 PM"
     },
-    priceRange: "$",
+    priceRange: "€",
     contact: {
       phone: "21 0621 5707",
       email: "contact@playspaceamfil.com",
@@ -991,7 +991,7 @@ export const sampleLocations: Location[] = [
       Saturday: "Hours not available",
       Sunday: "Hours not available"
     },
-    priceRange: "$",
+    priceRange: "€",
     contact: {
       phone: "21 3043 4220",
       email: "contact@.com",

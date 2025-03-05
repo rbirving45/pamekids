@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, memo, useMemo, useRef } from '
 import ImageCarousel from './ImageCarousel';
 import { Location, ActivityType } from '../../data/locations';
 import { addUtmParams, trackExternalLink } from '../../utils/analytics';
-import { X, Phone, Globe, MapPin, ChevronDown, ArrowLeft } from 'lucide-react';
+import { X, Phone, Globe, MapPin, ChevronDown, ArrowLeft, ChevronLeft } from 'lucide-react';
 import { fetchPlaceDetails } from '../../utils/places-api';
 import RatingDisplay from './RatingDisplay';
 import ReportIssueModal from '../ReportIssue/ReportIssueModal';
@@ -18,6 +18,7 @@ interface DrawerProps {
   selectedAge?: number | null;
   openNowFilter?: boolean;
   mobileDrawerOpen?: boolean; // Add this prop to control mobile drawer state
+  backToList?: () => void; // Add this prop to handle back to list navigation
 }
 
 // Using memo to prevent unnecessary re-renders when props don't change
@@ -30,7 +31,8 @@ const Drawer: React.FC<DrawerProps> = memo(({
   activeFilters = [],
   selectedAge = null,
   openNowFilter = false,
-  mobileDrawerOpen = true
+  mobileDrawerOpen = true,
+  backToList
 }) => {
   // Store location ID to prevent unnecessary effect triggers
   const locationId = location?.id;
@@ -41,10 +43,13 @@ const Drawer: React.FC<DrawerProps> = memo(({
   const [fetchTimestamp, setFetchTimestamp] = useState(0);
   const [showReportIssueModal, setShowReportIssueModal] = useState(false);
   
-  // Mobile drawer state
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [mobileMode, setMobileMode] = useState<'list' | 'detail'>('list');
+  // Mobile drawer state - check localStorage for previous expanded state
   const isMobile = useRef(window.matchMedia('(max-width: 767px)').matches);
+  const [mobileMode, setMobileMode] = useState<'list' | 'detail'>('list');
+  
+  // Initialize expanded state to false (half-screen) on mobile for list view
+  // But keep expanded state for location detail view if coming from expanded list
+  const [isExpanded, setIsExpanded] = useState(false);
   
   const drawerRef = useRef<HTMLDivElement>(null);
   const pullHandleRef = useRef<HTMLDivElement>(null);
@@ -63,6 +68,8 @@ const Drawer: React.FC<DrawerProps> = memo(({
     if (isMobile.current) {
       if (location) {
         setMobileMode('detail');
+        // Don't reset the expanded state when transitioning from list to detail
+        // This allows the detail view to inherit the expanded state from the list view
       } else {
         setMobileMode('list');
       }
@@ -87,10 +94,8 @@ const Drawer: React.FC<DrawerProps> = memo(({
     setHasAttemptedFetch(false);
     setFetchTimestamp(Date.now()); // Use timestamp to force new photo loading
     
-    // Only reset expansion state when switching to detail view
-    if (location && isMobile.current) {
-      setIsExpanded(false);
-    }
+    // Preserve expanded state when location changes on mobile
+    // We want to remember if the user had the drawer expanded
     
     // Reset any active drag when location changes
     if (drawerRef.current) {
@@ -312,7 +317,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
             // Collapse to half state with significant downward swipe
             setIsExpanded(false);
           } else if (totalDeltaY > 250 || (totalDeltaY > 150 && swipeVelocity > 0.8)) {
-            // Very large swipe or fast large swipe - close drawer
+            // Very large swipe or fast large swipe - close drawer completely
             handleCloseAction();
           } else {
             // Not enough movement - reset to expanded state
@@ -323,8 +328,8 @@ const Drawer: React.FC<DrawerProps> = memo(({
           if (totalDeltaY < -80 || (totalDeltaY < -40 && swipeVelocity > 0.5)) {
             // Expand with significant upward swipe
             setIsExpanded(true);
-          } else if (totalDeltaY > 180 || (totalDeltaY > 100 && swipeVelocity > 0.8)) {
-            // Close drawer with significant downward swipe
+          } else if (totalDeltaY > 100 || (totalDeltaY > 60 && swipeVelocity > 0.5)) {
+            // Lower the threshold - close drawer completely with moderate downward swipe
             handleCloseAction();
           } else {
             // Not enough movement - reset to half state
@@ -365,6 +370,20 @@ const Drawer: React.FC<DrawerProps> = memo(({
     }
   }, [isExpanded]);
 
+  // Preserve expanded state when transitioning from list to detail view on mobile
+  useEffect(() => {
+    if (isMobile.current && location && mobileMode === 'detail' && mobileDrawerOpen) {
+      // Check if we're coming from a list view that was expanded
+      const listWasExpanded = !location && isExpanded;
+      
+      // If the drawer was already in expanded state in list view, keep it expanded
+      // Otherwise, use the current value of isExpanded
+      if (listWasExpanded) {
+        setIsExpanded(true);
+      }
+    }
+  }, [location, mobileMode, mobileDrawerOpen, isExpanded]);
+
   // Add click handlers for the pull handle
   useEffect(() => {
     const handle = pullHandleRef.current;
@@ -378,19 +397,19 @@ const Drawer: React.FC<DrawerProps> = memo(({
     return () => handle.removeEventListener('click', handleClick);
   }, []);
 
-  // Handle close action for different states
+  // Handle drawer close action for different states
   const handleCloseAction = () => {
-    if (isMobile.current) {
-      if (mobileMode === 'detail') {
-        // If we're in detail view on mobile, go back to list view
-        onClose();
-      } else {
-        // If we're in list view on mobile, close the drawer completely
-        onClose();
-      }
-    } else {
-      // On desktop, just close the drawer
-      onClose();
+    // Always close the drawer completely on mobile
+    // On desktop, maintain the original behavior
+    onClose();
+  };
+  
+  // Handle back to list navigation on mobile
+  const handleBackToList = () => {
+    if (isMobile.current && backToList) {
+      // We want to transition to list view while preserving expanded state
+      backToList();
+      // Reset location without changing the expanded state
     }
   };
 
@@ -407,19 +426,58 @@ const Drawer: React.FC<DrawerProps> = memo(({
     if (!location) return () => null;
     
     return () => (
-      <div className="flex flex-col gap-3 w-full">
+      <div className="flex flex-col md:flex-col gap-3 w-full">
+        {/* On mobile: All buttons in a single row, on desktop: original layout */}
+        <div className="flex gap-2 md:hidden w-full">
+          <a
+            href={getDirectionsUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => trackExternalLink('directions', location.name, getDirectionsUrl())}
+            className="flex-1 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 text-center flex items-center justify-center gap-1"
+          >
+            <MapPin size={16} />
+            Directions
+          </a>
+          
+          {location.contact.website && (
+            <a
+              href={addUtmParams(location.contact.website)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => trackExternalLink('website', location.name, location.contact.website!)}
+              className="flex-1 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 text-center flex items-center justify-center gap-1"
+            >
+              <Globe size={16} />
+              Website
+            </a>
+          )}
+          
+          {location.contact.phone && (
+            <a
+              href={`tel:${location.contact.phone}`}
+              onClick={() => trackExternalLink('phone', location.name, `tel:${location.contact.phone}`)}
+              className="flex-1 px-3 py-2 text-sm font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 text-center flex items-center justify-center gap-1"
+            >
+              <Phone size={16} />
+              Call
+            </a>
+          )}
+        </div>
+        
+        {/* Desktop layout - keep original layout */}
         <a
           href={getDirectionsUrl()}
           target="_blank"
           rel="noopener noreferrer"
           onClick={() => trackExternalLink('directions', location.name, getDirectionsUrl())}
-          className="w-full px-6 py-3 text-base font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 text-center flex items-center justify-center gap-2"
+          className="hidden md:flex w-full px-6 py-3 text-base font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 text-center items-center justify-center gap-2"
         >
           <MapPin size={20} />
           Get Directions
         </a>
         
-        <div className="flex gap-3">
+        <div className="hidden md:flex gap-3">
           {location.contact.website && (
             <a
               href={addUtmParams(location.contact.website)}
@@ -609,11 +667,11 @@ const Drawer: React.FC<DrawerProps> = memo(({
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop - completely transparent on mobile for all views */}
       <div
-        className={`fixed inset-0 bg-black bg-opacity-25 z-30 md:hidden ${
+        className={`fixed inset-0 z-30 md:hidden ${
           (location || (isMobile.current && mobileMode === 'list')) && drawerRef.current ? 'pointer-events-auto' : 'pointer-events-none'
-        }`}
+        } bg-transparent`}
         onClick={handleCloseAction}
       />
       
@@ -657,20 +715,31 @@ const Drawer: React.FC<DrawerProps> = memo(({
               ref={headerRef}
               className={`flex-shrink-0 bg-white border-b ${isExpanded ? 'sticky top-0 z-10' : ''}`}
             >
-              <div className="flex flex-col p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    {isMobile.current && (
-                      <button 
-                        onClick={handleCloseAction}
-                        className="mb-2 p-1 -ml-1 rounded-full hover:bg-gray-100"
-                      >
-                        <ArrowLeft size={20} className="text-gray-500" />
-                      </button>
-                    )}
-                    <h2 className="text-2xl font-bold text-gray-900">{location.name}</h2>
+              <div className="flex flex-col md:p-6 p-4">
+                <div className="flex items-start justify-between mb-2 md:mb-4">
+                  <div className="flex flex-col">
+                    {/* Top row with back button and name */}
+                    <div className="flex items-center">
+                      {/* Back button for mobile only */}
+                      {isMobile.current && backToList ? (
+                        <button
+                          onClick={handleBackToList}
+                          className="p-1.5 -ml-1.5 mr-2 rounded-full hover:bg-gray-100 transition-colors"
+                          aria-label="Back to list"
+                        >
+                          <ChevronLeft size={20} className="text-gray-600" />
+                        </button>
+                      ) : (
+                        <>
+                          {/* This renders nothing on mobile but keeps desktop unchanged */}
+                        </>
+                      )}
+                      <h2 className="text-xl md:text-2xl font-bold text-gray-900">{location.name}</h2>
+                    </div>
+                    
+                    {/* Rating display */}
                     {mergedPlaceData?.rating && mergedPlaceData.userRatingsTotal && (
-                      <div className="mt-2">
+                      <div className="mt-1 md:mt-2">
                         <RatingDisplay
                           rating={mergedPlaceData.rating}
                           totalRatings={mergedPlaceData.userRatingsTotal}
@@ -679,11 +748,13 @@ const Drawer: React.FC<DrawerProps> = memo(({
                         />
                       </div>
                     )}
-                    <div className="flex flex-wrap gap-2 mt-2">
+                    
+                    {/* Activity types */}
+                    <div className="flex flex-wrap gap-1 md:gap-2 mt-1.5 md:mt-2">
                       {location.types.map(type => (
                         <span
                           key={type}
-                          className="inline-block px-3 py-1.5 text-sm font-medium rounded-full"
+                          className="inline-block px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm font-medium rounded-full"
                           style={{
                             backgroundColor: activityConfig[type].color + '20',
                             color: activityConfig[type].color
@@ -702,8 +773,8 @@ const Drawer: React.FC<DrawerProps> = memo(({
                   </button>
                 </div>
 
-                {/* Action Buttons - Show at top on mobile */}
-                <div className="md:hidden">
+                {/* Action Buttons - Show at top on mobile with single row layout */}
+                <div className="md:hidden mt-1">
                   <ActionButtons />
                 </div>
               </div>
@@ -834,22 +905,22 @@ const Drawer: React.FC<DrawerProps> = memo(({
         {/* Mobile Location List View */}
         {!location && isMobile.current && mobileMode === 'list' && (
           <>
-            {/* List Header */}
+            {/* List Header - Streamlined for mobile */}
             <div 
               ref={headerRef}
               className="flex-shrink-0 bg-white border-b"
             >
-              <div className="flex items-center justify-between p-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Nearby Activities</h2>
-                  <p className="text-gray-600 mt-2">Select a location to view details</p>
-                </div>
-                <button
-                  onClick={handleCloseList}
-                  className="p-2 rounded-full hover:bg-gray-100"
-                >
-                  <X size={24} className="text-gray-500" />
-                </button>
+              <div className="flex items-center justify-between p-4">
+                <h2 className="text-xl font-bold text-gray-900">Nearby Activities</h2>
+                {/* Close button only shown on desktop */}
+                {!isMobile.current && (
+                  <button
+                    onClick={handleCloseList}
+                    className="p-2 rounded-full hover:bg-gray-100"
+                  >
+                    <X size={24} className="text-gray-500" />
+                  </button>
+                )}
               </div>
             </div>
             

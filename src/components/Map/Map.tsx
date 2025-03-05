@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { GoogleMap, LoadScriptNext, Marker, Libraries } from '@react-google-maps/api';
 import Drawer from './Drawer';
 import { Location, ActivityType } from '../../data/locations';
-import { Search, ChevronDown } from 'lucide-react';
+import { Search, ChevronDown, List } from 'lucide-react';
 import { trackExternalLink, trackMarkerClick, addUtmParams } from '../../utils/analytics';
 
 // Helper function to reliably detect mobile devices
@@ -79,7 +79,8 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
   useEffect(() => {
     // Early exit if we don't have map or hoveredLocation
     // Add additional check to close InfoWindow when drawer is open on mobile
-    if (!map || !maps || !hoveredLocation || (checkIsMobile() && selectedLocation)) {
+    // Don't show InfoWindow at all on mobile devices
+    if (!map || !maps || !hoveredLocation || checkIsMobile() || (checkIsMobile() && selectedLocation)) {
       // Clean up any existing infoWindow
       if (infoWindowRef.current) {
         infoWindowRef.current.close();
@@ -302,11 +303,11 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
     
     return {
       path: maps.SymbolPath.CIRCLE,
-      scale: 12,
+      scale: 10, // Smaller than location markers (which use scale 1.5 with custom path)
       fillColor: '#4285F4',
       fillOpacity: 0.9,
       strokeColor: '#FFFFFF',
-      strokeWeight: 3
+      strokeWeight: 2
     };
   }, [maps]);
 
@@ -343,8 +344,9 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
     setMaps(window.google.maps);
     
     map.addListener('click', () => {
-      // On mobile, clicking the map should close the drawer
+      // On mobile, clicking the map should close the drawer completely
       if (checkIsMobile()) {
+        setSelectedLocation(null);
         setMobileDrawerOpen(false);
         
         // Small delay to make sure the animation starts properly
@@ -354,8 +356,10 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
             document.body.style.overflow = 'auto';
           }
         }, 50);
+      } else {
+        // On desktop, just deselect the location
+        setSelectedLocation(null);
       }
-      setSelectedLocation(null);
       setHoveredLocation(null);
     });
 
@@ -375,21 +379,17 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
   // Handle drawer close action 
   const handleDrawerClose = () => {
     if (checkIsMobile()) {
-      if (selectedLocation) {
-        // If a location is selected, go back to list view
-        setSelectedLocation(null);
-      } else {
-        // If in list view, close drawer completely
-        setMobileDrawerOpen(false);
-        
-        // Small delay to make sure the animation starts properly
-        setTimeout(() => {
-          // Force CSS updates
-          if (document.body.style.overflow === 'hidden') {
-            document.body.style.overflow = 'auto';
-          }
-        }, 50);
-      }
+      // On mobile: Always close the drawer completely regardless of current state
+      setSelectedLocation(null);
+      setMobileDrawerOpen(false);
+      
+      // Small delay to make sure the animation starts properly
+      setTimeout(() => {
+        // Force CSS updates
+        if (document.body.style.overflow === 'hidden') {
+          document.body.style.overflow = 'auto';
+        }
+      }, 50);
     } else {
       // On desktop, just deselect the location
       setSelectedLocation(null);
@@ -401,46 +401,44 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
     setSelectedLocation(location);
     trackMarkerClick(location.name);
     
-    // Pan to the location
-    if (map) {
+    // Only pan to the location on mobile view
+    if (map && checkIsMobile()) {
       map.panTo(location.coordinates);
       
       // Mobile: Ensure marker is in good viewing position
-      if (checkIsMobile()) {
-        const bounds = map.getBounds();
-        if (bounds) {
-          const point = location.coordinates;
-          const projection = map.getProjection();
+      const bounds = map.getBounds();
+      if (bounds) {
+        const point = location.coordinates;
+        const projection = map.getProjection();
+        
+        if (projection) {
+          // Since we now show the drawer in full screen on mobile, adjust targeting
+          // to position the marker higher up in the visible map area
+          const mapWidth = map.getDiv().offsetWidth;
+          const mapHeight = map.getDiv().offsetHeight;
           
-          if (projection) {
-            // Calculate visible area considering drawer dimensions
-            const drawerHeight = window.innerHeight * 0.5; // 50vh on mobile
-            const mapWidth = map.getDiv().offsetWidth;
-            const mapHeight = map.getDiv().offsetHeight;
+          // Convert marker position to pixels
+          const pointPx = projection.fromLatLngToPoint(new google.maps.LatLng(point.lat, point.lng));
+          const centerPx = projection.fromLatLngToPoint(map.getCenter()!);
+          
+          if (pointPx && centerPx) {
+            const scale = Math.pow(2, map.getZoom() || 0);
             
-            // Convert marker position to pixels
-            const pointPx = projection.fromLatLngToPoint(new google.maps.LatLng(point.lat, point.lng));
-            const centerPx = projection.fromLatLngToPoint(map.getCenter()!);
+            const markerScreenY = (pointPx.y - centerPx.y) * scale + mapHeight / 2;
             
-            if (pointPx && centerPx) {
-              const scale = Math.pow(2, map.getZoom() || 0);
-              
-              const markerScreenY = (pointPx.y - centerPx.y) * scale + mapHeight / 2;
-              
-              // Mobile: Ensure marker is in view above the drawer
-              // Always pan to position the marker in the upper half of visible area
-              const targetY = mapHeight * 0.25; // Position marker at 1/4 from top
-              const newCenterPx = new google.maps.Point(
-                centerPx.x,
-                centerPx.y + (markerScreenY - targetY) / scale
-              );
-              const newCenter = projection.fromPointToLatLng(newCenterPx);
-              if (newCenter) {
-                // Use a small delay to ensure marker click is processed before panning
-                setTimeout(() => {
-                  map.panTo(newCenter);
-                }, 20);
-              }
+            // Mobile: Position marker in the upper portion of the visible area
+            // Target 20% from top since we'll have a fullscreen drawer
+            const targetY = mapHeight * 0.2;
+            const newCenterPx = new google.maps.Point(
+              centerPx.x,
+              centerPx.y + (markerScreenY - targetY) / scale
+            );
+            const newCenter = projection.fromPointToLatLng(newCenterPx);
+            if (newCenter) {
+              // Use a small delay to ensure marker click is processed before panning
+              setTimeout(() => {
+                map.panTo(newCenter);
+              }, 20);
             }
           }
         }
@@ -739,7 +737,107 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               <Marker
                 position={userLocation}
                 icon={getUserLocationIcon()}
-                zIndex={1000}
+                zIndex={900} // Lower than location markers (1000) so it appears behind them
+                title="Your current location" // Basic tooltip for non-touch devices
+                onMouseOver={() => {
+                  // Create and open an info window for the user's location
+                  if (!map) return;
+                  
+                  // Close any existing InfoWindow for this marker
+                  if (infoWindowRef.current) {
+                    infoWindowRef.current.close();
+                  }
+                  
+                  // Create a new InfoWindow if it doesn't exist
+                  if (!infoWindowRef.current) {
+                    infoWindowRef.current = new maps.InfoWindow({
+                      disableAutoPan: true,
+                      pixelOffset: new maps.Size(0, -30),
+                      maxWidth: 220
+                    });
+                  }
+                  
+                  // Custom content for user location tooltip
+                  const content = document.createElement('div');
+                  content.style.cssText = `
+                    padding: 10px 14px;
+                    margin: 0;
+                    border-radius: 8px;
+                    background-color: white;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    min-width: 160px;
+                    transform: translateY(-8px);
+                  `;
+                  
+                  content.innerHTML = `
+                    <div style="
+                      display: flex;
+                      align-items: center;
+                      gap: 8px;
+                    ">
+                      <div style="
+                        width: 12px;
+                        height: 12px;
+                        border-radius: 50%;
+                        background-color: #4285F4;
+                        border: 2px solid white;
+                      "></div>
+                      <p style="
+                        font-size: 14px;
+                        font-weight: 500;
+                        color: #1f2937;
+                        margin: 0;
+                      ">Your current location</p>
+                    </div>
+                  `;
+                  
+                  // Set content and position
+                  infoWindowRef.current.setContent(content);
+                  infoWindowRef.current.setPosition(userLocation);
+                  
+                  // Open the InfoWindow
+                  infoWindowRef.current.open(map);
+                  
+                  // Apply styles to InfoWindow container after it's added to DOM
+                  setTimeout(() => {
+                    // Target the container div
+                    const container = document.querySelector('.gm-style-iw-c');
+                    if (container) {
+                      // Apply styles to completely remove padding and unwanted UI elements
+                      (container as HTMLElement).style.padding = '0';
+                      (container as HTMLElement).style.boxShadow = 'none';
+                      (container as HTMLElement).style.backgroundColor = 'transparent';
+                      (container as HTMLElement).style.borderRadius = '8px';
+                      (container as HTMLElement).style.maxWidth = 'none';
+                      (container as HTMLElement).style.maxHeight = 'none';
+                      
+                      // Hide the close button
+                      const closeButtons = document.querySelectorAll('.gm-ui-hover-effect, .gm-style-iw-d + button');
+                      closeButtons.forEach(button => {
+                        (button as HTMLElement).style.display = 'none';
+                      });
+                      
+                      // Remove the bottom tail/arrow
+                      const tail = document.querySelector('.gm-style-iw-t::after');
+                      if (tail) {
+                        (tail as HTMLElement).style.display = 'none';
+                      }
+                      
+                      // Fix inner container padding
+                      const innerContainer = document.querySelector('.gm-style-iw-d');
+                      if (innerContainer) {
+                        (innerContainer as HTMLElement).style.overflow = 'visible';
+                        (innerContainer as HTMLElement).style.padding = '0';
+                      }
+                    }
+                  }, 0);
+                }}
+                onMouseOut={() => {
+                  // Close the InfoWindow when mouse leaves
+                  if (infoWindowRef.current) {
+                    infoWindowRef.current.close();
+                  }
+                }}
               />
             )}
 
@@ -754,6 +852,11 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               openNowFilter={openNowFilter}
               onLocationSelect={handleLocationSelect}
               mobileDrawerOpen={mobileDrawerOpen}
+              backToList={() => {
+                // Transition to list view on mobile while preserving drawer state
+                setSelectedLocation(null);
+                setMobileDrawerOpen(true);
+              }}
             />
 
             {/* Hover InfoWindow is handled via useEffect with infoWindowRef */}
@@ -765,9 +868,14 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
       {checkIsMobile() && !mobileDrawerOpen && (
         <button
           onClick={() => setMobileDrawerOpen(true)}
-          className="fixed z-40 bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center"
+          className="fixed z-40 bottom-6 left-1/2 transform -translate-x-1/2 px-4 py-3 rounded-full bg-white hover:bg-gray-50 shadow-lg flex items-center gap-2 border border-gray-200"
+          aria-label="Show locations"
         >
-          <ChevronDown size={24} className="transform rotate-180" />
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
         </button>
       )}
     </div>
