@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { GoogleMap, LoadScriptNext, Marker, Libraries } from '@react-google-maps/api';
 import Drawer from './Drawer';
 import { Location, ActivityType } from '../../data/locations';
-import { Search, ChevronDown, List } from 'lucide-react';
-import { trackExternalLink, trackMarkerClick, addUtmParams } from '../../utils/analytics';
+import { Search, ChevronDown } from 'lucide-react';
+import { trackMarkerClick } from '../../utils/analytics';
 
 // Helper function to reliably detect mobile devices
 const checkIsMobile = () => {
