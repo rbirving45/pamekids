@@ -4,6 +4,7 @@ import MapComponent from './components/Map/Map';
 import { sampleLocations } from './data/locations';
 import SuggestActivityButton from './components/SuggestActivity/SuggestActivityButton';
 import SuggestActivityModal from './components/SuggestActivity/SuggestActivityModal';
+import { NewsletterButton, NewsletterModal } from './components/Newsletter';
 
 const activityConfig = {
   'indoor-play': { name: 'Indoor Play', color: '#FF4444' },
@@ -17,6 +18,7 @@ const activityConfig = {
 
 function App() {
   const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
+  const [isNewsletterModalOpen, setIsNewsletterModalOpen] = useState(false);
   
   // Add debug utility for location issues (accessible via window object)
   React.useEffect(() => {
@@ -38,14 +40,17 @@ function App() {
       <header className="bg-white shadow-md z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-          <div className="relative inline-flex items-baseline">
-            {/* Main logo text */}
-            <span className="font-nunito text-2xl font-bold text-blue-500">Pame</span>
-            
-            {/* Sub-brand text */}
-            <span className="font-nunito text-xl font-semibold text-orange-500">Kids</span>
-          </div>
-            <SuggestActivityButton onClick={() => setIsSuggestModalOpen(true)} />
+            <div className="relative inline-flex items-baseline">
+              {/* Main logo text */}
+              <span className="font-nunito text-2xl font-bold text-blue-500">Pame</span>
+              
+              {/* Sub-brand text */}
+              <span className="font-nunito text-xl font-semibold text-orange-500">Kids</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <NewsletterButton onClick={() => setIsNewsletterModalOpen(true)} />
+              <SuggestActivityButton onClick={() => setIsSuggestModalOpen(true)} />
+            </div>
           </div>
         </div>
       </header>
@@ -57,6 +62,11 @@ function App() {
         isOpen={isSuggestModalOpen}
         onClose={() => setIsSuggestModalOpen(false)}
         activityTypes={activityConfig}
+      />
+      
+      <NewsletterModal
+        isOpen={isNewsletterModalOpen}
+        onClose={() => setIsNewsletterModalOpen(false)}
       />
     </div>
   );
