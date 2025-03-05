@@ -10,6 +10,7 @@ interface FormData {
   email: string;
   firstName: string;
   ageRanges: string[];
+  postalCode: string;
 }
 
 const NewsletterModal: React.FC<NewsletterModalProps> = ({
@@ -20,6 +21,7 @@ const NewsletterModal: React.FC<NewsletterModalProps> = ({
     email: '',
     firstName: '',
     ageRanges: [],
+    postalCode: '',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,6 +35,7 @@ const NewsletterModal: React.FC<NewsletterModalProps> = ({
         email: '',
         firstName: '',
         ageRanges: [],
+        postalCode: '',
       });
       setErrors({});
       setSubmitStatus('idle');
@@ -109,6 +112,7 @@ const NewsletterModal: React.FC<NewsletterModalProps> = ({
         email: '',
         firstName: '',
         ageRanges: [],
+        postalCode: '',
       });
 
       // Close modal after 3 seconds
@@ -136,7 +140,8 @@ const NewsletterModal: React.FC<NewsletterModalProps> = ({
           <X size={20} className="text-gray-500" />
         </button>
 
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Subscribe to our Newsletter</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Subscribe to discover more</h2>
+        <p className="text-gray-600 mb-6">Sign up to discover more of the best kids activities, classes, and events in your area!</p>
 
         {submitStatus === 'success' ? (
           <div className="p-4 bg-green-50 text-green-800 rounded-lg mb-4 flex items-center">
@@ -171,7 +176,7 @@ const NewsletterModal: React.FC<NewsletterModalProps> = ({
 
             <div>
               <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-                First Name (optional)
+                Name (optional)
               </label>
               <input
                 type="text"
@@ -180,8 +185,26 @@ const NewsletterModal: React.FC<NewsletterModalProps> = ({
                 value={formData.firstName}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200"
-                placeholder="Your first name"
+                placeholder="Your name"
               />
+            </div>
+
+            <div>
+              <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700 mb-1">
+                Postal Code (optional)
+              </label>
+              <input
+                type="text"
+                id="postalCode"
+                name="postalCode"
+                value={formData.postalCode}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200"
+                placeholder="Enter your postal code"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Helps us send you location-specific activities
+              </p>
             </div>
 
             <div>

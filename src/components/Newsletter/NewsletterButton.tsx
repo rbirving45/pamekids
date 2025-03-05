@@ -13,7 +13,7 @@ const NewsletterButton: React.FC<NewsletterButtonProps> = ({ onClick }) => {
       aria-label="Sign up for newsletter"
     >
       <Mail size={18} />
-      <span className="ml-2 hidden md:inline">Newsletter</span>
+      <span className="ml-2 hidden md:inline">Subscribe</span>
     </button>
   );
 };

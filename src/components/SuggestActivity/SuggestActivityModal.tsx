@@ -201,6 +201,7 @@ const SuggestActivityModal: React.FC<SuggestActivityModalProps> = ({
         </button>
 
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Suggest an Activity</h2>
+        <p className="text-gray-600 mb-6">Add your favorite places and activities to PameKids!</p>
 
         {submitStatus === 'success' ? (
           <div className="p-4 bg-green-50 text-green-800 rounded-lg mb-4 flex items-center">
