@@ -8,6 +8,7 @@ import { initGA } from './utils/analytics';
 // potential side-effects of changing complex dependencies in useEffect/useMemo hooks.
 
 // Initialize Google Analytics after DOM is ready
+// App name: PameKids
 if (typeof window !== 'undefined') {
   window.addEventListener('DOMContentLoaded', () => {
     initGA();
