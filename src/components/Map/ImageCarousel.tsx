@@ -314,7 +314,7 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
         currentImageUrl && (
           <img
             src={currentImageUrl}
-            alt={`${businessName} - Photo ${currentIndex + 1}`}
+            alt={`${businessName} ${currentIndex + 1}`}
             className={`w-full h-full object-cover transition-opacity duration-300 ${
               isLoading ? 'opacity-20' : 'opacity-100'
             }`}

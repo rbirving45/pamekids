@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, memo, useMemo, useRef } from '
 import ImageCarousel from './ImageCarousel';
 import { Location, ActivityType } from '../../data/locations';
 import { addUtmParams, trackExternalLink } from '../../utils/analytics';
-import { X, Phone, Globe, MapPin, ChevronDown, ArrowLeft, ChevronLeft } from 'lucide-react';
+import { X, Phone, Globe, MapPin, ChevronLeft } from 'lucide-react';
 import { fetchPlaceDetails } from '../../utils/places-api';
 import RatingDisplay from './RatingDisplay';
 import ReportIssueModal from '../ReportIssue/ReportIssueModal';
@@ -58,10 +58,8 @@ const Drawer: React.FC<DrawerProps> = memo(({
   const dragStartY = useRef<number | null>(null);
   const lastTouchY = useRef<number | null>(null);
   const touchStartTime = useRef<number>(0);
-  const touchDragDistance = useRef<number>(0);
   const isDragging = useRef<boolean>(false);
   const isScrolling = useRef<boolean>(false);
-  const lastScrollTop = useRef<number>(0);
   
   // Determine which view to show on mobile
   useEffect(() => {
@@ -112,7 +110,6 @@ const Drawer: React.FC<DrawerProps> = memo(({
     if (!locationId || !window.google?.maps) return;
     
     setIsLoading(true);
-    setHasAttemptedFetch(true);
     
     try {
       const data = await fetchPlaceDetails(locationId, window.google.maps);
@@ -150,7 +147,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
     } finally {
       setIsLoading(false);
     }
-  }, [locationId, location, fetchTimestamp]);
+  }, [locationId, location]);
 
   // Fetch data immediately when a location is selected
   useEffect(() => {
@@ -173,7 +170,6 @@ const Drawer: React.FC<DrawerProps> = memo(({
   useEffect(() => {
     if (!isMobile.current || (!location && mobileMode !== 'list' && !mobileDrawerOpen) || !drawerRef.current) return;
     
-    const drawer = drawerRef.current;
     const content = contentRef.current;
     
     if (!content) return;
