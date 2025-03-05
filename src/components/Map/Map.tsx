@@ -216,7 +216,8 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
         infoWindowRef.current.close();
       }
     };
-  }, [hoveredLocation, map, maps, activityConfig, trackMarkerClick]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hoveredLocation, map, maps, selectedLocation]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -397,7 +398,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
   };
 
   // Handle location selection from tile or marker
-  const handleLocationSelect = (location: Location) => {
+  const handleLocationSelect = useCallback((location: Location) => {
     setSelectedLocation(location);
     trackMarkerClick(location.name);
     
@@ -413,8 +414,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
         
         if (projection) {
           // Since we now show the drawer in full screen on mobile, adjust targeting
-          // to position the marker higher up in the visible map area
-          const mapWidth = map.getDiv().offsetWidth;
+          // Convert marker position to pixels
           const mapHeight = map.getDiv().offsetHeight;
           
           // Convert marker position to pixels
@@ -444,7 +444,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
         }
       }
     }
-  };
+  }, [map]); // Removed trackMarkerClick as it's from an imported module and doesn't change
 
   const ageOptions = Array.from({ length: 19 }, (_, i) => i);
 
@@ -586,7 +586,14 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
 
       {/* Map */}
       <LoadScriptNext
-        googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY!}
+        googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY || ''}
+        onError={(error) => {
+          console.error('Google Maps loading error:', error);
+          // Check if error might be related to API key
+          if (!process.env.REACT_APP_GOOGLE_MAPS_API_KEY || process.env.REACT_APP_GOOGLE_MAPS_API_KEY === '') {
+            alert('Google Maps API key is missing or invalid. Please check your .env file.');
+          }
+        }}
         libraries={GOOGLE_MAPS_LIBRARIES}
       >
         <div className="relative flex-1 flex">
@@ -730,7 +737,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               />
             ))}
             // Close the useMemo callback and dependencies array
-            , [locations, activeFilters, selectedAge, openNowFilter, selectedLocation, map, hoveredLocation])}
+            , [locations, activeFilters, selectedAge, openNowFilter, selectedLocation, hoveredLocation, getMarkerIcon, handleLocationSelect])}
 
             {/* User location marker */}
             {maps && (

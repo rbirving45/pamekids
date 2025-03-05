@@ -2,6 +2,24 @@
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+## Google Maps API Key Configuration
+
+This application requires a Google Maps API key to function correctly. Follow these steps to set it up:
+
+1. Obtain a Google Maps API key from the [Google Cloud Console](https://console.cloud.google.com/)
+2. Enable the following APIs in your Google Cloud project:
+   - Maps JavaScript API
+   - Places API
+   - Geocoding API
+3. Create a file named `.env` in the root of the project
+4. Add your API key to the `.env` file using this format:
+   ```
+   REACT_APP_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+   ```
+5. Restart your development server if it's already running
+
+Note: The application looks for an environment variable named `REACT_APP_GOOGLE_MAPS_API_KEY` - this naming convention is required by Create React App.
+
 ## Available Scripts
 
 In the project directory, you can run:
