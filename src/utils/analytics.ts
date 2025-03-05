@@ -19,20 +19,33 @@ export const initGA = () => {
     'ad_storage': 'denied'
   });
 
-  // Load GA4 script
-  const script = document.createElement('script');
-  script.async = true;
-  script.src = `https://www.googletagmanager.com/gtag/js?id=G-12345678`;
-  document.head.appendChild(script);
+  // Get Google Analytics measurement ID from environment variable
+  const measurementId = process.env.REACT_APP_GA_MEASUREMENT_ID;
+  
+  // Only load GA if measurement ID is available
+  if (measurementId) {
+    // Load GA4 script
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
+    document.head.appendChild(script);
 
-  // Initialize GA4 with configuration
-  window.gtag('js', new Date());
-  window.gtag('config', 'G-12345678', {
+    // Initialize GA4 with configuration
+    window.gtag('js', new Date());
+    window.gtag('config', measurementId, {
     send_page_view: true,
     cookie_flags: 'max-age=7200;secure;samesite=none',
     cookie_domain: 'auto',
     cookie_update: true
-  });
+    });
+  } else {
+    console.warn('Google Analytics measurement ID not found. Analytics will not be loaded.');
+    
+    // Provide a stub implementation to prevent errors
+    window.gtag = function() {
+      // No-op function
+    };
+  }
 };
 
 // Throttle events to prevent excessive tracking

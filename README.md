@@ -11,7 +11,7 @@ This application requires a Google Maps API key to function correctly. Follow th
    - Maps JavaScript API
    - Places API
    - Geocoding API
-3. Create a file named `.env` in the root of the project
+3. Create a file named `.env` in the root of the project (copy from `.env.example`)
 4. Add your API key to the `.env` file using this format:
    ```
    REACT_APP_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
@@ -19,6 +19,28 @@ This application requires a Google Maps API key to function correctly. Follow th
 5. Restart your development server if it's already running
 
 Note: The application looks for an environment variable named `REACT_APP_GOOGLE_MAPS_API_KEY` - this naming convention is required by Create React App.
+
+## API Key Security
+
+To ensure your API keys remain secure:
+
+1. **NEVER commit your `.env` file to version control**
+   - The project includes a `.gitignore` file that excludes `.env` from Git
+   - Always use `.env.example` as a template without real credentials
+
+2. **For deployment platforms (Netlify, Vercel, etc.)**
+   - Set environment variables through their secure dashboard
+   - Do not include actual API keys in build scripts or public repositories
+
+3. **API Key Restrictions**
+   - For Google Maps, restrict your API key to:
+     - Only your website's domain(s)
+     - Only the specific APIs needed (Maps JavaScript, Places, Geocoding)
+   - Set usage quotas to prevent unexpected charges
+
+4. **Monitor API Usage**
+   - Regularly check your Google Cloud Console for unusual activity
+   - Set up billing alerts to be notified of unexpected charges
 
 ## Available Scripts
 

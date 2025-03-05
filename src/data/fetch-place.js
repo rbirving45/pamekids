@@ -7,8 +7,17 @@ const dotenv = require('dotenv');
 // Load environment variables
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const GOOGLE_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || 'AIzaSyCvfy38n1SOWR2T9ZY7q5u0St8JwdyaNk4';
+const GOOGLE_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+
+// Ensure API keys are available
+if (!GOOGLE_API_KEY) {
+  console.error('REACT_APP_GOOGLE_MAPS_API_KEY environment variable is missing. Please check your .env file.');
+}
+
+if (!ANTHROPIC_API_KEY && process.env.NODE_ENV === 'development') {
+  console.warn('ANTHROPIC_API_KEY environment variable is missing. Some features may not work correctly.');
+}
 const PLACE_ID = process.argv[2] || 'ChIJ-SZuer-foRQR_xVHROWWreM'; // Accept place ID as command line argument
 const OUTPUT_FILE = 'locations.ts'; // This will look in the current directory
 const BACKUP_FILE = 'locations.ts.original';
