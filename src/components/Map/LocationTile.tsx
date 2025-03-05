@@ -11,6 +11,7 @@ interface LocationTileProps {
 
 const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, onSelect }) => {
   const [placeData, setPlaceData] = useState<Location['placeData']>();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isLoading, setIsLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
 
