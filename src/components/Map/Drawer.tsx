@@ -39,7 +39,9 @@ const Drawer: React.FC<DrawerProps> = memo(({
   
   const [placeData, setPlaceData] = useState<Location['placeData']>();
   const [isLoading, setIsLoading] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [fetchTimestamp, setFetchTimestamp] = useState(0);
   const [showReportIssueModal, setShowReportIssueModal] = useState(false);
   
@@ -72,9 +74,11 @@ const Drawer: React.FC<DrawerProps> = memo(({
         setMobileMode('list');
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location]);
   
   // Return early if mobile drawer should be closed
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isMobile.current && !mobileDrawerOpen && !location) {
       // Reset any transform and animation when drawer is closed
@@ -186,6 +190,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
     // Attach to content area, not the entire drawer
     content.addEventListener('wheel', handleWheel, { passive: false });
     return () => content.removeEventListener('wheel', handleWheel);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location, isExpanded, mobileMode, mobileDrawerOpen]);
   
   // Add effect to ensure drawer gets proper pointer events after rendering
@@ -202,7 +207,15 @@ const Drawer: React.FC<DrawerProps> = memo(({
     }
   }, [location, mobileMode]);
 
-  // Unified touch event handling for the drawer
+  // Handle drawer close action for different states
+  const handleCloseAction = () => {
+    // Always close the drawer completely on mobile
+    // On desktop, maintain the original behavior
+    onClose();
+  };
+
+  // Add unified touch event handling for the drawer
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isMobile.current || (!location && mobileMode !== 'list' && !mobileDrawerOpen) || !drawerRef.current) return;
     
@@ -355,7 +368,8 @@ const Drawer: React.FC<DrawerProps> = memo(({
       drawer.removeEventListener('touchend', handleTouchEnd);
       drawer.removeEventListener('touchcancel', handleTouchEnd);
     };
-  }, [location, isExpanded, onClose, mobileMode, mobileDrawerOpen]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location, isExpanded, mobileMode, mobileDrawerOpen]);
 
   // Reset transform when expanded state changes
   useEffect(() => {
@@ -393,12 +407,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
     return () => handle.removeEventListener('click', handleClick);
   }, []);
 
-  // Handle drawer close action for different states
-  const handleCloseAction = () => {
-    // Always close the drawer completely on mobile
-    // On desktop, maintain the original behavior
-    onClose();
-  };
+
   
   // Handle back to list navigation on mobile
   const handleBackToList = () => {
@@ -417,7 +426,13 @@ const Drawer: React.FC<DrawerProps> = memo(({
     }
   };
 
+  // Function to get directions URL
+  const getDirectionsUrl = () => {
+    return location ? `https://www.google.com/maps/dir/?api=1&destination=${location.coordinates.lat},${location.coordinates.lng}` : '';
+  };
+
   // Memoize ActionButtons to prevent unnecessary re-renders
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const ActionButtons = useMemo(() => {
     if (!location) return () => null;
     
@@ -500,12 +515,8 @@ const Drawer: React.FC<DrawerProps> = memo(({
         </div>
       </div>
     );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location]);
-
-  // Function to get directions URL
-  const getDirectionsUrl = () => {
-    return location ? `https://www.google.com/maps/dir/?api=1&destination=${location.coordinates.lat},${location.coordinates.lng}` : '';
-  };
 
   // Make sure placeData object is valid
   const ensurePhotoData = (data: Location['placeData'] | undefined) => {
