@@ -636,13 +636,17 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
                   stylers: [{ visibility: "off" }]
                 }
               ],
-              zoomControl: true,
+              zoomControl: !checkIsMobile(), // Hide zoom controls on mobile
               mapTypeControl: false,
               scaleControl: true,
               streetViewControl: false,
               rotateControl: false,
               fullscreenControl: false,
-              clickableIcons: false
+              clickableIcons: false,
+              gestureHandling: 'greedy', // Enable one-finger panning
+              minZoom: 3, // Prevent zooming out too far
+              maxZoom: 20, // Prevent excessive zoom
+              disableDefaultUI: checkIsMobile() // Hide all default UI on mobile
             }}
           >
             {/* Markers */}

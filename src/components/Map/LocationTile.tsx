@@ -58,21 +58,21 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
 
   return (
     <div
-      className="py-4 px-4 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer transition-colors duration-150"
+      className="py-1.5 md:py-2 px-3 md:px-4 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer transition-colors duration-150"
       onClick={onSelect}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2 md:gap-3">
         {/* Left content - Location info */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 pr-3">
           {/* Name */}
-          <h3 className="text-lg font-semibold text-gray-900 mb-1.5 line-clamp-1">{location.name}</h3>
+          <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-0.5 md:mb-1 line-clamp-1">{location.name}</h3>
           
           {/* Activity Types */}
-          <div className="flex flex-wrap gap-1 mb-2">
+          <div className="flex flex-wrap gap-1 mb-0.5 md:mb-1">
             {location.types.map(type => (
               <span
                 key={type}
-                className="inline-block px-2 py-0.5 text-xs font-medium rounded-full"
+                className="inline-block px-1.5 md:px-2 py-0.5 text-xs font-medium rounded-full"
                 style={{
                   backgroundColor: activityConfig[type].color + '20',
                   color: activityConfig[type].color
@@ -83,17 +83,32 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
             ))}
           </div>
           
-          {/* Age range */}
-          <span className="inline-block text-xs text-gray-500 px-2 py-0.5 bg-gray-100 rounded-full mb-2">
-            Ages {location.ageRange.min}-{location.ageRange.max}
-          </span>
+          <div className="flex items-center gap-2 mb-0.5 md:mb-1">
+            {/* Age range */}
+            <span className="inline-block text-xs text-gray-500 px-1.5 md:px-2 py-0.5 bg-gray-100 rounded-full">
+              Ages {location.ageRange.min}-{location.ageRange.max}
+            </span>
+            
+            {/* Rating display - Show inline with age on mobile */}
+            {mergedPlaceData?.rating && mergedPlaceData.userRatingsTotal && (
+              <div className="flex items-center">
+                <Star
+                  size={12}
+                  className="text-yellow-400 fill-yellow-400"
+                />
+                <span className="text-xs text-gray-600 ml-0.5">
+                  {mergedPlaceData.rating.toFixed(1)}
+                </span>
+              </div>
+            )}
+          </div>
           
           {/* Location description - truncated */}
-          <p className="text-sm text-gray-600 line-clamp-2 mb-2">{location.description}</p>
+          <p className="text-xs md:text-sm text-gray-600 line-clamp-2 mb-0.5 md:mb-1">{location.description}</p>
           
-          {/* Rating display inside tile - simplified, non-clickable version */}
+          {/* Full rating display - desktop only */}
           {mergedPlaceData?.rating && mergedPlaceData.userRatingsTotal && (
-            <div className="flex items-center">
+            <div className="hidden md:flex items-center">
               <div className="flex items-center">
                 {[...Array(5)].map((_, i) => {
                   const rating = mergedPlaceData.rating || 0;
@@ -123,7 +138,7 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
         </div>
         
         {/* Right side - Featured image (square with rounded corners) */}
-        <div className="flex-shrink-0 w-28 h-28 md:w-24 md:h-24 overflow-hidden rounded-lg bg-gray-100 border border-gray-100">
+        <div className="flex-shrink-0 w-24 h-24 md:w-32 md:h-32 overflow-hidden rounded-lg bg-gray-100 border border-gray-100">
           {featuredImageUrl ? (
             <img
               src={featuredImageUrl}
