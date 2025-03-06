@@ -221,9 +221,15 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // For search, only close if click is outside AND not on a search result
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setSearchExpanded(false);
+        // Check if the click was on a search result item
+        const clickedOnSearchResult = (event.target as Element)?.closest('[data-search-result]');
+        if (!clickedOnSearchResult) {
+          setSearchExpanded(false);
+        }
       }
+      
       if (ageDropdownRef.current && !ageDropdownRef.current.contains(event.target as Node)) {
         setIsAgeDropdownOpen(false);
       }
@@ -453,7 +459,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
       <div className="bg-white p-2 overflow-x-auto shadow-sm">
         <div className="flex items-center gap-2">
           {/* Search Component */}
-          <div ref={searchRef} className="relative">
+          <div ref={searchRef} className="relative z-[500]">
             <div className={`flex items-center transition-all duration-200 ${
               searchExpanded ? 'w-64' : 'w-10'
             }`}>
@@ -476,11 +482,17 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
                   />
                   
                   {searchResults.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg max-h-60 overflow-y-auto z-50">
+                    <div className="fixed mt-1 bg-white rounded-lg shadow-lg max-h-60 overflow-y-auto z-[9999]" style={{
+                      top: searchRef.current?.getBoundingClientRect().bottom,
+                      left: searchRef.current?.getBoundingClientRect().left,
+                      width: searchRef.current?.getBoundingClientRect().width,
+                      maxWidth: '350px'
+                    }}>
                       {searchResults.map((result, index) => (
                         <button
                           key={`${result.location.id}-${result.matchField}-${index}`}
                           onClick={() => handleSearchSelect(result.location)}
+                          data-search-result="true"
                           className="w-full p-2 text-left hover:bg-gray-50 border-b border-gray-100 last:border-0"
                         >
                           <p className="font-medium">{result.location.name}</p>
