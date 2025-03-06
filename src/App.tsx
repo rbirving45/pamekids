@@ -42,10 +42,10 @@ function App() {
           <div className="flex justify-between items-center h-16">
             <div className="relative inline-flex items-baseline">
               {/* Main logo text */}
-              <span className="font-nunito text-2xl font-bold text-blue-500">Pame</span>
+              <span className="font-logo text-2xl font-bold text-blue-500">Pame</span>
               
               {/* Sub-brand text */}
-              <span className="font-nunito text-xl font-semibold text-orange-500">Kids</span>
+              <span className="font-logo text-xl font-semibold text-orange-500">Kids</span>
             </div>
             <div className="flex items-center space-x-3">
               <NewsletterButton onClick={() => setIsNewsletterModalOpen(true)} />
