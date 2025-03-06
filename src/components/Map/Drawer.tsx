@@ -249,15 +249,19 @@ const Drawer: React.FC<DrawerProps> = memo(({
       initialScrollTop = content.scrollTop;
       
       // Determine if we should handle this touch as a drawer drag
-      // If touch started on handle or header, always handle it
-      // When mobile expanded, only handle if touch starts on the pull handle
       if (e.target === handle || (!isMobile.current || !isExpanded) && header && header.contains(e.target as Node)) {
+        // Always handle drag for pull handle or header (when not expanded)
         shouldHandleDrag = true;
-        // Remove transition during drag for immediate response
         drawer.style.transition = 'none';
       } else if (content.contains(e.target as Node)) {
-        // For content area, only handle drag if we're at the top and moving down
+        // For expanded view, we'll handle drag if we're at the top OR if it's a significant downward swipe
         shouldHandleDrag = false; // We'll decide this in touchmove
+        
+        // If we're expanded and at the top, prepare for potential drag
+        if (isExpanded && initialScrollTop <= 0) {
+          shouldHandleDrag = true;
+          drawer.style.transition = 'none';
+        }
       }
       
       // Reset tracking
@@ -270,21 +274,28 @@ const Drawer: React.FC<DrawerProps> = memo(({
       const currentY = e.touches[0].clientY;
       const deltaY = currentY - initialTouchY;
       const isScrollingDown = currentY > lastTouchY.current!;
+      const moveDistance = Math.abs(deltaY);
+      const timeDelta = Date.now() - touchStartTime.current;
+      const velocity = moveDistance / timeDelta;
       
       // Update last touch position for next move event
       lastTouchY.current = currentY;
       
       // For content area, decide if this is a scroll or drawer drag
       if (!isDragging.current && !isScrolling.current && content.contains(e.target as Node)) {
-        // If in mobile expanded mode, we should never intercept content scrolling
-        // unless we're at the very top and pulling down
+        // Enhanced drag detection for expanded mode
         if (isMobile.current && isExpanded) {
-          if (initialScrollTop <= 1 && isScrollingDown) {
-            // Only allow dragging down from the very top
+          const isSignificantDownwardSwipe = isScrollingDown && (velocity > 0.3 || moveDistance > 30);
+          
+          if ((initialScrollTop <= 1 && isScrollingDown) || isSignificantDownwardSwipe) {
+            // Allow dragging for top-edge pulls or significant downward swipes
             isDragging.current = true;
             drawer.style.transition = 'none';
             shouldHandleDrag = true;
-          } else {
+            // Prevent scroll when we're taking over with drag
+            e.preventDefault();
+          } else if (!isSignificantDownwardSwipe && !shouldHandleDrag) {
+            // Normal content scroll
             isScrolling.current = true;
             return;
           }
@@ -295,7 +306,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
           drawer.style.transition = 'none';
           shouldHandleDrag = true;
         } else {
-          // Otherwise, this is just a normal content scroll - let the browser handle it
+          // Regular content scroll
           isScrolling.current = true;
           return;
         }
@@ -339,29 +350,37 @@ const Drawer: React.FC<DrawerProps> = memo(({
         const touchDuration = touchEndTime - touchStartTime.current;
         const swipeVelocity = Math.abs(totalDeltaY) / touchDuration;
         
-        // Apply drawer logic based on swipe distance/velocity
+        // Enhanced drawer logic with better velocity/distance thresholds
         if (isExpanded) {
           // Currently expanded
-          if (totalDeltaY > 100 || (totalDeltaY > 50 && swipeVelocity > 0.5)) {
-            // Collapse to half state with significant downward swipe
-            setIsExpanded(false);
-          } else if (totalDeltaY > 250 || (totalDeltaY > 150 && swipeVelocity > 0.8)) {
-            // Very large swipe or fast large swipe - close drawer completely
-            handleCloseAction();
+          if (totalDeltaY > 0) { // Downward swipe
+            if (swipeVelocity > 0.7 || totalDeltaY > 150) {
+              // Fast or long downward swipe - collapse to half state
+              setIsExpanded(false);
+            } else if (swipeVelocity > 1.2 || totalDeltaY > 300) {
+              // Very fast or very long swipe - close completely
+              handleCloseAction();
+            } else if (totalDeltaY > 60) {
+              // Moderate swipe - collapse to half state
+              setIsExpanded(false);
+            } else {
+              // Small movement - stay expanded
+              drawer.style.transform = '';
+            }
           } else {
-            // Not enough movement - reset to expanded state
+            // Upward swipe while expanded - reset position
             drawer.style.transform = '';
           }
         } else {
           // Currently in half state
-          if (totalDeltaY < -80 || (totalDeltaY < -40 && swipeVelocity > 0.5)) {
-            // Expand with significant upward swipe
+          if (totalDeltaY < 0 && (swipeVelocity > 0.5 || totalDeltaY < -50)) {
+            // Upward swipe - expand
             setIsExpanded(true);
-          } else if (totalDeltaY > 100 || (totalDeltaY > 60 && swipeVelocity > 0.5)) {
-            // Lower the threshold - close drawer completely with moderate downward swipe
+          } else if (totalDeltaY > 0 && (swipeVelocity > 0.5 || totalDeltaY > 80)) {
+            // Downward swipe - close completely
             handleCloseAction();
           } else {
-            // Not enough movement - reset to half state
+            // Not enough movement - stay in half state
             drawer.style.transform = '';
           }
         }
@@ -654,7 +673,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
 
   // Check if we should render the drawer at all
   const shouldRenderDrawer = isMobile.current 
-    ? (location !== null || (mobileMode === 'list' && mobileDrawerOpen && visibleLocations.length > 0))
+    ? ((location !== null) || (mobileMode === 'list' && mobileDrawerOpen && visibleLocations.length > 0))
     : true;
   
   // If nothing to display on mobile, return null
