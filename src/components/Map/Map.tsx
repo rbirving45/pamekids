@@ -456,10 +456,10 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
 
   return (
     <div className="relative h-full w-full flex flex-col">
-      <div className="bg-white p-2 overflow-x-auto shadow-sm">
+      <div className="bg-white p-2 overflow-x-auto shadow-sm z-[10] relative">
         <div className="flex items-center gap-2">
           {/* Search Component */}
-          <div ref={searchRef} className="relative z-[500]">
+          <div ref={searchRef} className="relative z-[20]">
             <div className={`flex items-center transition-all duration-200 ${
               searchExpanded ? 'w-64' : 'w-10'
             }`}>
@@ -482,7 +482,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
                   />
                   
                   {searchResults.length > 0 && (
-                    <div className="fixed mt-1 bg-white rounded-lg shadow-lg max-h-60 overflow-y-auto z-[9999]" style={{
+                    <div className="fixed mt-1 bg-white rounded-lg shadow-lg max-h-60 overflow-y-auto z-[25]" style={{
                       top: searchRef.current?.getBoundingClientRect().bottom,
                       left: searchRef.current?.getBoundingClientRect().left,
                       width: searchRef.current?.getBoundingClientRect().width,
@@ -548,7 +548,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               </button>
 
               {isAgeDropdownOpen && (
-                <div className="fixed mt-1 bg-white rounded-lg shadow-lg py-2 w-32 max-h-60 overflow-y-auto z-[9999]" style={{
+                <div className="fixed mt-1 bg-white rounded-lg shadow-lg py-2 w-32 max-h-60 overflow-y-auto z-[25]" style={{
                   top: ageDropdownRef.current?.getBoundingClientRect().bottom,
                   left: ageDropdownRef.current?.getBoundingClientRect().left
                 }}>

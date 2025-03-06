@@ -37,7 +37,7 @@ function App() {
 
   return (
     <div className="h-screen w-full flex flex-col">
-      <header className="bg-white shadow-md z-20">
+      <header className="bg-white shadow-md z-10 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="relative inline-flex items-baseline">
