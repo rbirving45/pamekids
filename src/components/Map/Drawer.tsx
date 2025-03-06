@@ -673,7 +673,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
 
   // Check if we should render the drawer at all
   const shouldRenderDrawer = isMobile.current 
-    ? ((location !== null) || (mobileMode === 'list' && mobileDrawerOpen && visibleLocations.length > 0))
+    ? (location !== null || (mobileMode === 'list' && mobileDrawerOpen && visibleLocations.length > 0))
     : true;
   
   // If nothing to display on mobile, return null
