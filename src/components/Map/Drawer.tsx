@@ -80,7 +80,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // Return early if mobile drawer should be closed
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (isMobile.current && !mobileDrawerOpen && !location) {
+    if (isMobile.current && (!mobileDrawerOpen && !location)) {
       // Reset any transform and animation when drawer is closed
       if (drawerRef.current) {
         drawerRef.current.style.transform = '';
@@ -179,9 +179,15 @@ const Drawer: React.FC<DrawerProps> = memo(({
     if (!content) return;
     
     const handleWheel = (e: WheelEvent) => {
-      // Only intercept wheel events if they would expand the drawer and we're at the top
-      // This allows natural scrolling otherwise
-      if (!isExpanded && e.deltaY > 0 && content.scrollTop <= 0) {
+      // On mobile in half-screen: expand on any scroll attempt
+      if (isMobile.current && !isExpanded) {
+        setIsExpanded(true);
+        e.preventDefault(); // Prevent actual scrolling during expansion
+        return;
+      }
+      
+      // On desktop: only intercept wheel events if they would expand the drawer and we're at the top
+      if (!isMobile.current && !isExpanded && e.deltaY > 0 && content.scrollTop <= 0) {
         setIsExpanded(true);
         e.preventDefault(); // Prevent actual scrolling during expansion
       }
@@ -244,7 +250,8 @@ const Drawer: React.FC<DrawerProps> = memo(({
       
       // Determine if we should handle this touch as a drawer drag
       // If touch started on handle or header, always handle it
-      if (e.target === handle || header.contains(e.target as Node)) {
+      // When mobile expanded, only handle if touch starts on the pull handle
+      if (e.target === handle || (!isMobile.current || !isExpanded) && header && header.contains(e.target as Node)) {
         shouldHandleDrag = true;
         // Remove transition during drag for immediate response
         drawer.style.transition = 'none';
@@ -269,8 +276,21 @@ const Drawer: React.FC<DrawerProps> = memo(({
       
       // For content area, decide if this is a scroll or drawer drag
       if (!isDragging.current && !isScrolling.current && content.contains(e.target as Node)) {
-        // If we're at the top (or near top with some threshold) and trying to pull down
-        if (initialScrollTop <= 1 && isScrollingDown) {
+        // If in mobile expanded mode, we should never intercept content scrolling
+        // unless we're at the very top and pulling down
+        if (isMobile.current && isExpanded) {
+          if (initialScrollTop <= 1 && isScrollingDown) {
+            // Only allow dragging down from the very top
+            isDragging.current = true;
+            drawer.style.transition = 'none';
+            shouldHandleDrag = true;
+          } else {
+            isScrolling.current = true;
+            return;
+          }
+        }
+        // Normal half-screen behavior
+        else if (initialScrollTop <= 1 && isScrollingDown) {
           isDragging.current = true;
           drawer.style.transition = 'none';
           shouldHandleDrag = true;
@@ -646,7 +666,6 @@ const Drawer: React.FC<DrawerProps> = memo(({
       <div className="hidden md:block fixed z-40 bg-white shadow-lg w-[533px] left-0 top-[calc(4rem+3.25rem)] rounded-r-lg bottom-0 overflow-hidden">
         <div className="p-6 border-b">
           <h2 className="text-2xl font-bold text-gray-900">Nearby Activities</h2>
-          <p className="text-gray-600 mt-2">Select a location to view details</p>
         </div>
         
         <div className="overflow-y-auto h-[calc(100vh-4rem-3.25rem-76px)]">
@@ -717,75 +736,77 @@ const Drawer: React.FC<DrawerProps> = memo(({
         {/* Location Detail View */}
         {location && (
           <>
-            {/* Header - Fixed at top */}
-            <div 
-              ref={headerRef}
-              className={`flex-shrink-0 bg-white border-b ${isExpanded ? 'sticky top-0 z-10' : ''}`}
-            >
-              <div className="flex flex-col md:p-6 p-4">
-                <div className="flex items-start justify-between mb-2 md:mb-4">
-                  <div className="flex flex-col">
-                    {/* Top row with back button and name */}
-                    <div className="flex items-center">
-                      {/* Back button for mobile only */}
-                      {isMobile.current && backToList ? (
-                        <button
-                          onClick={handleBackToList}
-                          className="p-1.5 -ml-1.5 mr-2 rounded-full hover:bg-gray-100 transition-colors"
-                          aria-label="Back to list"
-                        >
-                          <ChevronLeft size={20} className="text-gray-600" />
-                        </button>
-                      ) : (
-                        <>
-                          {/* This renders nothing on mobile but keeps desktop unchanged */}
-                        </>
-                      )}
-                      <h2 className="text-xl md:text-2xl font-bold text-gray-900">{location.name}</h2>
-                    </div>
-                    
-                    {/* Rating display */}
-                    {mergedPlaceData?.rating && mergedPlaceData.userRatingsTotal && (
-                      <div className="mt-1 md:mt-2">
-                        <RatingDisplay
-                          rating={mergedPlaceData.rating}
-                          totalRatings={mergedPlaceData.userRatingsTotal}
-                          placeId={location.id}
-                          businessName={location.name}
-                        />
+            {/* On desktop or when NOT expanded on mobile: Header stays separate */}
+            {(!isMobile.current || !isExpanded) && (
+              <div
+                ref={headerRef}
+                className={`flex-shrink-0 bg-white border-b ${isExpanded && !isMobile.current ? 'sticky top-0 z-10' : ''}`}
+              >
+                <div className="flex flex-col md:p-6 p-4">
+                  <div className="flex items-start justify-between mb-2 md:mb-4">
+                    <div className="flex flex-col">
+                      {/* Top row with back button and name */}
+                      <div className="flex items-center">
+                        {/* Back button for mobile only */}
+                        {isMobile.current && backToList ? (
+                          <button
+                            onClick={handleBackToList}
+                            className="p-1.5 -ml-1.5 mr-2 rounded-full hover:bg-gray-100 transition-colors"
+                            aria-label="Back to list"
+                          >
+                            <ChevronLeft size={20} className="text-gray-600" />
+                          </button>
+                        ) : (
+                          <>
+                            {/* This renders nothing on mobile but keeps desktop unchanged */}
+                          </>
+                        )}
+                        <h2 className="text-xl md:text-2xl font-bold text-gray-900">{location.name}</h2>
                       </div>
-                    )}
-                    
-                    {/* Activity types */}
-                    <div className="flex flex-wrap gap-1 md:gap-2 mt-1.5 md:mt-2">
-                      {location.types.map(type => (
-                        <span
-                          key={type}
-                          className="inline-block px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm font-medium rounded-full"
-                          style={{
-                            backgroundColor: activityConfig[type].color + '20',
-                            color: activityConfig[type].color
-                          }}
-                        >
-                          {activityConfig[type].name}
-                        </span>
-                      ))}
+                      
+                      {/* Rating display */}
+                      {mergedPlaceData?.rating && mergedPlaceData.userRatingsTotal && (
+                        <div className="mt-1 md:mt-2">
+                          <RatingDisplay
+                            rating={mergedPlaceData.rating}
+                            totalRatings={mergedPlaceData.userRatingsTotal}
+                            placeId={location.id}
+                            businessName={location.name}
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Activity types */}
+                      <div className="flex flex-wrap gap-1 md:gap-2 mt-1.5 md:mt-2">
+                        {location.types.map(type => (
+                          <span
+                            key={type}
+                            className="inline-block px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm font-medium rounded-full"
+                            style={{
+                              backgroundColor: activityConfig[type].color + '20',
+                              color: activityConfig[type].color
+                            }}
+                          >
+                            {activityConfig[type].name}
+                          </span>
+                        ))}
+                      </div>
                     </div>
+                    <button
+                      onClick={handleCloseAction}
+                      className="p-2 rounded-full hover:bg-gray-100 hidden md:block"
+                    >
+                      <X size={24} className="text-gray-500" />
+                    </button>
                   </div>
-                  <button
-                    onClick={handleCloseAction}
-                    className="p-2 rounded-full hover:bg-gray-100 hidden md:block"
-                  >
-                    <X size={24} className="text-gray-500" />
-                  </button>
-                </div>
 
-                {/* Action Buttons - Show at top on mobile with single row layout */}
-                <div className="md:hidden mt-1">
-                  <ActionButtons />
+                  {/* Action Buttons - Show at top on mobile with single row layout */}
+                  <div className="md:hidden mt-1">
+                    <ActionButtons />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Scrollable Content */}
             <div 
@@ -793,6 +814,64 @@ const Drawer: React.FC<DrawerProps> = memo(({
               className="flex-1 overflow-y-auto overscroll-contain"
             >
               <div className="p-6 space-y-6">
+                {/* For mobile expanded view: Include header content at the top of the scrollable area */}
+                {isMobile.current && isExpanded && (
+                  <div className="mb-4 -mt-2 -mx-2 bg-white">
+                    <div className="flex flex-col p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex flex-col">
+                          {/* Top row with back button and name */}
+                          <div className="flex items-center">
+                            {/* Back button for mobile */}
+                            {backToList && (
+                              <button
+                                onClick={handleBackToList}
+                                className="p-1.5 -ml-1.5 mr-2 rounded-full hover:bg-gray-100 transition-colors"
+                                aria-label="Back to list"
+                              >
+                                <ChevronLeft size={20} className="text-gray-600" />
+                              </button>
+                            )}
+                            <h2 className="text-xl font-bold text-gray-900">{location.name}</h2>
+                          </div>
+                          
+                          {/* Rating display */}
+                          {mergedPlaceData?.rating && mergedPlaceData.userRatingsTotal && (
+                            <div className="mt-1">
+                              <RatingDisplay
+                                rating={mergedPlaceData.rating}
+                                totalRatings={mergedPlaceData.userRatingsTotal}
+                                placeId={location.id}
+                                businessName={location.name}
+                              />
+                            </div>
+                          )}
+                          
+                          {/* Activity types */}
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {location.types.map(type => (
+                              <span
+                                key={type}
+                                className="inline-block px-2 py-1 text-xs font-medium rounded-full"
+                                style={{
+                                  backgroundColor: activityConfig[type].color + '20',
+                                  color: activityConfig[type].color
+                                }}
+                              >
+                                {activityConfig[type].name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="mt-1">
+                        <ActionButtons />
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {/* Image Carousel */}
                 {isLoadingPhotos ? (
                   <div className="aspect-video w-full bg-gray-100 rounded-lg flex items-center justify-center">
