@@ -162,6 +162,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
 
   // Mobile overflow handling
   useEffect(() => {
+    // eslint-disable-next-line no-mixed-operators
     if (isMobile.current && ((location || (mobileDrawerOpen && visibleLocations.length > 0)))) {
       document.body.style.overflow = 'hidden';
       return () => {
@@ -249,6 +250,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
       initialScrollTop = content.scrollTop;
       
       // Determine if we should handle this touch as a drawer drag
+      // eslint-disable-next-line no-mixed-operators
       if (e.target === handle || (!isMobile.current || !isExpanded) && header && header.contains(e.target as Node)) {
         // Always handle drag for pull handle or header (when not expanded)
         shouldHandleDrag = true;
