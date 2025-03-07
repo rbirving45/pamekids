@@ -26,6 +26,29 @@
     -->
     <title>PameKids</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet" crossorigin="anonymous">
+    
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-0JSE2646NP"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      
+      // Set default consent mode
+      gtag('consent', 'default', {
+        'analytics_storage': 'denied',
+        'ad_storage': 'denied'
+      });
+      
+      // Initialize GA4
+      gtag('config', 'G-0JSE2646NP', {
+        send_page_view: true,
+        cookie_flags: 'max-age=7200;secure;samesite=none',
+        cookie_domain: 'auto',
+        cookie_update: true
+      });
+    </script>
+    <!-- End Google Analytics -->
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

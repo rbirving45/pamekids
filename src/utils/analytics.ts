@@ -5,48 +5,33 @@ declare global {
   }
 }
 
-// Initialize Google Analytics with consent mode
+// Initialize Google Analytics - now working with script already in HTML
 export const initGA = () => {
-  // Initialize dataLayer
-  window.dataLayer = window.dataLayer || [];
-  window.gtag = function() {
-    window.dataLayer.push(arguments);
-  };
-
-  // Set default consent state
-  window.gtag('consent', 'default', {
-    'analytics_storage': 'denied',
-    'ad_storage': 'denied'
-  });
-
-  // Use explicit GA measurement ID or fall back to environment variable
-  const measurementId = 'G-0JSE2646NP' || process.env.REACT_APP_GA_MEASUREMENT_ID;
-  
-  // Only load GA if measurement ID is available
-  if (measurementId) {
-    // Load GA4 script
-    const script = document.createElement('script');
-    script.async = true;
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
-    document.head.appendChild(script);
-
-    // Initialize GA4 with configuration
-    window.gtag('js', new Date());
-    window.gtag('config', measurementId, {
-    send_page_view: true,
-    cookie_flags: 'max-age=7200;secure;samesite=none',
-    cookie_domain: 'auto',
-    cookie_update: true
-    });
+  // Check if gtag is already defined (from the script in HTML)
+  if (typeof window.gtag !== 'function') {
+    console.warn('Google Analytics gtag function not found. Analytics may not be loaded correctly.');
     
-    console.log(`Google Analytics initialized with ID: ${measurementId}`);
-  } else {
-    console.warn('Google Analytics measurement ID not found. Analytics will not be loaded.');
-    
-    // Provide a stub implementation to prevent errors
+    // Provide fallback implementation to prevent errors
+    window.dataLayer = window.dataLayer || [];
     window.gtag = function() {
-      // No-op function
+      window.dataLayer.push(arguments);
     };
+  }
+
+  // The measurement ID is now hardcoded in the HTML
+  const measurementId = 'G-0JSE2646NP';
+  
+  // Log successful initialization
+  console.log(`Google Analytics initialized with ID: ${measurementId}`);
+  
+  // Send a page view to ensure tracking starts correctly
+  if (typeof window.gtag === 'function') {
+    // Send initial page view for SPA tracking
+    window.gtag('event', 'page_view', {
+      page_title: document.title,
+      page_location: window.location.href,
+      page_path: window.location.pathname
+    });
   }
 };
 

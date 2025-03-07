@@ -7,11 +7,22 @@ import { initGA } from './utils/analytics';
 // Note: Some ESLint warnings are intentionally suppressed in specific files to avoid
 // potential side-effects of changing complex dependencies in useEffect/useMemo hooks.
 
-// Initialize Google Analytics after DOM is ready
+// Initialize Google Analytics as early as possible
 // App name: PameKids
 if (typeof window !== 'undefined') {
-  window.addEventListener('DOMContentLoaded', () => {
-    initGA();
+  // Initialize immediately instead of waiting for DOMContentLoaded
+  // This ensures we capture the initial page view
+  initGA();
+  
+  // Also set up route change tracking for single page application
+  window.addEventListener('popstate', () => {
+    if (typeof window.gtag === 'function') {
+      window.gtag('event', 'page_view', {
+        page_title: document.title,
+        page_location: window.location.href,
+        page_path: window.location.pathname
+      });
+    }
   });
 }
 
