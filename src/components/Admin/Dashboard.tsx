@@ -133,6 +133,51 @@ const Dashboard: React.FC = () => {
     navigate('/admin');
   };
 
+  const handleDebug = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        setError('No admin token found');
+        return;
+      }
+
+      setIsLoading(true);
+      setError('Running debug diagnostics...');
+      
+      const response = await fetch(`/api/debug?adminToken=${token}`);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setError(`Debug API error: ${data.error || response.statusText}`);
+        return;
+      }
+      
+      // Format the debug data as JSON with indentation
+      const debugText = JSON.stringify(data, null, 2);
+      console.log('Debug data:', data);
+      
+      // Create downloadable file
+      const blob = new Blob([debugText], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'netlify-debug.json';
+      document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      setError(`Debug completed successfully. Check console and downloads folder.`);
+    } catch (err) {
+      console.error('Debug error:', err);
+      setError(`Debug error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -149,12 +194,20 @@ const Dashboard: React.FC = () => {
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-gray-900">PameKids Admin</h1>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-          >
-            Logout
-          </button>
+          <div className="flex space-x-4">
+            <button
+              onClick={handleDebug}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Run Diagnostics
+            </button>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
