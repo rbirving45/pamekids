@@ -30,5 +30,7 @@ yarn-error.log*
 *.njsproj
 *.sln
 *.sw?
+
 # Local Netlify folder
 .netlify
+functions/firebase-service-account.json

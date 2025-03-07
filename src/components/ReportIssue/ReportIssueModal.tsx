@@ -73,61 +73,26 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  // Helper function to store reports in localStorage - commented out as it's currently unused
-  /*
-  const saveReport = (report: FormData): StoredReport => {
-    try {
-      // Get existing reports
-      const existingReports = localStorage.getItem(STORAGE_KEY);
-      const reports: StoredReport[] = existingReports
-        ? JSON.parse(existingReports)
-        : [];
-      
-      // Create new report with metadata
-      const newReport: StoredReport = {
-        ...report,
-        id: generateUUID(),
-        locationId,
-        locationName,
-        timestamp: new Date().toISOString(),
-        resolved: false
-      };
-      
-      // Add to array and save back to localStorage
-      reports.push(newReport);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
-      
-      // Log location of stored data for debugging
-      console.log('Report saved to localStorage. Access with: localStorage.getItem("location_issue_reports")');
-      
-      return newReport;
-    } catch (error) {
-      console.error('Error saving report to localStorage:', error);
-      throw new Error('Failed to save your report. Please try again.');
-    }
-  };
-  */
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
       return;
     }
-
+  
     setIsSubmitting(true);
     setSubmitStatus('idle');
     setSubmitMessage('');
-
+  
     try {
-      // Prepare report data
+      // Prepare report data (same as before)
       const reportData = {
         ...formData,
         locationId,
         locationName
       };
-
-      // Submit to Netlify function endpoint
+  
+      // Submit to Netlify function endpoint (now using Firebase)
       const response = await fetch('/api/reports', {
         method: 'POST',
         headers: {
@@ -135,14 +100,16 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
         },
         body: JSON.stringify(reportData),
       });
-
+  
       const data = await response.json();
-
+  
+      // Check for errors with improved Firebase error handling
       if (!response.ok) {
+        // Handle specific Firebase errors if any
         throw new Error(data.error || 'Failed to submit report');
       }
-
-      // Success
+  
+      // Success - this should work the same with Firebase
       setSubmitStatus('success');
       setSubmitMessage('Thank you! Your report has been submitted successfully. We will look into this issue.');
       
@@ -152,7 +119,7 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
         description: '',
         email: ''
       });
-
+  
       // Close modal after 3 seconds
       setTimeout(() => {
         onClose();
@@ -167,7 +134,7 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
       setIsSubmitting(false);
     }
   };
-
+  
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
       <div className="relative w-full max-w-md p-6 bg-white rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">

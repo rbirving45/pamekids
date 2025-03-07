@@ -94,13 +94,13 @@ const NewsletterModal: React.FC<NewsletterModalProps> = ({
     if (!validateForm()) {
       return;
     }
-
+  
     setIsSubmitting(true);
     setSubmitStatus('idle');
     setSubmitMessage('');
-
+  
     try {
-      // Submit to Netlify function endpoint
+      // Submit to Netlify function endpoint (same URL, now using Firebase)
       const response = await fetch('/api/newsletter', {
         method: 'POST',
         headers: {
@@ -108,14 +108,19 @@ const NewsletterModal: React.FC<NewsletterModalProps> = ({
         },
         body: JSON.stringify(formData),
       });
-
+  
       const data = await response.json();
-
+  
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to subscribe to newsletter');
+        // Handle specific Firebase-related errors
+        if (data.error && data.error.includes('already subscribed')) {
+          throw new Error('This email is already subscribed to our newsletter.');
+        } else {
+          throw new Error(data.error || 'Failed to subscribe to newsletter');
+        }
       }
-
-      // Success
+  
+      // Success handling - should work with Firebase response too
       setSubmitStatus('success');
       setSubmitMessage('Thank you for subscribing to our newsletter! You\'ll start receiving updates soon.');
       
@@ -126,7 +131,7 @@ const NewsletterModal: React.FC<NewsletterModalProps> = ({
         ageRanges: [],
         postalCode: '',
       });
-
+  
       // Close modal after 3 seconds
       setTimeout(() => {
         onClose();
@@ -141,7 +146,7 @@ const NewsletterModal: React.FC<NewsletterModalProps> = ({
       setIsSubmitting(false);
     }
   };
-
+  
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
       <div className="relative w-full max-w-md p-6 bg-white rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">

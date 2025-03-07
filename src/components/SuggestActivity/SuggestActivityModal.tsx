@@ -107,13 +107,13 @@ const SuggestActivityModal: React.FC<SuggestActivityModalProps> = ({
     if (!validateForm()) {
       return;
     }
-
+  
     setIsSubmitting(true);
     setSubmitStatus('idle');
     setSubmitMessage('');
-
+  
     try {
-      // Submit to Netlify function endpoint
+      // Submit to Netlify function endpoint (now using Firebase)
       const response = await fetch('/api/activities', {
         method: 'POST',
         headers: {
@@ -121,14 +121,15 @@ const SuggestActivityModal: React.FC<SuggestActivityModalProps> = ({
         },
         body: JSON.stringify(formData),
       });
-
+  
       const data = await response.json();
-
+  
       if (!response.ok) {
+        // Improved error handling for Firebase
         throw new Error(data.error || 'Failed to submit activity suggestion');
       }
-
-      // Success
+  
+      // Success - this should work the same with Firebase
       setSubmitStatus('success');
       setSubmitMessage('Thank you! Your activity suggestion has been submitted successfully.');
       
@@ -140,7 +141,7 @@ const SuggestActivityModal: React.FC<SuggestActivityModalProps> = ({
         description: '',
         email: ''
       });
-
+  
       // Close modal after 3 seconds
       setTimeout(() => {
         onClose();
@@ -155,7 +156,7 @@ const SuggestActivityModal: React.FC<SuggestActivityModalProps> = ({
       setIsSubmitting(false);
     }
   };
-
+  
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
       <div className="relative w-full max-w-md p-6 bg-white rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">

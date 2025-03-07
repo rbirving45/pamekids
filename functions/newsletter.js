@@ -1,83 +1,41 @@
-const fs = require('fs');
-const path = require('path');
-const setupModule = require('./setup');
+// functions/newsletter.js
+const { getFirestore } = require('./firebase-admin');
 
-// Get file paths from the setup module
-let DATA_PATH;
-
-// Helper to ensure file exists
-function ensureFileExists(filePath) {
-  const dir = path.dirname(filePath);
-  
-  try {
-    if (!fs.existsSync(dir)) {
-      console.log(`Creating directory: ${dir}`);
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    
-    if (!fs.existsSync(filePath)) {
-      console.log(`Creating file: ${filePath}`);
-      fs.writeFileSync(filePath, JSON.stringify([]));
-    }
-  } catch (error) {
-    console.error(`Error ensuring file exists: ${filePath}`, error);
-    
-    // Use the setup module to find a writable path
-    const paths = setupModule.getPaths();
-    const altPath = paths.SUBSCRIBERS_FILE;
-    
-    console.log(`Using alternative path from setup module: ${altPath}`);
-    return altPath;
-  }
-  
-  return filePath;
-}
-
-// Initialize data path
-function initializePaths() {
-  try {
-    const paths = setupModule.getPaths();
-    DATA_PATH = paths.SUBSCRIBERS_FILE;
-    console.log('Newsletter DATA_PATH initialized:', DATA_PATH);
-    return DATA_PATH;
-  } catch (error) {
-    console.error('Error initializing data paths:', error);
-    // Fallback to original path if setup module fails
-    const fallbackPath = path.join(__dirname, 'data/newsletter-subscribers.json');
-    console.log('Using fallback path:', fallbackPath);
-    return fallbackPath;
-  }
-}
-
-// Main handler
 exports.handler = async (event, context) => {
   console.log('Newsletter function invoked with method:', event.httpMethod);
   
-  // Initialize DATA_PATH if not already done
-  if (!DATA_PATH) {
-    DATA_PATH = initializePaths();
-  }
-  
-  // Handle different HTTP methods
-  if (event.httpMethod === 'POST') {
-    return handleSubscription(event);
-  } else if (event.httpMethod === 'GET') {
-    // Check if this is an admin request with token
-    const params = new URLSearchParams(event.queryStringParameters || {});
-    if (params.get('adminToken') === process.env.ADMIN_TOKEN) {
-      return handleGetAllSubscriptions();
+  try {
+    // Handle different HTTP methods
+    if (event.httpMethod === 'POST') {
+      return await handleSubscription(event);
+    } else if (event.httpMethod === 'GET') {
+      // Check if this is an admin request with token
+      const params = new URLSearchParams(event.queryStringParameters || {});
+      if (params.get('adminToken') === process.env.ADMIN_TOKEN) {
+        return await handleGetAllSubscriptions();
+      }
+      
+      return {
+        statusCode: 401,
+        body: JSON.stringify({ error: 'Unauthorized' })
+      };
     }
     
     return {
-      statusCode: 401,
-      body: JSON.stringify({ error: 'Unauthorized' })
+      statusCode: 405,
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
+  } catch (error) {
+    console.error('Error in newsletter function:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ 
+        error: 'Internal server error',
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      })
     };
   }
-  
-  return {
-    statusCode: 405,
-    body: JSON.stringify({ error: 'Method not allowed' })
-  };
 };
 
 // Handle new subscription
@@ -94,30 +52,13 @@ async function handleSubscription(event) {
       };
     }
     
-    // Run setup to ensure data files exist
-    try {
-      setupModule.initializeDataFiles();
-    } catch (setupError) {
-      console.warn('Setup module initialization warning:', setupError);
-      // Continue with the function even if setup fails
-    }
-    
-    // Ensure the data file exists
-    const dataFile = ensureFileExists(DATA_PATH);
-    
-    // Read existing data
-    const fileContent = fs.readFileSync(dataFile, 'utf-8');
-    let subscribers = [];
-    try {
-      subscribers = JSON.parse(fileContent);
-    } catch (e) {
-      // If file is empty or invalid, start with empty array
-      subscribers = [];
-    }
+    // Initialize Firestore with error handling
+    const db = getFirestore();
+    const subscribersRef = db.collection('newsletter-subscribers');
     
     // Check for duplicate email
-    const existingSubscriber = subscribers.find(sub => sub.email === data.email);
-    if (existingSubscriber) {
+    const snapshot = await subscribersRef.where('email', '==', data.email).get();
+    if (!snapshot.empty) {
       return {
         statusCode: 400,
         body: JSON.stringify({ error: 'Email already subscribed' })
@@ -126,7 +67,6 @@ async function handleSubscription(event) {
     
     // Add new subscriber
     const newSubscriber = {
-      id: Date.now().toString(),
       email: data.email,
       firstName: data.firstName || '',
       ageRanges: data.ageRanges,
@@ -134,24 +74,24 @@ async function handleSubscription(event) {
       subscribedAt: new Date().toISOString()
     };
     
-    subscribers.push(newSubscriber);
-    
-    // Write back to file
-    fs.writeFileSync(dataFile, JSON.stringify(subscribers, null, 2));
+    const docRef = await subscribersRef.add(newSubscriber);
     
     return {
       statusCode: 201,
       body: JSON.stringify({
         success: true,
-        message: 'Successfully subscribed to newsletter'
+        message: 'Successfully subscribed to newsletter',
+        id: docRef.id
       })
     };
   } catch (error) {
     console.error('Error processing subscription:', error);
-    
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to process subscription' })
+      body: JSON.stringify({ 
+        error: 'Failed to process subscription',
+        message: error.message
+      })
     };
   }
 }
@@ -159,32 +99,14 @@ async function handleSubscription(event) {
 // Get all subscribers (admin only)
 async function handleGetAllSubscriptions() {
   try {
-    // Run setup to ensure data files exist
-    try {
-      setupModule.initializeDataFiles();
-    } catch (setupError) {
-      console.warn('Setup module initialization warning:', setupError);
-      // Continue with the function even if setup fails
-    }
+    const db = getFirestore();
+    const subscribersRef = db.collection('newsletter-subscribers');
     
-    // Ensure the data file exists
-    const dataFile = ensureFileExists(DATA_PATH);
-    console.log('Reading subscribers from:', dataFile);
-    
-    // Read existing data
-    let subscribers = [];
-    
-    if (fs.existsSync(dataFile)) {
-      const fileContent = fs.readFileSync(dataFile, 'utf-8');
-      try {
-        subscribers = JSON.parse(fileContent);
-      } catch (e) {
-        console.error('Error parsing subscribers JSON:', e);
-        subscribers = [];
-      }
-    } else {
-      console.warn('Subscribers file does not exist, returning empty array');
-    }
+    const snapshot = await subscribersRef.get();
+    const subscribers = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
     
     return {
       statusCode: 200,
@@ -195,10 +117,12 @@ async function handleGetAllSubscriptions() {
     };
   } catch (error) {
     console.error('Error fetching subscribers:', error);
-    
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to fetch subscribers' })
+      body: JSON.stringify({ 
+        error: 'Failed to fetch subscribers',
+        message: error.message
+      })
     };
   }
 }

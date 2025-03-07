@@ -1,83 +1,40 @@
-const fs = require('fs');
-const path = require('path');
-const { v4: uuidv4 } = require('uuid');
-const setupModule = require('./setup');
-
-// Get file paths from the setup module
-let DATA_PATH;
-
-// Helper to ensure file exists
-function ensureFileExists(filePath) {
-  const dir = path.dirname(filePath);
-  
-  try {
-    if (!fs.existsSync(dir)) {
-      console.log(`Creating directory: ${dir}`);
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    
-    if (!fs.existsSync(filePath)) {
-      console.log(`Creating file: ${filePath}`);
-      fs.writeFileSync(filePath, JSON.stringify([]));
-    }
-  } catch (error) {
-    console.error(`Error ensuring file exists: ${filePath}`, error);
-    
-    // Use the setup module to find a writable path
-    const paths = setupModule.getPaths();
-    const altPath = paths.ACTIVITIES_FILE;
-    
-    console.log(`Using alternative path from setup module: ${altPath}`);
-    return altPath;
-  }
-  
-  return filePath;
-}
-
-// Initialize data path
-function initializePaths() {
-  try {
-    const paths = setupModule.getPaths();
-    DATA_PATH = paths.ACTIVITIES_FILE;
-    console.log('Activities DATA_PATH initialized:', DATA_PATH);
-    return DATA_PATH;
-  } catch (error) {
-    console.error('Error initializing data paths:', error);
-    // Fallback to original path if setup module fails
-    const fallbackPath = path.join(__dirname, 'data/activity-suggestions.json');
-    console.log('Using fallback path:', fallbackPath);
-    return fallbackPath;
-  }
-}
+const { getFirestore } = require('./firebase-admin');
 
 exports.handler = async (event, context) => {
   console.log('Activities function invoked with method:', event.httpMethod);
   
-  // Initialize DATA_PATH if not already done
-  if (!DATA_PATH) {
-    DATA_PATH = initializePaths();
-  }
-  
-  // Handle different HTTP methods
-  if (event.httpMethod === 'POST') {
-    return handleSubmission(event);
-  } else if (event.httpMethod === 'GET') {
-    // Check if this is an admin request with token
-    const params = new URLSearchParams(event.queryStringParameters || {});
-    if (params.get('adminToken') === process.env.ADMIN_TOKEN) {
-      return handleGetAllSubmissions();
+  try {
+    // Handle different HTTP methods
+    if (event.httpMethod === 'POST') {
+      return await handleSubmission(event);
+    } else if (event.httpMethod === 'GET') {
+      // Check if this is an admin request with token
+      const params = new URLSearchParams(event.queryStringParameters || {});
+      if (params.get('adminToken') === process.env.ADMIN_TOKEN) {
+        return await handleGetAllSubmissions();
+      }
+      
+      return {
+        statusCode: 401,
+        body: JSON.stringify({ error: 'Unauthorized' })
+      };
     }
     
     return {
-      statusCode: 401,
-      body: JSON.stringify({ error: 'Unauthorized' })
+      statusCode: 405,
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
+  } catch (error) {
+    console.error('Error in activities function:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ 
+        error: 'Internal server error',
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      })
     };
   }
-  
-  return {
-    statusCode: 405,
-    body: JSON.stringify({ error: 'Method not allowed' })
-  };
 };
 
 // Handle new activity submission
@@ -94,30 +51,11 @@ async function handleSubmission(event) {
       };
     }
     
-    // Run setup to ensure data files exist
-    try {
-      setupModule.initializeDataFiles();
-    } catch (setupError) {
-      console.warn('Setup module initialization warning:', setupError);
-      // Continue with the function even if setup fails
-    }
-    
-    // Ensure the data file exists
-    const dataFile = ensureFileExists(DATA_PATH);
-    
-    // Read existing data
-    const fileContent = fs.readFileSync(dataFile, 'utf-8');
-    let suggestions = [];
-    try {
-      suggestions = JSON.parse(fileContent);
-    } catch (e) {
-      // If file is empty or invalid, start with empty array
-      suggestions = [];
-    }
+    const db = getFirestore();
+    const activitiesRef = db.collection('activity-suggestions');
     
     // Add new suggestion
     const newSuggestion = {
-      id: uuidv4(),
       name: data.name,
       type: data.type,
       googleMapsLink: data.googleMapsLink,
@@ -127,16 +65,14 @@ async function handleSubmission(event) {
       status: 'pending'
     };
     
-    suggestions.push(newSuggestion);
-    
-    // Write back to file
-    fs.writeFileSync(dataFile, JSON.stringify(suggestions, null, 2));
+    const docRef = await activitiesRef.add(newSuggestion);
     
     return {
       statusCode: 201,
       body: JSON.stringify({
         success: true,
-        message: 'Activity suggestion submitted successfully'
+        message: 'Activity suggestion submitted successfully',
+        id: docRef.id
       })
     };
   } catch (error) {
@@ -152,32 +88,14 @@ async function handleSubmission(event) {
 // Get all submissions (admin only)
 async function handleGetAllSubmissions() {
   try {
-    // Run setup to ensure data files exist
-    try {
-      setupModule.initializeDataFiles();
-    } catch (setupError) {
-      console.warn('Setup module initialization warning:', setupError);
-      // Continue with the function even if setup fails
-    }
+    const db = getFirestore();
+    const activitiesRef = db.collection('activity-suggestions');
     
-    // Ensure the data file exists
-    const dataFile = ensureFileExists(DATA_PATH);
-    console.log('Reading suggestions from:', dataFile);
-    
-    // Read existing data
-    let suggestions = [];
-    
-    if (fs.existsSync(dataFile)) {
-      const fileContent = fs.readFileSync(dataFile, 'utf-8');
-      try {
-        suggestions = JSON.parse(fileContent);
-      } catch (e) {
-        console.error('Error parsing suggestions JSON:', e);
-        suggestions = [];
-      }
-    } else {
-      console.warn('Suggestions file does not exist, returning empty array');
-    }
+    const snapshot = await activitiesRef.get();
+    const suggestions = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
     
     return {
       statusCode: 200,

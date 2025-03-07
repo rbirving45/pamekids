@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { testFirebaseConnection } from '../../utils/firebase-test';
 
 interface Subscription {
   id: string;
@@ -34,6 +35,35 @@ interface Report {
   status: 'new' | 'in-progress' | 'resolved' | 'rejected';
 }
 
+const formatTimestamp = (timestamp: any): string => {
+  if (!timestamp) return 'N/A';
+  
+  // Handle Firestore timestamp objects
+  if (typeof timestamp === 'object' && timestamp.seconds) {
+    return new Date(timestamp.seconds * 1000).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+  
+  // Handle ISO string dates
+  try {
+    return new Date(timestamp).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (e) {
+    console.error('Error formatting date:', e);
+    return 'Invalid date';
+  }
+};
+
 const Dashboard: React.FC = () => {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [activities, setActivities] = useState<ActivitySuggestion[]>([]);
@@ -64,8 +94,7 @@ const Dashboard: React.FC = () => {
       
       try {
         let errorMessages: string[] = [];
-        // Removed unused responseData variable
-
+  
         // Function to handle fetch with error handling
         const fetchEndpoint = async (endpoint: string) => {
           try {
@@ -82,7 +111,7 @@ const Dashboard: React.FC = () => {
             return null;
           }
         };
-
+  
         // Fetch data from all endpoints
         const [subscriptionsData, activitiesData, reportsData] = await Promise.all([
           fetchEndpoint('newsletter'),
@@ -90,17 +119,33 @@ const Dashboard: React.FC = () => {
           fetchEndpoint('reports')
         ]);
         
-        // Process data if available
+        // Process data if available - handle Firebase data structures
         if (subscriptionsData) {
-          setSubscriptions(subscriptionsData.subscribers || []);
+          const subscribers = subscriptionsData.subscribers || [];
+          // Convert Firestore timestamp objects to Date objects for display
+          setSubscriptions(subscribers.map((sub: any) => ({
+            ...sub,
+            // Convert Firebase timestamp to readable format if needed
+            subscribedAt: sub.subscribedAt // formatTimestamp will handle this
+          })));
         }
         
         if (activitiesData) {
-          setActivities(activitiesData.suggestions || []);
+          const suggestions = activitiesData.suggestions || [];
+          setActivities(suggestions.map((suggestion: any) => ({
+            ...suggestion,
+            // Convert Firebase timestamp to readable format if needed
+            timestamp: suggestion.timestamp // formatTimestamp will handle this
+          })));
         }
         
         if (reportsData) {
-          setReports(reportsData.reports || []);
+          const reports = reportsData.reports || [];
+          setReports(reports.map((report: any) => ({
+            ...report,
+            // Convert Firebase timestamp to readable format if needed
+            timestamp: report.timestamp // formatTimestamp will handle this
+          })));
         }
         
         // Set error if any endpoint failed
@@ -118,16 +163,8 @@ const Dashboard: React.FC = () => {
     fetchData();
   }, [navigate]);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
+  const formatDate = formatTimestamp;
+  
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
     navigate('/admin');
@@ -195,6 +232,16 @@ const Dashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-gray-900">PameKids Admin</h1>
           <div className="flex space-x-4">
+            <button
+              onClick={async () => {
+                const result = await testFirebaseConnection();
+                console.log('Firebase test result:', result);
+                alert(result.success ? 'Firebase connected!' : `Firebase error: ${result.message}`);
+              }}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            >
+              Test Firebase Connection
+            </button>
             <button
               onClick={handleDebug}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
