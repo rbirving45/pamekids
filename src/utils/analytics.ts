@@ -19,8 +19,8 @@ export const initGA = () => {
     'ad_storage': 'denied'
   });
 
-  // Get Google Analytics measurement ID from environment variable
-  const measurementId = process.env.REACT_APP_GA_MEASUREMENT_ID;
+  // Use explicit GA measurement ID or fall back to environment variable
+  const measurementId = 'G-0JSE2646NP' || process.env.REACT_APP_GA_MEASUREMENT_ID;
   
   // Only load GA if measurement ID is available
   if (measurementId) {
@@ -38,6 +38,8 @@ export const initGA = () => {
     cookie_domain: 'auto',
     cookie_update: true
     });
+    
+    console.log(`Google Analytics initialized with ID: ${measurementId}`);
   } else {
     console.warn('Google Analytics measurement ID not found. Analytics will not be loaded.');
     

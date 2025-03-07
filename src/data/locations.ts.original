@@ -1,7 +1,6 @@
 // src/data/locations.ts
 
 export type ActivityType = 'indoor-play' | 'outdoor-play' | 'sports' | 'arts' | 'music' | 'education' | 'entertainment';
-
 export interface Location {
   id: string;
   name: string;
@@ -9,29 +8,29 @@ export interface Location {
     lat: number;
     lng: number;
   };
+  types: ActivityType[];
+  primaryType?: ActivityType;
+  description: string;
+  address: string;
+  ageRange: {
+    min: number;
+    max: number;
+  };
+  priceRange?: string;
+  openingHours: Record<string, string>;
+  contact: {
+    phone?: string;
+    email?: string;
+    website?: string;
+  };
   placeData?: {
     rating?: number;
     userRatingsTotal?: number;
     photos?: google.maps.places.PlacePhoto[];
     photoUrls?: string[];
   };
-  address: string;
-  types: ActivityType[]; // Changed from 'type' to 'types' array
-  primaryType?: ActivityType; // Optional primary type for backward compatibility
-  ageRange: {
-    min: number;
-    max: number;
-  };
-  description: string;
-  openingHours: {
-    [key: string]: string;
-  };
-  priceRange: string;
-  contact: {
-    phone: string;
-    email: string;
-    website?: string;
-  };
+  images?: string[];
+  featured?: boolean;
 }
 
 export const sampleLocations: Location[] = [  
@@ -64,7 +63,7 @@ export const sampleLocations: Location[] = [
       Saturday: '8:00 AM – 11:30 PM',
       Sunday: '8:00 AM – 11:30 PM'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
       phone: '697 167 1114',
       email: 'contact@eurohoopsacademy.com',
@@ -96,7 +95,7 @@ export const sampleLocations: Location[] = [
         Saturday: '8:00 AM – 10:00 PM',
         Sunday: '8:00 AM – 10:00 PM'
     },
-    priceRange: '$',
+    priceRange: '€',
     contact: {
         phone: '21 5215 1807',
         email: 'email',
@@ -128,7 +127,7 @@ export const sampleLocations: Location[] = [
         Saturday: '11:00 AM – 10:00 PM',
         Sunday: '11:00 AM – 10:00 PM'
     },
-    priceRange: '$',
+    priceRange: '€',
     contact: {
         phone: '',
         email: 'email',
@@ -160,7 +159,7 @@ export const sampleLocations: Location[] = [
         Saturday: '10:30 AM – 9:30 PM',
         Sunday: '10:30 AM – 9:30 PM'
     },
-    priceRange: '$',
+    priceRange: '€',
     contact: {
         phone: '21 0620 0255',
         email: 'email',
@@ -192,7 +191,7 @@ export const sampleLocations: Location[] = [
         Saturday: '10:00 AM – 9:00 PM',
         Sunday: '10:00 AM – 9:00 PM'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
         phone: '21 0800 0018',
         email: 'email',
@@ -256,7 +255,7 @@ export const sampleLocations: Location[] = [
       Saturday: '10:00 AM – 3:00 PM',
       Sunday: '10:00 AM – 3:00 PM'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
       phone: '21 0801 5870',
       email: 'email',
@@ -320,7 +319,7 @@ export const sampleLocations: Location[] = [
       Saturday: '10:00 AM – 6:00 PM',
       Sunday: '10:00 AM – 6:00 PM'
     },
-    priceRange: '$',
+    priceRange: '€',
     contact: {
       phone: '698 396 7409',
       email: 'email',
@@ -384,7 +383,7 @@ export const sampleLocations: Location[] = [
       Saturday: '10:00 AM – 9:00 PM',
       Sunday: '11:00 AM – 7:00 PM'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
       phone: '21 0688 5450',
       email: 'email',
@@ -400,7 +399,7 @@ export const sampleLocations: Location[] = [
       lng: 23.8094471
     },
     address: 'Tatoiou 102, Nea Erithrea 146 71, Greece',
-    types: ['indoor-play'],
+    types: ['indoor-play','music'],
     primaryType: 'indoor-play',
     ageRange: {
       min: 1,
@@ -416,7 +415,7 @@ export const sampleLocations: Location[] = [
       Saturday: 'Hours not available',
       Sunday: 'Hours not available'
     },
-    priceRange: '$',
+    priceRange: '€',
     contact: {
       phone: '21 0800 1610',
       email: 'email',
@@ -544,7 +543,7 @@ export const sampleLocations: Location[] = [
       Saturday: '9:00 AM – 5:00 PM',
       Sunday: '9:00 AM – 5:00 PM'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
       phone: '21 0663 4725',
       email: 'email',
@@ -576,7 +575,7 @@ export const sampleLocations: Location[] = [
       Saturday: '10:00 AM – 6:00 PM',
       Sunday: 'Closed'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
       phone: '698 707 2816',
       email: 'email',
@@ -640,7 +639,7 @@ export const sampleLocations: Location[] = [
       Saturday: '1:00 PM – 12:00 AM',
       Sunday: '1:00 – 7:00 PM'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
       phone: '21 0807 0969',
       email: 'email@email.com',
@@ -672,7 +671,7 @@ export const sampleLocations: Location[] = [
       Saturday: '1:00 – 11:30 PM',
       Sunday: '1:00 – 11:30 PM'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
       phone: 'phone',
       email: 'email',
@@ -704,7 +703,7 @@ export const sampleLocations: Location[] = [
       Saturday: '10:00 AM – 9:00 PM',
       Sunday: '10:00 AM – 9:00 PM'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
       phone: '21 0220 1610',
       email: 'email',
@@ -740,7 +739,7 @@ export const sampleLocations: Location[] = [
       Saturday: '10:00 AM – 6:00 PM',
       Sunday: '10:00 AM – 6:00 PM'
     },
-    priceRange: '$',
+    priceRange: '€',
     contact: {
       phone: '694 462 0825',
       email: 'email',
@@ -760,7 +759,7 @@ export const sampleLocations: Location[] = [
       userRatingsTotal: 210
     },
     address: 'Grigoriou Xenopoulou 3Α, Neo Psichiko 154 51, Greece',
-    types: ['indoor-play'],
+    types: ['indoor-play','music'],
     primaryType: 'indoor-play',
     ageRange: {
       min: 0,
@@ -776,7 +775,7 @@ export const sampleLocations: Location[] = [
       Saturday: 'Closed',
       Sunday: 'Closed'
     },
-    priceRange: '$$',
+    priceRange: '€€',
     contact: {
       phone: '21 0677 7017',
       email: 'contact@gymboreepsychiko.com',
@@ -812,7 +811,7 @@ export const sampleLocations: Location[] = [
       Saturday: '10:00 AM – 9:00 PM',
       Sunday: '10:00 AM – 9:00 PM'
     },
-    priceRange: '$',
+    priceRange: '€',
     contact: {
       phone: '21 0284 3500',
       email: 'contact@toyslandathenskidssoftplaypartyvenue.com',
@@ -848,7 +847,7 @@ export const sampleLocations: Location[] = [
       Saturday: "11:00 AM – 10:00 PM",
       Sunday: "11:00 AM – 9:30 PM"
     },
-    priceRange: "$$",
+    priceRange: "€€",
     contact: {
       phone: "21 0810 5300",
       email: "contact@funmilyeatdrinkplay.com",
@@ -884,7 +883,7 @@ export const sampleLocations: Location[] = [
       Saturday: "10:00 AM – 10:00 PM",
       Sunday: "10:00 AM – 10:00 PM"
     },
-    priceRange: "$$",
+    priceRange: "€€",
     contact: {
       phone: "21 1213 3172",
       email: "contact@kindercitypartyhall.com",
@@ -920,7 +919,7 @@ export const sampleLocations: Location[] = [
       Saturday: "10:00 AM – 10:00 PM",
       Sunday: "10:00 AM – 10:00 PM"
     },
-    priceRange: "$",
+    priceRange: "€",
     contact: {
       phone: "697 447 4878",
       email: "contact@magicland.com",
@@ -956,11 +955,47 @@ export const sampleLocations: Location[] = [
       Saturday: "10:00 AM – 10:30 PM",
       Sunday: "10:00 AM – 10:00 PM"
     },
-    priceRange: "$",
+    priceRange: "€",
     contact: {
       phone: "21 0621 5707",
       email: "contact@playspaceamfil.com",
       website: "https://m.facebook.com/home.php?stype=phss&sk=live&eav=AfbDCpbIT0XXk7THqmcOGu9phii2wwznbJPIrPtMTAP3gkdQ9cunjNit9z6-7V_lqZU&gfid=AQCK7hcrxZv2KdSuz8E&paipv=0&_rdr&tbua=1"
+    }
+  }
+,
+  {
+    id: "ChIJ9aMCC_ueoRQRHfISpk9pO70",
+    name: "Α.Σ. Καράτε Οδυσσέας",
+    coordinates: {
+      lat: 38.0866442,
+      lng: 23.8184377
+    },
+    placeData: {
+      rating: 4.9,
+      userRatingsTotal: 88
+    },
+    address: "Char. Trikoupi 109, Kifisia 145 63, Greece",
+    types: ["sports"],
+    primaryType: "sports",
+    ageRange: {
+      min: 4,
+      max: 16
+    },
+    description: "Α.Σ. Καράτε Οδυσσέας is an excellent karate studio in Athens offering classes for children 4 and up. With highly praised instructors and a welcoming environment, this is a great option for kids to learn self-defense, discipline, and physical fitness in a fun and supportive setting.",
+    openingHours: {
+      Monday: "Hours not available",
+      Tuesday: "Hours not available",
+      Wednesday: "Hours not available",
+      Thursday: "Hours not available",
+      Friday: "Hours not available",
+      Saturday: "Hours not available",
+      Sunday: "Hours not available"
+    },
+    priceRange: "€",
+    contact: {
+      phone: "21 3043 4220",
+      email: "contact@.com",
+      website: "http://odysseaskarate.gr/"
     }
   }
 ];

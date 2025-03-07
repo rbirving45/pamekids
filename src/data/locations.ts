@@ -998,4 +998,40 @@ export const sampleLocations: Location[] = [
       website: "http://odysseaskarate.gr/"
     }
   }
+,
+  {
+    id: "ChIJoe2lufmhoRQRFQ0kkW4bxW8",
+    name: "Paradise Park",
+    coordinates: {
+      lat: 38.071501,
+      lng: 23.752976
+    },
+    placeData: {
+      rating: 4.5,
+      userRatingsTotal: 2726
+    },
+    address: "Ε.Ο. Κόμβος, Μεταμορφώσεως 100, Αχαρνές 136 71, Greece",
+    types: ["outdoor-play","education"],
+    primaryType: "outdoor-play",
+    ageRange: {
+      min: 2,
+      max: 16
+    },
+    description: "Paradise Park is an amusement park in Athens that offers a range of fun and educational activities for children. With a focus on interactive experiences, the park features things like archery, gardening, and sports courts. Families can enjoy the relaxing atmosphere and make new friends, though some note limited food options.",
+    openingHours: {
+      Monday: "8:00 AM – 11:30 PM",
+      Tuesday: "8:00 AM – 11:30 PM",
+      Wednesday: "8:00 AM – 11:30 PM",
+      Thursday: "8:00 AM – 11:30 PM",
+      Friday: "8:00 AM – 11:30 PM",
+      Saturday: "8:00 AM – 10:00 PM",
+      Sunday: "9:00 AM – 10:00 PM"
+    },
+    priceRange: "€",
+    contact: {
+      phone: "21 0246 6466",
+      email: "contact@paradisepark.com",
+      website: "https://www.paradisepark.gr/"
+    }
+  }
 ];
