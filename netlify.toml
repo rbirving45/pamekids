@@ -13,3 +13,9 @@
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
+
+# Catch-all redirect for SPA routing (React Router)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
