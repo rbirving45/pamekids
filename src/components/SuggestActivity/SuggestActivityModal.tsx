@@ -2,15 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { X, CheckCircle } from 'lucide-react';
 import { ActivityType } from '../../data/locations';
 
-// Simple UUID generator fallback function
-const generateUUID = (): string => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : ((r & 0x3) | 0x8);
-    return v.toString(16);
-  });
-};
-
 interface SuggestActivityModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -24,14 +15,6 @@ interface FormData {
   description: string;
   email: string;
 }
-
-interface StoredSuggestion extends FormData {
-  id: string;
-  timestamp: string;
-  reviewed: boolean;
-}
-
-const STORAGE_KEY = 'activity_suggestions';
 
 const SuggestActivityModal: React.FC<SuggestActivityModalProps> = ({
   isOpen,
@@ -116,36 +99,7 @@ const SuggestActivityModal: React.FC<SuggestActivityModalProps> = ({
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
-  // Helper function to store suggestions in localStorage
-  const saveSuggestion = (suggestion: FormData): StoredSuggestion => {
-    try {
-      // Get existing suggestions
-      const existingSuggestions = localStorage.getItem(STORAGE_KEY);
-      const suggestions: StoredSuggestion[] = existingSuggestions
-        ? JSON.parse(existingSuggestions)
-        : [];
-      
-      // Create new suggestion with metadata
-      const newSuggestion: StoredSuggestion = {
-        ...suggestion,
-        id: generateUUID(),
-        timestamp: new Date().toISOString(),
-        reviewed: false
-      };
-      
-      // Add to array and save back to localStorage
-      suggestions.push(newSuggestion);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(suggestions));
-      
-      // Log location of stored data for debugging
-      console.log('Suggestion saved to localStorage. Access with: localStorage.getItem("activity_suggestions")');
-      
-      return newSuggestion;
-    } catch (error) {
-      console.error('Error saving suggestion to localStorage:', error);
-      throw new Error('Failed to save your suggestion. Please try again.');
-    }
-  };
+  // Handle form submission
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

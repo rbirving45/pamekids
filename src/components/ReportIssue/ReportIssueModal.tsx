@@ -1,15 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, CheckCircle } from 'lucide-react';
 
-// Simple UUID generator (same as in SuggestActivityModal)
-const generateUUID = (): string => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : ((r & 0x3) | 0x8);
-    return v.toString(16);
-  });
-};
-
 interface ReportIssueModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -22,16 +13,6 @@ interface FormData {
   description: string;
   email: string;
 }
-
-interface StoredReport extends FormData {
-  id: string;
-  locationId: string;
-  locationName: string;
-  timestamp: string;
-  resolved: boolean;
-}
-
-const STORAGE_KEY = 'location_issue_reports';
 
 const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
   isOpen,
@@ -92,7 +73,8 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  // Helper function to store reports in localStorage
+  // Helper function to store reports in localStorage - commented out as it's currently unused
+  /*
   const saveReport = (report: FormData): StoredReport => {
     try {
       // Get existing reports
@@ -124,6 +106,7 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
       throw new Error('Failed to save your report. Please try again.');
     }
   };
+  */
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

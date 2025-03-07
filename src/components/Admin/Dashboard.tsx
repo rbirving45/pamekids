@@ -64,11 +64,7 @@ const Dashboard: React.FC = () => {
       
       try {
         let errorMessages: string[] = [];
-        let responseData = {
-          subscriptions: [],
-          activities: [],
-          reports: []
-        };
+        // Removed unused responseData variable
 
         // Function to handle fetch with error handling
         const fetchEndpoint = async (endpoint: string) => {
