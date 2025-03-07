@@ -1,6 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const setupModule = require('./setup');
+
+// Get file paths from the setup module
+let DATA_PATH;
 
 // Helper to ensure file exists
 function ensureFileExists(filePath) {
@@ -18,36 +22,48 @@ function ensureFileExists(filePath) {
     }
   } catch (error) {
     console.error(`Error ensuring file exists: ${filePath}`, error);
-    // Try an alternative path in the current directory
-    const altPath = path.join(__dirname, '../data', path.basename(filePath));
-    const altDir = path.dirname(altPath);
     
-    console.log(`Trying alternative path: ${altPath}`);
-    if (!fs.existsSync(altDir)) {
-      fs.mkdirSync(altDir, { recursive: true });
-    }
+    // Use the setup module to find a writable path
+    const paths = setupModule.getPaths();
+    const altPath = paths.REPORTS_FILE;
     
-    if (!fs.existsSync(altPath)) {
-      fs.writeFileSync(altPath, JSON.stringify([]));
-    }
-    
-    // Return the alternative path to be used
+    console.log(`Using alternative path from setup module: ${altPath}`);
     return altPath;
   }
   
   return filePath;
 }
 
-// Path to JSON file (relative to function)
-const DATA_PATH = path.join(__dirname, 'data/location-reports.json');
+// Initialize data path
+function initializePaths() {
+  try {
+    const paths = setupModule.getPaths();
+    DATA_PATH = paths.REPORTS_FILE;
+    console.log('Reports DATA_PATH initialized:', DATA_PATH);
+    return DATA_PATH;
+  } catch (error) {
+    console.error('Error initializing data paths:', error);
+    // Fallback to original path if setup module fails
+    const fallbackPath = path.join(__dirname, 'data/location-reports.json');
+    console.log('Using fallback path:', fallbackPath);
+    return fallbackPath;
+  }
+}
 
 exports.handler = async (event, context) => {
+  console.log('Reports function invoked with method:', event.httpMethod);
+  
+  // Initialize DATA_PATH if not already done
+  if (!DATA_PATH) {
+    DATA_PATH = initializePaths();
+  }
+  
   // Handle different HTTP methods
   if (event.httpMethod === 'POST') {
     return handleSubmission(event);
   } else if (event.httpMethod === 'GET') {
-    // Check if this is an admin request with password
-    const params = new URLSearchParams(event.queryStringParameters);
+    // Check if this is an admin request with token
+    const params = new URLSearchParams(event.queryStringParameters || {});
     if (params.get('adminToken') === process.env.ADMIN_TOKEN) {
       return handleGetAllReports();
     }
@@ -78,11 +94,19 @@ async function handleSubmission(event) {
       };
     }
     
+    // Run setup to ensure data files exist
+    try {
+      setupModule.initializeDataFiles();
+    } catch (setupError) {
+      console.warn('Setup module initialization warning:', setupError);
+      // Continue with the function even if setup fails
+    }
+    
     // Ensure the data file exists
-    ensureFileExists(DATA_PATH);
+    const dataFile = ensureFileExists(DATA_PATH);
     
     // Read existing data
-    const fileContent = fs.readFileSync(DATA_PATH, 'utf-8');
+    const fileContent = fs.readFileSync(dataFile, 'utf-8');
     let reports = [];
     try {
       reports = JSON.parse(fileContent);
@@ -106,7 +130,7 @@ async function handleSubmission(event) {
     reports.push(newReport);
     
     // Write back to file
-    fs.writeFileSync(DATA_PATH, JSON.stringify(reports, null, 2));
+    fs.writeFileSync(dataFile, JSON.stringify(reports, null, 2));
     
     return {
       statusCode: 201,
@@ -128,16 +152,31 @@ async function handleSubmission(event) {
 // Get all reports (admin only)
 async function handleGetAllReports() {
   try {
+    // Run setup to ensure data files exist
+    try {
+      setupModule.initializeDataFiles();
+    } catch (setupError) {
+      console.warn('Setup module initialization warning:', setupError);
+      // Continue with the function even if setup fails
+    }
+    
     // Ensure the data file exists
-    ensureFileExists(DATA_PATH);
+    const dataFile = ensureFileExists(DATA_PATH);
+    console.log('Reading reports from:', dataFile);
     
     // Read existing data
-    const fileContent = fs.readFileSync(DATA_PATH, 'utf-8');
     let reports = [];
-    try {
-      reports = JSON.parse(fileContent);
-    } catch (e) {
-      reports = [];
+    
+    if (fs.existsSync(dataFile)) {
+      const fileContent = fs.readFileSync(dataFile, 'utf-8');
+      try {
+        reports = JSON.parse(fileContent);
+      } catch (e) {
+        console.error('Error parsing reports JSON:', e);
+        reports = [];
+      }
+    } else {
+      console.warn('Reports file does not exist, returning empty array');
     }
     
     return {

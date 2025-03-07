@@ -1,8 +1,9 @@
 const fs = require('fs');
 const path = require('path');
+const setupModule = require('./setup');
 
-// Path to JSON file (relative to function)
-const DATA_PATH = path.join(__dirname, 'data/newsletter-subscribers.json');
+// Get file paths from the setup module
+let DATA_PATH;
 
 // Helper to ensure file exists
 function ensureFileExists(filePath) {
@@ -20,28 +21,43 @@ function ensureFileExists(filePath) {
     }
   } catch (error) {
     console.error(`Error ensuring file exists: ${filePath}`, error);
-    // Try an alternative path in the current directory
-    const altPath = path.join(__dirname, 'data', path.basename(filePath));
-    const altDir = path.dirname(altPath);
     
-    console.log(`Trying alternative path: ${altPath}`);
-    if (!fs.existsSync(altDir)) {
-      fs.mkdirSync(altDir, { recursive: true });
-    }
+    // Use the setup module to find a writable path
+    const paths = setupModule.getPaths();
+    const altPath = paths.SUBSCRIBERS_FILE;
     
-    if (!fs.existsSync(altPath)) {
-      fs.writeFileSync(altPath, JSON.stringify([]));
-    }
-    
-    // Return the alternative path to be used
+    console.log(`Using alternative path from setup module: ${altPath}`);
     return altPath;
   }
   
   return filePath;
 }
 
+// Initialize data path
+function initializePaths() {
+  try {
+    const paths = setupModule.getPaths();
+    DATA_PATH = paths.SUBSCRIBERS_FILE;
+    console.log('Newsletter DATA_PATH initialized:', DATA_PATH);
+    return DATA_PATH;
+  } catch (error) {
+    console.error('Error initializing data paths:', error);
+    // Fallback to original path if setup module fails
+    const fallbackPath = path.join(__dirname, 'data/newsletter-subscribers.json');
+    console.log('Using fallback path:', fallbackPath);
+    return fallbackPath;
+  }
+}
+
 // Main handler
 exports.handler = async (event, context) => {
+  console.log('Newsletter function invoked with method:', event.httpMethod);
+  
+  // Initialize DATA_PATH if not already done
+  if (!DATA_PATH) {
+    DATA_PATH = initializePaths();
+  }
+  
   // Handle different HTTP methods
   if (event.httpMethod === 'POST') {
     return handleSubscription(event);
@@ -76,6 +92,14 @@ async function handleSubscription(event) {
         statusCode: 400,
         body: JSON.stringify({ error: 'Email and age ranges are required' })
       };
+    }
+    
+    // Run setup to ensure data files exist
+    try {
+      setupModule.initializeDataFiles();
+    } catch (setupError) {
+      console.warn('Setup module initialization warning:', setupError);
+      // Continue with the function even if setup fails
     }
     
     // Ensure the data file exists
@@ -135,16 +159,31 @@ async function handleSubscription(event) {
 // Get all subscribers (admin only)
 async function handleGetAllSubscriptions() {
   try {
+    // Run setup to ensure data files exist
+    try {
+      setupModule.initializeDataFiles();
+    } catch (setupError) {
+      console.warn('Setup module initialization warning:', setupError);
+      // Continue with the function even if setup fails
+    }
+    
     // Ensure the data file exists
     const dataFile = ensureFileExists(DATA_PATH);
+    console.log('Reading subscribers from:', dataFile);
     
     // Read existing data
-    const fileContent = fs.readFileSync(dataFile, 'utf-8');
     let subscribers = [];
-    try {
-      subscribers = JSON.parse(fileContent);
-    } catch (e) {
-      subscribers = [];
+    
+    if (fs.existsSync(dataFile)) {
+      const fileContent = fs.readFileSync(dataFile, 'utf-8');
+      try {
+        subscribers = JSON.parse(fileContent);
+      } catch (e) {
+        console.error('Error parsing subscribers JSON:', e);
+        subscribers = [];
+      }
+    } else {
+      console.warn('Subscribers file does not exist, returning empty array');
     }
     
     return {
