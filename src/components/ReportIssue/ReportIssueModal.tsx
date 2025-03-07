@@ -137,8 +137,27 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
     setSubmitMessage('');
 
     try {
-      // Save to localStorage instead of sending to server
-      saveReport(formData);
+      // Prepare report data
+      const reportData = {
+        ...formData,
+        locationId,
+        locationName
+      };
+
+      // Submit to Netlify function endpoint
+      const response = await fetch('/api/reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reportData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit report');
+      }
 
       // Success
       setSubmitStatus('success');
@@ -158,7 +177,7 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
       }, 3000);
       
     } catch (error) {
-      console.error('Error saving report:', error);
+      console.error('Error submitting report:', error);
       setSubmitStatus('error');
       setSubmitMessage(error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.');
     } finally {

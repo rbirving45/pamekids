@@ -100,8 +100,20 @@ const NewsletterModal: React.FC<NewsletterModalProps> = ({
     setSubmitMessage('');
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Submit to Netlify function endpoint
+      const response = await fetch('/api/newsletter', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to subscribe to newsletter');
+      }
 
       // Success
       setSubmitStatus('success');

@@ -1,10 +1,13 @@
 // App.tsx
 import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import MapComponent from './components/Map/Map';
 import { sampleLocations } from './data/locations';
 import SuggestActivityButton from './components/SuggestActivity/SuggestActivityButton';
 import SuggestActivityModal from './components/SuggestActivity/SuggestActivityModal';
 import { NewsletterButton, NewsletterModal } from './components/Newsletter';
+import AdminLogin from './components/Admin/AdminLogin';
+import Dashboard from './components/Admin/Dashboard';
 
 const activityConfig = {
   'indoor-play': { name: 'Indoor Play', color: '#FF4444' },
@@ -16,25 +19,11 @@ const activityConfig = {
   'entertainment': { name: 'Entertainment', color: '#FFB300' }
 };
 
-function App() {
+// Main application layout
+const MainApp = () => {
   const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
   const [isNewsletterModalOpen, setIsNewsletterModalOpen] = useState(false);
   
-  // Add debug utility for location issues (accessible via window object)
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      (window as any).getLocationIssues = () => {
-        try {
-          const reports = localStorage.getItem('location_issue_reports');
-          return reports ? JSON.parse(reports) : [];
-        } catch (e) {
-          console.error('Error fetching location issues:', e);
-          return [];
-        }
-      };
-    }
-  }, []);
-
   return (
     <div className="h-screen w-full flex flex-col">
       <header className="bg-white shadow-md z-10 relative">
@@ -69,6 +58,34 @@ function App() {
         onClose={() => setIsNewsletterModalOpen(false)}
       />
     </div>
+  );
+};
+
+function App() {
+  // Add debug utility for location issues (accessible via window object)
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).getLocationIssues = () => {
+        try {
+          const reports = localStorage.getItem('location_issue_reports');
+          return reports ? JSON.parse(reports) : [];
+        } catch (e) {
+          console.error('Error fetching location issues:', e);
+          return [];
+        }
+      };
+    }
+  }, []);
+
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<MainApp />} />
+        <Route path="/admin" element={<AdminLogin />} />
+        <Route path="/admin/dashboard" element={<Dashboard />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
   );
 }
 

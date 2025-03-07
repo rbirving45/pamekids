@@ -159,8 +159,20 @@ const SuggestActivityModal: React.FC<SuggestActivityModalProps> = ({
     setSubmitMessage('');
 
     try {
-      // Save to localStorage instead of sending to server
-      saveSuggestion(formData);
+      // Submit to Netlify function endpoint
+      const response = await fetch('/api/activities', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit activity suggestion');
+      }
 
       // Success
       setSubmitStatus('success');
@@ -182,7 +194,7 @@ const SuggestActivityModal: React.FC<SuggestActivityModalProps> = ({
       }, 3000);
       
     } catch (error) {
-      console.error('Error saving suggestion:', error);
+      console.error('Error submitting activity suggestion:', error);
       setSubmitStatus('error');
       setSubmitMessage(error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.');
     } finally {
