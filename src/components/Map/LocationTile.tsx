@@ -58,12 +58,12 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
 
   return (
     <div
-      className="py-1.5 md:py-2 px-3 md:px-4 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer transition-colors duration-150"
+      className="py-1.5 md:py-2 px-3 md:px-4 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer transition-colors duration-150 z-location-tile"
       onClick={onSelect}
     >
       <div className="flex items-start gap-2 md:gap-3">
         {/* Left content - Location info */}
-        <div className="flex-1 min-w-0 pr-3">
+        <div className="flex-1 min-w-0 pr-3 z-location-content">
           {/* Name */}
           <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-0.5 md:mb-1 line-clamp-1">{location.name}</h3>
           
@@ -138,7 +138,7 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
         </div>
         
         {/* Right side - Featured image (square with rounded corners) */}
-        <div className="flex-shrink-0 w-24 h-24 md:w-32 md:h-32 overflow-hidden rounded-lg bg-gray-100 border border-gray-100">
+        <div className="flex-shrink-0 w-24 h-24 md:w-32 md:h-32 overflow-hidden rounded-lg bg-gray-100 border border-gray-100 z-location-image">
           {featuredImageUrl ? (
             <img
               src={featuredImageUrl}

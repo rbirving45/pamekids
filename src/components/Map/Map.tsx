@@ -35,6 +35,12 @@ const activityConfig = {
 };
 
 const MapComponent: React.FC<MapProps> = ({ locations }) => {
+  // Helper function to safely get z-index from CSS variables
+  const getZIndexValue = (variableName: string): number => {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(variableName);
+    return parseInt(value.trim()) || 0; // fallback to 0 if parsing fails
+  };
+
   // State to track if drawer is open on mobile for showing location list
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(checkIsMobile());
   
@@ -456,10 +462,10 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
 
   return (
     <div className="relative h-full w-full flex flex-col">
-      <div className="bg-white p-2 overflow-x-auto shadow-sm z-[10] relative">
+      <div className="bg-white p-2 overflow-x-auto shadow-sm z-filter-bar relative">
         <div className="flex items-center gap-2">
           {/* Search Component */}
-          <div ref={searchRef} className="relative z-[20]">
+          <div ref={searchRef} className="relative z-search-container">
             <div className={`flex items-center transition-all duration-200 ${
               searchExpanded ? 'w-64' : 'w-10'
             }`}>
@@ -482,7 +488,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
                   />
                   
                   {searchResults.length > 0 && (
-                    <div className="fixed mt-1 bg-white rounded-lg shadow-lg max-h-60 overflow-y-auto z-[25]" style={{
+                    <div className="fixed mt-1 bg-white rounded-lg shadow-lg max-h-60 overflow-y-auto z-search-dropdown" style={{
                       top: searchRef.current?.getBoundingClientRect().bottom,
                       left: searchRef.current?.getBoundingClientRect().left,
                       width: searchRef.current?.getBoundingClientRect().width,
@@ -548,7 +554,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               </button>
 
               {isAgeDropdownOpen && (
-                <div className="fixed mt-1 bg-white rounded-lg shadow-lg py-2 w-32 max-h-60 overflow-y-auto z-[25]" style={{
+                <div className="fixed mt-1 bg-white rounded-lg shadow-lg py-2 w-32 max-h-60 overflow-y-auto z-age-dropdown" style={{
                   top: ageDropdownRef.current?.getBoundingClientRect().bottom,
                   left: ageDropdownRef.current?.getBoundingClientRect().left
                 }}>
@@ -744,7 +750,9 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
                     }
                   }}
                   options={{
-                    zIndex: selectedLocation?.id === location.id ? 1000 : 1
+                    zIndex: selectedLocation?.id === location.id
+                      ? getZIndexValue('--z-marker-selected')
+                      : getZIndexValue('--z-marker-normal')
                   }}
                   icon={{
                     ...getMarkerIcon(location),
@@ -891,7 +899,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
       {checkIsMobile() && !mobileDrawerOpen && (
         <button
           onClick={() => setMobileDrawerOpen(true)}
-          className="fixed z-40 bottom-6 left-1/2 transform -translate-x-1/2 px-4 py-3 rounded-full bg-white hover:bg-gray-50 shadow-lg flex items-center gap-2 border border-gray-200"
+          className="fixed z-mobile-button bottom-6 left-1/2 transform -translate-x-1/2 px-4 py-3 rounded-full bg-white hover:bg-gray-50 shadow-lg flex items-center gap-2 border border-gray-200"
           aria-label="Show locations"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600">

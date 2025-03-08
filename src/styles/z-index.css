@@ -1,0 +1,131 @@
+:root {
+    /* Base Layer (1-99) */
+    --z-base: 1;
+    --z-map-container: 5;
+    --z-map-controls: 10;
+    --z-map-attribution: 15;
+    
+    /* Header & Navigation (100-199) */
+    --z-header: 100;
+    --z-filter-bar: 110;
+    --z-search-container: 120;
+    --z-search-icon: 125;
+    --z-filter-buttons: 130;
+    --z-filter-buttons-active: 135;
+    
+    /* Dropdowns (200-299) */
+    --z-dropdown-base: 200;
+    --z-search-results-dropdown: 210;
+    --z-age-dropdown: 220;
+    --z-filter-dropdown: 230;
+    
+    /* Map Interactive Elements (300-399) */
+    --z-marker-normal: 300;
+    --z-marker-hover: 305;
+    --z-marker-selected: 310;
+    --z-marker-infowindow: 320;
+    --z-marker-infowindow-content: 325;
+    --z-mobile-floating-button: 350;
+    
+    /* Drawer (400-599) */
+    --z-drawer-backdrop: 400;
+    --z-drawer-container: 500;
+    --z-drawer-pull-handle: 510;
+    --z-drawer-header: 520;
+    --z-drawer-header-sticky: 530;
+    --z-drawer-content: 505;
+    
+    /* Location Details (600-699) */
+    --z-location-tile: 600;
+    --z-location-image: 610;
+    --z-location-content: 620;
+    
+    /* Image Carousel (700-799) */
+    --z-carousel-image: 700;
+    --z-carousel-loading-overlay: 720;
+    --z-carousel-error-overlay: 730;
+    --z-carousel-count-indicator: 740;
+    --z-carousel-navigation-buttons: 750;
+    --z-carousel-indicators: 760;
+    --z-carousel-fallback-message: 770;
+    
+    /* Modals (900+) */
+    --z-modal-backdrop: 900;
+    --z-modal-container: 1000;
+    --z-modal-content: 1010;
+    --z-modal-close-button: 1020;
+    --z-modal-success-message: 1030;
+  }
+  
+  /* Z-index utility classes for direct use in components */
+  .z-header {
+    z-index: var(--z-header);
+  }
+  
+  .z-filter-bar {
+    z-index: var(--z-filter-bar);
+  }
+  
+  .z-search-container {
+    z-index: var(--z-search-container);
+  }
+  
+  .z-search-dropdown {
+    z-index: var(--z-search-results-dropdown);
+  }
+  
+  .z-age-dropdown {
+    z-index: var(--z-age-dropdown);
+  }
+  
+  .z-drawer-backdrop {
+    z-index: var(--z-drawer-backdrop);
+  }
+  
+  .z-drawer-container {
+    z-index: var(--z-drawer-container);
+  }
+  
+  .z-drawer-header {
+    z-index: var(--z-drawer-header);
+  }
+  
+  .z-drawer-header-sticky {
+    z-index: var(--z-drawer-header-sticky);
+  }
+  
+  .z-carousel-loading {
+    z-index: var(--z-carousel-loading-overlay);
+  }
+  
+  .z-carousel-error {
+    z-index: var(--z-carousel-error-overlay);
+  }
+  
+  .z-carousel-controls {
+    z-index: var(--z-carousel-navigation-buttons);
+  }
+  
+  .z-carousel-indicators {
+    z-index: var(--z-carousel-indicators);
+  }
+  
+  .z-carousel-counter {
+    z-index: var(--z-carousel-count-indicator);
+  }
+  
+  .z-modal-backdrop {
+    z-index: var(--z-modal-backdrop);
+  }
+  
+  .z-modal-container {
+    z-index: var(--z-modal-container);
+  }
+  
+  .z-modal-close {
+    z-index: var(--z-modal-close-button);
+  }
+  
+  .z-mobile-button {
+    z-index: var(--z-mobile-floating-button);
+  }

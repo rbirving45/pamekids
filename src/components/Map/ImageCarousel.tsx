@@ -257,7 +257,7 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
     <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-gray-100 group">
       {/* Loading state */}
       {isLoading && !isViewMoreSlide && (
-        <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/10">
+        <div className="absolute inset-0 flex items-center justify-center z-carousel-loading bg-black/10">
           <div className="flex flex-col items-center bg-white/80 p-4 rounded-lg">
             <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
             <span className="mt-2 text-gray-700 font-medium">Loading photo...</span>
@@ -267,7 +267,7 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
       
       {/* Error state with retry button */}
       {error && !isLoading && !useFallback && !isViewMoreSlide && (
-        <div className="absolute inset-0 flex items-center justify-center z-10">
+        <div className="absolute inset-0 flex items-center justify-center z-carousel-error">
           <div className="text-center bg-white p-4 rounded-lg shadow-md">
             <p className="text-gray-700 mb-3">{error}</p>
             <button
@@ -283,7 +283,7 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
       
       {/* Fallback message (only show when using fallbacks) */}
       {useFallback && !isViewMoreSlide && (
-        <div className="absolute top-0 left-0 right-0 bg-black/60 text-white text-xs p-1 text-center">
+        <div className="absolute top-0 left-0 right-0 bg-black/60 text-white text-xs p-1 text-center z-carousel-fallback-message">
           Using placeholder images
         </div>
       )}
@@ -327,7 +327,7 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
       )}
       
       {/* Photo count indicator */}
-      <div className="absolute top-3 right-3 px-2 py-1 bg-black/60 text-white text-sm rounded z-20">
+      <div className="absolute top-3 right-3 px-2 py-1 bg-black/60 text-white text-sm rounded z-carousel-counter">
         {currentIndex + 1}/{totalSlides}
       </div>
       
@@ -336,21 +336,21 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
         <>
           <button
             onClick={prevPhoto}
-            className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity z-20"
+            className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity z-carousel-controls"
             aria-label="Previous photo"
           >
             <ChevronLeft size={24} />
           </button>
           <button
             onClick={nextPhoto}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity z-20"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity z-carousel-controls"
             aria-label="Next photo"
           >
             <ChevronRight size={24} />
           </button>
 
           {/* Photo indicator dots */}
-          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-20">
+          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-carousel-indicators">
             {Array.from({ length: totalSlides }).map((_, index) => (
               <button
                 key={index}

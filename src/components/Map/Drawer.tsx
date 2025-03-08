@@ -716,7 +716,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
     <>
       {/* Backdrop - completely transparent on mobile for all views */}
       <div
-        className={`fixed inset-0 z-30 md:hidden ${
+        className={`fixed inset-0 z-drawer-backdrop md:hidden ${
           (location || (isMobile.current && mobileMode === 'list')) && drawerRef.current ? 'pointer-events-auto' : 'pointer-events-none'
         } bg-transparent`}
         onClick={handleCloseAction}
@@ -726,7 +726,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
       <div 
         ref={drawerRef}
         className={`
-          fixed z-40 bg-white shadow-lg
+          fixed z-drawer-container bg-white shadow-lg
           md:w-[533px] left-0 md:top-[calc(4rem+3.25rem)] md:rounded-r-lg md:bottom-0
           w-full rounded-t-xl
           transition-all duration-300 ease-in-out
@@ -749,7 +749,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
         {/* Pull Handle (visible on mobile only) */}
         <div 
           ref={pullHandleRef}
-          className="h-6 w-full flex items-center justify-center cursor-pointer md:hidden"
+          className="h-6 w-full flex items-center justify-center cursor-pointer md:hidden z-drawer-pull-handle"
         >
           <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
         </div>
@@ -761,7 +761,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
             {(!isMobile.current || !isExpanded) && (
               <div
                 ref={headerRef}
-                className={`flex-shrink-0 bg-white border-b ${isExpanded && !isMobile.current ? 'sticky top-0 z-10' : ''}`}
+                className={`flex-shrink-0 bg-white border-b ${isExpanded && !isMobile.current ? 'sticky top-0 z-drawer-header-sticky' : 'z-drawer-header'}`}
               >
                 <div className="flex flex-col md:p-6 p-4">
                   <div className="flex items-start justify-between mb-2 md:mb-4">

@@ -136,10 +136,10 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
   };
   
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-      <div className="relative w-full max-w-md p-6 bg-white rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
+      <div className="fixed inset-0 z-modal-backdrop flex items-center justify-center p-4 bg-black bg-opacity-50">
+      <div className="relative w-full max-w-md p-6 bg-white rounded-lg shadow-xl max-h-[90vh] overflow-y-auto z-modal-container">
         <button
-          className="absolute right-4 top-4 p-2 rounded-full hover:bg-gray-100"
+          className="absolute right-4 top-4 p-2 rounded-full hover:bg-gray-100 z-modal-close"
           onClick={onClose}
         >
           <X size={20} className="text-gray-500" />
@@ -151,12 +151,12 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
         </p>
 
         {submitStatus === 'success' ? (
-          <div className="p-4 bg-green-50 text-green-800 rounded-lg mb-4 flex items-center">
+          <div className="p-4 bg-green-50 text-green-800 rounded-lg mb-4 flex items-center z-modal-success-message">
             <CheckCircle className="mr-2 flex-shrink-0" size={20} />
             <p>{submitMessage}</p>
           </div>
         ) : submitStatus === 'error' ? (
-          <div className="p-4 bg-red-50 text-red-800 rounded-lg mb-4">
+          <div className="p-4 bg-red-50 text-red-800 rounded-lg mb-4 z-modal-success-message">
             <p>{submitMessage}</p>
           </div>
         ) : null}
