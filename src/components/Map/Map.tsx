@@ -37,20 +37,18 @@ const activityConfig = {
 const MapComponent: React.FC<MapProps> = ({ locations }) => {
   // Use context hooks for mobile detection and UI state
   const { isMobile } = useMobile();
+  // Only destructure the values we actually use in this component
   const {
     isDrawerOpen,
-    setDrawerOpen,
-    isDrawerExpanded,
-    setDrawerExpanded,
-    activeLocationId,
-    setActiveLocationId
+    setDrawerOpen
+    // Additional UIState values are available but not used in this component
   } = useUIState();
 
   // Helper function to safely get z-index from CSS variables
-  const getZIndexValue = (variableName: string): number => {
+  const getZIndexValue = useCallback((variableName: string): number => {
     const value = getComputedStyle(document.documentElement).getPropertyValue(variableName);
     return parseInt(value.trim()) || 0; // fallback to 0 if parsing fails
-  };
+  }, []);
   
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [hoveredLocation, setHoveredLocation] = useState<Location | null>(null);
@@ -232,8 +230,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
         infoWindowRef.current.close();
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hoveredLocation, map, maps, selectedLocation]);
+  }, [hoveredLocation, map, maps, selectedLocation, isMobile, getZIndexValue]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -253,7 +250,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [setSearchExpanded, setIsAgeDropdownOpen]);
 
   useEffect(() => {
     if (!searchTerm) {
@@ -397,7 +394,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
         setVisibleLocations(locationsInView);
       }
     });
-  }, [locations]);
+  }, [locations, isMobile, setDrawerOpen, setSelectedLocation, setHoveredLocation, setVisibleLocations]);
 
   // Handle drawer close action 
   const handleDrawerClose = useCallback(() => {
@@ -417,7 +414,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
       // On desktop, just deselect the location
       setSelectedLocation(null);
     }
-  }, [isMobile, setDrawerOpen]);
+  }, [isMobile, setDrawerOpen, setSelectedLocation]);
 
   // Handle location selection from tile or marker
   const handleLocationSelect = useCallback((location: Location) => {
@@ -466,7 +463,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
         }
       }
     }
-  }, [map]); // Removed trackMarkerClick as it's from an imported module and doesn't change
+  }, [map, isMobile, setSelectedLocation]);
 
   const ageOptions = Array.from({ length: 19 }, (_, i) => i);
 
@@ -775,7 +772,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               />
             ))}
             // Close the useMemo callback and dependencies array
-            , [locations, activeFilters, selectedAge, openNowFilter, selectedLocation, hoveredLocation, getMarkerIcon, handleLocationSelect])}
+            , [locations, activeFilters, selectedAge, openNowFilter, selectedLocation, hoveredLocation, getMarkerIcon, handleLocationSelect, isMobile, setDrawerOpen, setHoveredLocation, getZIndexValue])}
 
             {/* User location marker */}
             {maps && (

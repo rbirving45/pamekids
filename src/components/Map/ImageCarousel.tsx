@@ -56,10 +56,14 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
 
   // Clean up on unmount
   useEffect(() => {
+    // Initialize unmounted ref properly
+    unmountedRef.current = false;
+    
     return () => {
       unmountedRef.current = true;
       if (loadingTimerRef.current) {
         clearTimeout(loadingTimerRef.current);
+        loadingTimerRef.current = null;
       }
     };
   }, []);
@@ -83,6 +87,15 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
     // Reset when photos or photoUrls change
     setError(null);
     setIsLoading(true);
+    
+    // Clear any existing timeout to prevent memory leaks
+    if (loadingTimerRef.current) {
+      clearTimeout(loadingTimerRef.current);
+      loadingTimerRef.current = null;
+    }
+    
+    // Only start loading process if component is mounted
+    if (unmountedRef.current) return;
     
     // Set a loading timeout to show fallback after waiting too long
     loadingTimerRef.current = setTimeout(() => {
@@ -122,9 +135,10 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
           })
           .filter((url): url is string => Boolean(url));
         
-        if (urls.length > 0) {
+        if (urls.length > 0 && !unmountedRef.current) {
           setDisplayedUrls(urls);
           setIsLoading(false);
+          
           if (loadingTimerRef.current) {
             clearTimeout(loadingTimerRef.current);
             loadingTimerRef.current = null;
@@ -137,14 +151,23 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
     }
     
     // Case 3: If no photoUrls or photos are available, use fallbacks immediately
-    if ((!photoUrls || photoUrls.length === 0) && (!photos || photos.length === 0)) {
+    if ((!photoUrls || photoUrls.length === 0) && (!photos || photos.length === 0) && !unmountedRef.current) {
       setUseFallback(true);
       setIsLoading(false);
+      
       if (loadingTimerRef.current) {
         clearTimeout(loadingTimerRef.current);
         loadingTimerRef.current = null;
       }
     }
+    
+    // Cleanup function
+    return () => {
+      if (loadingTimerRef.current) {
+        clearTimeout(loadingTimerRef.current);
+        loadingTimerRef.current = null;
+      }
+    };
   }, [photos, photoUrls]);
 
   // Use fallback images if needed

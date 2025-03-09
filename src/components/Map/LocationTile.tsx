@@ -11,12 +11,16 @@ interface LocationTileProps {
 
 const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, onSelect }) => {
   const [placeData, setPlaceData] = useState<Location['placeData']>();
+  // Track loading state for visual feedback (used in future feature)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [isLoading, setIsLoading] = useState(false);
+  const [_isLoading, setIsLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   // Fetch place data when component mounts
   useEffect(() => {
+    // Track if component is mounted
+    let isMounted = true;
+    
     const fetchData = async () => {
       // Skip if we already have data
       if (location.placeData || !window.google?.maps) return;
@@ -26,20 +30,30 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
       try {
         const data = await fetchPlaceDetails(location.id, window.google.maps);
         
-        if (data) {
+        // Only update state if the component is still mounted
+        if (isMounted && data) {
           setPlaceData(data);
           // Update the original location object to avoid refetching
           location.placeData = data;
         }
       } catch (error) {
-        console.error('Error fetching place details for tile:', error);
+        if (isMounted) {
+          console.error('Error fetching place details for tile:', error);
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchData();
-  }, [location]);
+    
+    // Cleanup function to prevent state updates after unmounting
+    return () => {
+      isMounted = false;
+    };
+  }, [location, location.id, location.placeData]);
 
   // Combine placeData from state or from location
   const mergedPlaceData = placeData || location.placeData;

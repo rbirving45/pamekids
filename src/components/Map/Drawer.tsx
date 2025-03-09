@@ -43,6 +43,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
   const { isMobile } = useMobile();
   const {
     isDrawerOpen,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     setDrawerOpen,
     isDrawerExpanded,
     setDrawerExpanded
@@ -50,10 +51,12 @@ const Drawer: React.FC<DrawerProps> = memo(({
   
   const [placeData, setPlaceData] = useState<Location['placeData']>();
   const [isLoading, setIsLoading] = useState(false);
+  // Used for tracking fetch status - intentionally not used directly
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
+  const [_hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
+  // Used for forcing photo refresh - intentionally not used directly
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [fetchTimestamp, setFetchTimestamp] = useState(0);
+  const [_fetchTimestamp, setFetchTimestamp] = useState(0);
   const [showReportIssueModal, setShowReportIssueModal] = useState(false);
   
   // Mobile drawer state - list or detail view
@@ -63,8 +66,11 @@ const Drawer: React.FC<DrawerProps> = memo(({
   const pullHandleRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const dragStartY = useRef<number | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const lastTouchY = useRef<number | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const touchStartTime = useRef<number>(0);
   const isDragging = useRef<boolean>(false);
   const isScrolling = useRef<boolean>(false);
@@ -168,14 +174,17 @@ const Drawer: React.FC<DrawerProps> = memo(({
 
   // Mobile overflow handling
   useEffect(() => {
-    // eslint-disable-next-line no-mixed-operators
+    // When either a location is selected or drawer is open with locations
     if (isMobile && ((location || (mobileDrawerOpen && visibleLocations.length > 0)))) {
       document.body.style.overflow = 'hidden';
       return () => {
         document.body.style.overflow = 'unset';
       };
     }
-  }, [location, visibleLocations, mobileDrawerOpen, isMobile]);
+    
+    // Add explicit return for when the condition isn't met
+    return undefined;
+  }, [location, visibleLocations.length, mobileDrawerOpen, isMobile]);
 
   // Handle wheel events for scrolling
   useEffect(() => {
@@ -203,8 +212,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
     // Attach to content area, not the entire drawer
     content.addEventListener('wheel', handleWheel, { passive: false });
     return () => content.removeEventListener('wheel', handleWheel);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location, isDrawerExpanded, mobileMode, mobileDrawerOpen, isMobile]);
+  }, [location, isDrawerExpanded, mobileMode, mobileDrawerOpen, isMobile, setDrawerExpanded]);
   
   // Add effect to ensure drawer gets proper pointer events after rendering
   useEffect(() => {
@@ -327,6 +335,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
     drawer.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
     drawer.addEventListener('touchend', handleTouchEnd);
     
+    // Cleanup function that removes all event listeners
     return () => {
       drawer.removeEventListener('touchstart', handleTouchStart);
       drawer.removeEventListener('touchmove', handleTouchMove, { capture: true });
@@ -355,7 +364,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
         setDrawerExpanded(true);
       }
     }
-  }, [location, mobileMode, mobileDrawerOpen, isDrawerExpanded, isMobile]);
+  }, [location, mobileMode, mobileDrawerOpen, isDrawerExpanded, isMobile, setDrawerExpanded]);
 
   // Add click handlers for the pull handle
   useEffect(() => {
