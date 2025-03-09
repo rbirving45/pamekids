@@ -25,13 +25,13 @@
   --z-marker-selected: 310;
   --z-marker-infowindow: 320;
   --z-marker-infowindow-content: 325;
-  --z-map-blocker: 340; /* For blocking map interactions when drawer is open */
-  --z-mobile-floating-button: 350;
+  --z-map-blocker: 390; /* For blocking map interactions when drawer is open - higher z-index to ensure it's above all map elements */
+  --z-mobile-floating-button: 395; /* Above map blocker */
     
     /* Drawer (400-599) */
     --z-drawer-backdrop: 400;
     --z-drawer-container: 500;
-    --z-drawer-pull-handle: 510;
+    --z-drawer-pull-handle: 550; /* Increased to ensure it's always on top of drawer content */
     --z-drawer-header: 520;
     --z-drawer-header-sticky: 530;
     --z-drawer-content: 505;

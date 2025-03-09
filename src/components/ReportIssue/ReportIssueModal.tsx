@@ -136,7 +136,20 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
   };
   
   return (
-      <div className="fixed inset-0 z-modal-backdrop flex items-center justify-center p-4 bg-black bg-opacity-50">
+      <div
+        className="fixed inset-0 z-modal-backdrop flex items-center justify-center p-4 bg-black bg-opacity-50"
+        onClick={(e) => e.stopPropagation()} // Prevent clicks from reaching elements behind
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => {
+          e.stopPropagation();
+          // Only prevent default on the backdrop, not on the content
+          if (!(e.target as Element).closest('.z-modal-container')) {
+            e.preventDefault();
+          }
+        }}
+        onTouchEnd={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()} // Stop wheel events too
+      >
       <div className="relative w-full max-w-md p-6 bg-white rounded-lg shadow-xl max-h-[90vh] overflow-y-auto z-modal-container">
         <button
           className="absolute right-4 top-4 p-2 rounded-full hover:bg-gray-100 z-modal-close"

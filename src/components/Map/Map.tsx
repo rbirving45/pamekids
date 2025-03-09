@@ -658,12 +658,17 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               streetViewControl: false,
               rotateControl: false,
               fullscreenControl: false,
-              clickableIcons: false,
-              // Critical change: Only use 'greedy' when drawer is closed
-              gestureHandling: isMobile && isDrawerOpen ? 'none' : 'greedy',
+              clickableIcons: false, // Prevent clicks on POIs for better control
+              // Critical change: Always use 'none' when drawer is open on mobile
+              // This completely prevents map gestures when the drawer is showing
+              gestureHandling: isMobile && isDrawerOpen ? 'none' : (isMobile ? 'greedy' : 'auto'),
               minZoom: 3, // Prevent zooming out too far
               maxZoom: 20, // Prevent excessive zoom
-              disableDefaultUI: isMobile // Hide all default UI on mobile
+              disableDefaultUI: isMobile, // Hide all default UI on mobile
+              // Additional touch handling improvements
+              draggableCursor: 'grab',
+              draggingCursor: 'grabbing',
+              isFractionalZoomEnabled: false // Disable fractional zoom on mobile to prevent zoom issues
             }}
           >
             {/* Markers */}

@@ -208,10 +208,22 @@ const Drawer: React.FC<DrawerProps> = memo(({
         e.preventDefault(); // Prevent actual scrolling during expansion
       }
     };
+
+    // Handle touch events with passive: false to allow preventDefault
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDrawerExpanded && content.scrollTop <= 0) {
+        e.preventDefault(); // Prevent scroll when at top
+      }
+    };
     
-    // Attach to content area, not the entire drawer
+    // Attach event listeners with passive: false
     content.addEventListener('wheel', handleWheel, { passive: false });
-    return () => content.removeEventListener('wheel', handleWheel);
+    content.addEventListener('touchmove', handleTouchMove, { passive: false });
+    
+    return () => {
+      content.removeEventListener('wheel', handleWheel);
+      content.removeEventListener('touchmove', handleTouchMove);
+    };
   }, [location, isDrawerExpanded, mobileMode, mobileDrawerOpen, isMobile, setDrawerExpanded]);
   
   // Add effect to ensure drawer gets proper pointer events after rendering
@@ -235,111 +247,211 @@ const Drawer: React.FC<DrawerProps> = memo(({
     onClose();
   };
 
-  // SIMPLIFIED TOUCH HANDLING
+  // Advanced touch handling with velocity tracking and improved UX
   useEffect(() => {
+    // Skip if not mobile or drawer refs aren't available
     if (!isMobile || !drawerRef.current || !contentRef.current) return;
     
     const drawer = drawerRef.current;
     const content = contentRef.current;
+    const header = headerRef.current;
+
+    // Explicitly set pointer-events to ensure touch events are captured
+    drawer.style.pointerEvents = 'auto';
+    content.style.pointerEvents = 'auto';
+    if (header) {
+      header.style.pointerEvents = 'auto';
+    }
     
-    // Touch tracking variables
-    const touchStartY = { current: 0 };
-    const touchCurrentY = { current: 0 };
-    const contentScrollPosition = { current: 0 };
-    const isDragging = { current: false };
+    // Enhanced touch tracking variables with velocity
+    const touchData = {
+      startY: 0,
+      currentY: 0,
+      previousY: 0,
+      startTime: 0,
+      contentScrollPos: 0,
+      isDragging: false,
+      velocity: 0,
+      lastMoveTime: 0,
+      touches: [] as {y: number, time: number}[]
+    };
+    
+    // Constants for better touch interaction
+    const VELOCITY_THRESHOLD = 0.5; // px/ms - threshold for "fast" swipe
+    const DISTANCE_THRESHOLD = 80; // px - minimum distance for significant swipe
+    const MAX_VELOCITY_SAMPLE_COUNT = 5; // Track last N touch points for velocity
+    const DRAG_RESISTANCE = {
+      // Different resistance factors for different states and directions
+      expanded: {
+        up: 0.2,    // Most resistance when expanded and swiping up (beyond limits)
+        down: 0.5   // Medium resistance when expanded and swiping down
+      },
+      collapsed: {
+        up: 0.6,    // Less resistance when collapsed and swiping up
+        down: 0.4,  // Medium resistance when collapsed and swiping down
+        closing: 0.7 // Less resistance when collapsing the drawer completely
+      }
+    };
     
     const handleTouchStart = (e: TouchEvent) => {
-      // Store initial touch position
-      touchStartY.current = e.touches[0].clientY;
-      touchCurrentY.current = e.touches[0].clientY;
+      // Check if the touch is in the header area (pull handle) or content area
+      const touch = e.touches[0];
+      const touchY = touch.clientY;
       
-      // Store initial content scroll position
-      contentScrollPosition.current = content.scrollTop;
+      // Store initial touch position and time
+      touchData.startY = touchY;
+      touchData.currentY = touchY;
+      touchData.previousY = touchY;
+      touchData.startTime = Date.now();
+      touchData.lastMoveTime = touchData.startTime;
+      touchData.velocity = 0;
+      touchData.isDragging = false;
+      touchData.touches = [{y: touchY, time: touchData.startTime}];
       
-      // Reset dragging state
-      isDragging.current = false;
+      // Store initial content scroll position - critical for deciding when to drag
+      touchData.contentScrollPos = content.scrollTop;
       
-      // Disable transitions for direct manipulation
+      // Remove transitions for direct manipulation
       drawer.style.transition = 'none';
     };
     
     const handleTouchMove = (e: TouchEvent) => {
-      // Current touch position
-      touchCurrentY.current = e.touches[0].clientY;
+      const touch = e.touches[0];
+      const currentY = touch.clientY;
+      const currentTime = Date.now();
+      const deltaY = currentY - touchData.startY;
+      const deltaTime = currentTime - touchData.lastMoveTime;
       
-      // Calculate delta from start
-      const deltaY = touchCurrentY.current - touchStartY.current;
+      // Store previous position before updating current
+      touchData.previousY = touchData.currentY;
+      touchData.currentY = currentY;
       
-      // CRITICAL: Determine if this is a drawer drag or content scroll
-      const isScrollAtTop = contentScrollPosition.current <= 0;
+      // Track touch points for velocity calculation (limit to most recent points)
+      touchData.touches.push({y: currentY, time: currentTime});
+      if (touchData.touches.length > MAX_VELOCITY_SAMPLE_COUNT) {
+        touchData.touches.shift();
+      }
+      
+      // Calculate instantaneous velocity (px/ms)
+      if (deltaTime > 0) {
+        const instantVelocity = (currentY - touchData.previousY) / deltaTime;
+        // Smooth velocity with some averaging
+        touchData.velocity = 0.7 * instantVelocity + 0.3 * touchData.velocity;
+      }
+      
+      touchData.lastMoveTime = currentTime;
+      
+      // CRITICAL: Determine if this should be a drawer drag or content scroll
+      const isScrollAtTop = touchData.contentScrollPos <= 0;
       const isDownSwipe = deltaY > 0;
       
-      // If we're at the top of content and swiping down, it's a drawer drag
-      if ((isScrollAtTop && isDownSwipe) || isDragging.current) {
-        // Mark as dragging to maintain consistent behavior
-        isDragging.current = true;
+      // Logic for determining when to start dragging:
+      // 1. In partial mode (not expanded): Always control the drawer for vertical swipes
+      // 2. In full-screen mode: Only control the drawer for downward swipes at the top of content
+      //    or if we've already started dragging
+      const isHeaderTouch = header && touch.target instanceof Node && header.contains(touch.target);
+      const isPullHandleTouch = touchData.startY < 60; // Approximate pull handle area
+      const shouldControlDrawer =
+        (!isDrawerExpanded) ||  // In partial mode - always control drawer
+        (isDrawerExpanded && (isHeaderTouch || isPullHandleTouch || isScrollAtTop) && isDownSwipe) || // Header/pull handle area in full mode
+        touchData.isDragging; // Already dragging
+      
+      if (shouldControlDrawer) {
+        // Mark as dragging to maintain consistent behavior for this touch sequence
+        touchData.isDragging = true;
         
-        // CRITICAL: Prevent default to stop content scroll
+        // Prevent default to stop content scroll during drawer manipulation
         e.preventDefault();
         
+        // Apply different resistance based on current state and swipe direction
+        let resistance = 0.5;
+        if (isDrawerExpanded) {
+          resistance = isDownSwipe ? DRAG_RESISTANCE.expanded.down : DRAG_RESISTANCE.expanded.up;
+        } else {
+          resistance = isDownSwipe ? DRAG_RESISTANCE.collapsed.down : DRAG_RESISTANCE.collapsed.up;
+        }
+        
         // Calculate drawer movement with resistance
-        const resistance = isDrawerExpanded ? 0.5 : 0.3;
         const moveY = deltaY * resistance;
         
-        // Move the drawer
+        // Move the drawer with transform
         drawer.style.transform = `translateY(${moveY}px)`;
       }
       // Otherwise it's a normal content scroll, let the browser handle it
     };
     
     const handleTouchEnd = () => {
-      // Skip if we weren't dragging
-      if (!isDragging.current) return;
+      // Skip if we weren't dragging the drawer
+      if (!touchData.isDragging) return;
       
       // Re-enable transitions for smooth animation
       drawer.style.transition = 'transform 0.3s ease-out';
       
-      // Calculate total movement
-      const totalDeltaY = touchCurrentY.current - touchStartY.current;
+      // Calculate touch metrics
+      const totalDeltaY = touchData.currentY - touchData.startY;
       
-      // Determine action based on current state and swipe direction/distance
+      // Calculate average velocity using the tracked touch points
+      let avgVelocity = touchData.velocity;
+      if (touchData.touches.length >= 2) {
+        const first = touchData.touches[0];
+        const last = touchData.touches[touchData.touches.length - 1];
+        const touchDeltaY = last.y - first.y;
+        const touchDeltaTime = last.time - first.time;
+        if (touchDeltaTime > 0) {
+          avgVelocity = touchDeltaY / touchDeltaTime; // px/ms
+        }
+      }
+      
+      // Decide action based on swipe metrics and current drawer state
       if (isDrawerExpanded) {
-        // Currently expanded
-        if (totalDeltaY > 100) {
-          // Significant downward swipe - collapse
+        // Handle interaction when drawer is currently expanded (full screen)
+        if (totalDeltaY > DISTANCE_THRESHOLD || (avgVelocity > VELOCITY_THRESHOLD && totalDeltaY > 0)) {
+          // Significant downward swipe or fast downward flick - collapse to half-screen
           setDrawerExpanded(false);
         } else {
           // Not enough movement - stay expanded
           drawer.style.transform = '';
         }
       } else {
-        // Currently collapsed
-        if (totalDeltaY < -100) {
-          // Significant upward swipe - expand
+        // Handle interaction when drawer is in collapsed state (half screen)
+        if (totalDeltaY < -DISTANCE_THRESHOLD || (avgVelocity < -VELOCITY_THRESHOLD && totalDeltaY < 0)) {
+          // Significant upward swipe or fast upward flick - expand to full screen
           setDrawerExpanded(true);
-        } else if (totalDeltaY > 100) {
-          // Significant downward swipe - close
+        } else if (totalDeltaY > DISTANCE_THRESHOLD || (avgVelocity > VELOCITY_THRESHOLD && totalDeltaY > 0)) {
+          // Significant downward swipe or fast downward flick - close drawer completely
           onClose();
         } else {
-          // Not enough movement - stay collapsed
+          // Not enough movement - return to half-screen state
           drawer.style.transform = '';
         }
       }
       
-      // Reset dragging state
-      isDragging.current = false;
+      // Reset touch tracking state
+      touchData.isDragging = false;
     };
     
-    // Add unified touch handlers to the drawer
-    drawer.addEventListener('touchstart', handleTouchStart, { passive: true });
+    // Touch cancel should be handled the same as touch end
+    const handleTouchCancel = handleTouchEnd;
+    
+    // Add unified touch handlers to the drawer - all with passive: false for consistent behavior
+    drawer.addEventListener('touchstart', handleTouchStart, { passive: false });
     drawer.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
-    drawer.addEventListener('touchend', handleTouchEnd);
+    drawer.addEventListener('touchend', handleTouchEnd, { passive: false });
+    drawer.addEventListener('touchcancel', handleTouchCancel, { passive: false });
+
+    // Also add touch handlers to content area
+    content.addEventListener('touchmove', (e: TouchEvent) => {
+      if (!isDrawerExpanded && content.scrollTop <= 0) {
+        e.preventDefault();
+      }
+    }, { passive: false });
     
     // Cleanup function that removes all event listeners
     return () => {
       drawer.removeEventListener('touchstart', handleTouchStart);
       drawer.removeEventListener('touchmove', handleTouchMove, { capture: true });
       drawer.removeEventListener('touchend', handleTouchEnd);
+      drawer.removeEventListener('touchcancel', handleTouchCancel);
     };
   }, [isMobile, isDrawerExpanded, setDrawerExpanded, onClose]);
 
@@ -678,6 +790,35 @@ const Drawer: React.FC<DrawerProps> = memo(({
           ref={pullHandleRef}
           className="h-8 w-full flex items-center justify-center cursor-pointer md:hidden z-drawer-pull-handle bg-gray-50"
           onClick={() => setDrawerExpanded(!isDrawerExpanded)}
+          onTouchStart={(e) => {
+            // Mark this touch event for the pull handle
+            // to differentiate it from drawer dragging
+            e.currentTarget.setAttribute('data-touch-active', 'true');
+            // Stop propagation to prevent map gestures
+            e.stopPropagation();
+            // Prevent default to ensure no map interaction
+            e.preventDefault();
+          }}
+          onTouchEnd={(e) => {
+            // Handle tap on pull handle to toggle expansion
+            // only if this was a genuine tap (not part of a drag)
+            if (e.currentTarget.getAttribute('data-touch-active') === 'true') {
+              setDrawerExpanded(!isDrawerExpanded);
+            }
+            // Clear the touch state
+            e.currentTarget.removeAttribute('data-touch-active');
+            // Stop propagation and prevent default
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onTouchMove={(e) => {
+            // If significant movement occurs, this is a drag not a tap
+            // Clear the touch-active flag to prevent toggle on touch end
+            e.currentTarget.removeAttribute('data-touch-active');
+            // Don't prevent default here to allow drawer dragging
+            // But do stop propagation
+            e.stopPropagation();
+          }}
         >
           <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
         </div>
@@ -690,6 +831,18 @@ const Drawer: React.FC<DrawerProps> = memo(({
               <div
                 ref={headerRef}
                 className={`flex-shrink-0 bg-white border-b ${isDrawerExpanded && !isMobile ? 'sticky top-0 z-drawer-header-sticky' : 'z-drawer-header'}`}
+                onTouchStart={(e) => {
+                  // Stop propagation to prevent map gestures
+                  e.stopPropagation();
+                }}
+                onTouchMove={(e) => {
+                  // In partial drawer mode, prevent default to block map interaction
+                  if (!isDrawerExpanded) {
+                    e.preventDefault();
+                  }
+                  // Always stop propagation
+                  e.stopPropagation();
+                }}
               >
                 <div className="flex flex-col md:p-6 p-4">
                   <div className="flex items-start justify-between mb-2 md:mb-4">
@@ -702,6 +855,17 @@ const Drawer: React.FC<DrawerProps> = memo(({
                             onClick={handleBackToList}
                             className="p-1.5 -ml-1.5 mr-2 rounded-full hover:bg-gray-100 transition-colors"
                             aria-label="Back to list"
+                            onTouchStart={(e) => {
+                              // Stop propagation to prevent map gestures
+                              e.stopPropagation();
+                              // Also prevent default
+                              e.preventDefault();
+                            }}
+                            onTouchEnd={(e) => {
+                              // Stop propagation and prevent default
+                              e.stopPropagation();
+                              e.preventDefault();
+                            }}
                           >
                             <ChevronLeft size={20} className="text-gray-600" />
                           </button>
@@ -777,6 +941,14 @@ const Drawer: React.FC<DrawerProps> = memo(({
                                 onClick={handleBackToList}
                                 className="p-1.5 -ml-1.5 mr-2 rounded-full hover:bg-gray-100 transition-colors"
                                 aria-label="Back to list"
+                                onTouchStart={(e) => {
+                                  // Stop propagation to prevent map gestures
+                                  e.stopPropagation();
+                                }}
+                                onTouchEnd={(e) => {
+                                  // Stop propagation
+                                  e.stopPropagation();
+                                }}
                               >
                                 <ChevronLeft size={20} className="text-gray-600" />
                               </button>
@@ -944,6 +1116,18 @@ const Drawer: React.FC<DrawerProps> = memo(({
             <div 
               ref={headerRef}
               className="flex-shrink-0 bg-white border-b"
+              onTouchStart={(e) => {
+                // Stop propagation to prevent map gestures
+                e.stopPropagation();
+              }}
+              onTouchMove={(e) => {
+                // In partial drawer mode, prevent default to block map interaction
+                if (!isDrawerExpanded) {
+                  e.preventDefault();
+                }
+                // Always stop propagation
+                e.stopPropagation();
+              }}
             >
               <div className="flex items-center justify-between p-4">
                 <h2 className="text-xl font-bold text-gray-900">Nearby Activities</h2>
