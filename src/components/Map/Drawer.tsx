@@ -7,6 +7,8 @@ import { fetchPlaceDetails } from '../../utils/places-api';
 import RatingDisplay from './RatingDisplay';
 import ReportIssueModal from '../ReportIssue/ReportIssueModal';
 import LocationTile from './LocationTile';
+import { useMobile } from '../../contexts/MobileContext';
+import { useUIState } from '../../contexts/UIStateContext';
 
 interface DrawerProps {
   location: Location | null;
@@ -37,6 +39,15 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // Store location ID to prevent unnecessary effect triggers
   const locationId = location?.id;
   
+  // Use context hooks for mobile detection and UI state
+  const { isMobile } = useMobile();
+  const {
+    isDrawerOpen,
+    setDrawerOpen,
+    isDrawerExpanded,
+    setDrawerExpanded
+  } = useUIState();
+  
   const [placeData, setPlaceData] = useState<Location['placeData']>();
   const [isLoading, setIsLoading] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -45,13 +56,8 @@ const Drawer: React.FC<DrawerProps> = memo(({
   const [fetchTimestamp, setFetchTimestamp] = useState(0);
   const [showReportIssueModal, setShowReportIssueModal] = useState(false);
   
-  // Mobile drawer state - check localStorage for previous expanded state
-  const isMobile = useRef(window.matchMedia('(max-width: 767px)').matches);
+  // Mobile drawer state - list or detail view
   const [mobileMode, setMobileMode] = useState<'list' | 'detail'>('list');
-  
-  // Initialize expanded state to false (half-screen) on mobile for list view
-  // But keep expanded state for location detail view if coming from expanded list
-  const [isExpanded, setIsExpanded] = useState(false);
   
   const drawerRef = useRef<HTMLDivElement>(null);
   const pullHandleRef = useRef<HTMLDivElement>(null);
@@ -64,30 +70,30 @@ const Drawer: React.FC<DrawerProps> = memo(({
   const isScrolling = useRef<boolean>(false);
   
   // Determine which view to show on mobile
+  // Determine which view to show on mobile
   useEffect(() => {
-    if (isMobile.current) {
+    if (isMobile) {
       if (location) {
         setMobileMode('detail');
         // Don't reset the expanded state when transitioning from list to detail
-        // This allows the detail view to inherit the expanded state from the list view
       } else {
         setMobileMode('list');
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location]);
+  }, [location, isMobile]);
   
   // Return early if mobile drawer should be closed
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (isMobile.current && (!mobileDrawerOpen && !location)) {
+    if (isMobile && (!mobileDrawerOpen && !location)) {
       // Reset any transform and animation when drawer is closed
       if (drawerRef.current) {
         drawerRef.current.style.transform = '';
         drawerRef.current.style.transition = 'transform 0.3s ease-out';
       }
     }
-  }, [mobileDrawerOpen, location]);
+  }, [mobileDrawerOpen, location, isMobile]);
   
   // Clear state when location changes
   useEffect(() => {
@@ -163,17 +169,17 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // Mobile overflow handling
   useEffect(() => {
     // eslint-disable-next-line no-mixed-operators
-    if (isMobile.current && ((location || (mobileDrawerOpen && visibleLocations.length > 0)))) {
+    if (isMobile && ((location || (mobileDrawerOpen && visibleLocations.length > 0)))) {
       document.body.style.overflow = 'hidden';
       return () => {
         document.body.style.overflow = 'unset';
       };
     }
-  }, [location, visibleLocations, mobileDrawerOpen]);
+  }, [location, visibleLocations, mobileDrawerOpen, isMobile]);
 
   // Handle wheel events for scrolling
   useEffect(() => {
-    if (!isMobile.current || (!location && mobileMode !== 'list' && !mobileDrawerOpen) || !drawerRef.current) return;
+    if (!isMobile || (!location && mobileMode !== 'list' && !mobileDrawerOpen) || !drawerRef.current) return;
     
     const content = contentRef.current;
     
@@ -181,15 +187,15 @@ const Drawer: React.FC<DrawerProps> = memo(({
     
     const handleWheel = (e: WheelEvent) => {
       // On mobile in half-screen: expand on any scroll attempt
-      if (isMobile.current && !isExpanded) {
-        setIsExpanded(true);
+      if (isMobile && !isDrawerExpanded) {
+        setDrawerExpanded(true);
         e.preventDefault(); // Prevent actual scrolling during expansion
         return;
       }
       
       // On desktop: only intercept wheel events if they would expand the drawer and we're at the top
-      if (!isMobile.current && !isExpanded && e.deltaY > 0 && content.scrollTop <= 0) {
-        setIsExpanded(true);
+      if (!isMobile && !isDrawerExpanded && e.deltaY > 0 && content.scrollTop <= 0) {
+        setDrawerExpanded(true);
         e.preventDefault(); // Prevent actual scrolling during expansion
       }
     };
@@ -198,11 +204,11 @@ const Drawer: React.FC<DrawerProps> = memo(({
     content.addEventListener('wheel', handleWheel, { passive: false });
     return () => content.removeEventListener('wheel', handleWheel);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location, isExpanded, mobileMode, mobileDrawerOpen]);
+  }, [location, isDrawerExpanded, mobileMode, mobileDrawerOpen, isMobile]);
   
   // Add effect to ensure drawer gets proper pointer events after rendering
   useEffect(() => {
-    if (location || (isMobile.current && mobileMode === 'list')) {
+    if (location || (isMobile && mobileMode === 'list')) {
       // Small delay to let the drawer positioning settle before enabling interactions
       const timer = setTimeout(() => {
         if (drawerRef.current) {
@@ -212,7 +218,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
       
       return () => clearTimeout(timer);
     }
-  }, [location, mobileMode]);
+  }, [location, mobileMode, isMobile]);
 
   // Handle drawer close action for different states
   const handleCloseAction = () => {
@@ -221,196 +227,112 @@ const Drawer: React.FC<DrawerProps> = memo(({
     onClose();
   };
 
-  // Add unified touch event handling for the drawer
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // SIMPLIFIED TOUCH HANDLING
   useEffect(() => {
-    if (!isMobile.current || (!location && mobileMode !== 'list' && !mobileDrawerOpen) || !drawerRef.current) return;
+    if (!isMobile || !drawerRef.current || !contentRef.current) return;
     
     const drawer = drawerRef.current;
-    const handle = pullHandleRef.current;
-    const header = headerRef.current;
     const content = contentRef.current;
     
-    if (!handle || !header || !content) return;
+    // Touch tracking variables
+    const touchStartY = { current: 0 };
+    const touchCurrentY = { current: 0 };
+    const contentScrollPosition = { current: 0 };
+    const isDragging = { current: false };
     
-    // Track if we should intercept touch events
-    let shouldHandleDrag = false;
-    let initialTouchY = 0;
-    let initialScrollTop = 0;
-    
-    // Handle touch start events
     const handleTouchStart = (e: TouchEvent) => {
       // Store initial touch position
-      initialTouchY = e.touches[0].clientY;
-      dragStartY.current = initialTouchY;
-      lastTouchY.current = initialTouchY;
-      touchStartTime.current = Date.now();
+      touchStartY.current = e.touches[0].clientY;
+      touchCurrentY.current = e.touches[0].clientY;
       
-      // Store scroll position to determine if we're at the top
-      initialScrollTop = content.scrollTop;
+      // Store initial content scroll position
+      contentScrollPosition.current = content.scrollTop;
       
-      // Determine if we should handle this touch as a drawer drag
-      // eslint-disable-next-line no-mixed-operators
-      if (e.target === handle || (!isMobile.current || !isExpanded) && header && header.contains(e.target as Node)) {
-        // Always handle drag for pull handle or header (when not expanded)
-        shouldHandleDrag = true;
-        drawer.style.transition = 'none';
-      } else if (content.contains(e.target as Node)) {
-        // For expanded view, we'll handle drag if we're at the top OR if it's a significant downward swipe
-        shouldHandleDrag = false; // We'll decide this in touchmove
-        
-        // If we're expanded and at the top, prepare for potential drag
-        if (isExpanded && initialScrollTop <= 0) {
-          shouldHandleDrag = true;
-          drawer.style.transition = 'none';
-        }
-      }
-      
-      // Reset tracking
+      // Reset dragging state
       isDragging.current = false;
-      isScrolling.current = false;
+      
+      // Disable transitions for direct manipulation
+      drawer.style.transition = 'none';
     };
     
-    // Handle touch move events
     const handleTouchMove = (e: TouchEvent) => {
-      const currentY = e.touches[0].clientY;
-      const deltaY = currentY - initialTouchY;
-      const isScrollingDown = currentY > lastTouchY.current!;
-      const moveDistance = Math.abs(deltaY);
-      const timeDelta = Date.now() - touchStartTime.current;
-      const velocity = moveDistance / timeDelta;
+      // Current touch position
+      touchCurrentY.current = e.touches[0].clientY;
       
-      // Update last touch position for next move event
-      lastTouchY.current = currentY;
+      // Calculate delta from start
+      const deltaY = touchCurrentY.current - touchStartY.current;
       
-      // For content area, decide if this is a scroll or drawer drag
-      if (!isDragging.current && !isScrolling.current && content.contains(e.target as Node)) {
-        // Enhanced drag detection for expanded mode
-        if (isMobile.current && isExpanded) {
-          const isSignificantDownwardSwipe = isScrollingDown && (velocity > 0.3 || moveDistance > 30);
-          
-          if ((initialScrollTop <= 1 && isScrollingDown) || isSignificantDownwardSwipe) {
-            // Allow dragging for top-edge pulls or significant downward swipes
-            isDragging.current = true;
-            drawer.style.transition = 'none';
-            shouldHandleDrag = true;
-            // Prevent scroll when we're taking over with drag
-            e.preventDefault();
-          } else if (!isSignificantDownwardSwipe && !shouldHandleDrag) {
-            // Normal content scroll
-            isScrolling.current = true;
-            return;
-          }
-        }
-        // Normal half-screen behavior
-        else if (initialScrollTop <= 1 && isScrollingDown) {
-          isDragging.current = true;
-          drawer.style.transition = 'none';
-          shouldHandleDrag = true;
-        } else {
-          // Regular content scroll
-          isScrolling.current = true;
-          return;
-        }
-      }
+      // CRITICAL: Determine if this is a drawer drag or content scroll
+      const isScrollAtTop = contentScrollPosition.current <= 0;
+      const isDownSwipe = deltaY > 0;
       
-      // If this is a header/handle drag or a content drag that we decided to handle
-      if (shouldHandleDrag || isDragging.current) {
-        // Calculate how much to move the drawer
-        let moveY;
-        if (deltaY > 0) { // Dragging downward
-          const resistance = isExpanded ? 0.5 : 0.3;
-          moveY = deltaY * resistance;
-        } else { // Dragging upward
-          const resistance = isExpanded ? 0.8 : 0.5;
-          moveY = deltaY * resistance;
-        }
+      // If we're at the top of content and swiping down, it's a drawer drag
+      if ((isScrollAtTop && isDownSwipe) || isDragging.current) {
+        // Mark as dragging to maintain consistent behavior
+        isDragging.current = true;
+        
+        // CRITICAL: Prevent default to stop content scroll
+        e.preventDefault();
+        
+        // Calculate drawer movement with resistance
+        const resistance = isDrawerExpanded ? 0.5 : 0.3;
+        const moveY = deltaY * resistance;
         
         // Move the drawer
         drawer.style.transform = `translateY(${moveY}px)`;
-        
-        // Prevent default ONLY if we're actually dragging the drawer
-        e.preventDefault();
-        isDragging.current = true;
       }
+      // Otherwise it's a normal content scroll, let the browser handle it
     };
     
-    // Handle touch end events
-    const handleTouchEnd = (e: TouchEvent) => {
+    const handleTouchEnd = () => {
       // Skip if we weren't dragging
-      if (!isDragging.current && !shouldHandleDrag) {
-        return;
-      }
+      if (!isDragging.current) return;
       
-      // Re-enable transition for smooth animation
+      // Re-enable transitions for smooth animation
       drawer.style.transition = 'transform 0.3s ease-out';
       
-      // Calculate swipe metrics
-      if (dragStartY.current !== null && lastTouchY.current !== null) {
-        const totalDeltaY = lastTouchY.current - dragStartY.current;
-        const touchEndTime = Date.now();
-        const touchDuration = touchEndTime - touchStartTime.current;
-        const swipeVelocity = Math.abs(totalDeltaY) / touchDuration;
-        
-        // Enhanced drawer logic with better velocity/distance thresholds
-        if (isExpanded) {
-          // Currently expanded
-          if (totalDeltaY > 0) { // Downward swipe
-            if (swipeVelocity > 0.7 || totalDeltaY > 150) {
-              // Fast or long downward swipe - collapse to half state
-              setIsExpanded(false);
-            } else if (swipeVelocity > 1.2 || totalDeltaY > 300) {
-              // Very fast or very long swipe - close completely
-              handleCloseAction();
-            } else if (totalDeltaY > 60) {
-              // Moderate swipe - collapse to half state
-              setIsExpanded(false);
-            } else {
-              // Small movement - stay expanded
-              drawer.style.transform = '';
-            }
-          } else {
-            // Upward swipe while expanded - reset position
-            drawer.style.transform = '';
-          }
+      // Calculate total movement
+      const totalDeltaY = touchCurrentY.current - touchStartY.current;
+      
+      // Determine action based on current state and swipe direction/distance
+      if (isDrawerExpanded) {
+        // Currently expanded
+        if (totalDeltaY > 100) {
+          // Significant downward swipe - collapse
+          setDrawerExpanded(false);
         } else {
-          // Currently in half state
-          if (totalDeltaY < 0 && (swipeVelocity > 0.5 || totalDeltaY < -50)) {
-            // Upward swipe - expand
-            setIsExpanded(true);
-          } else if (totalDeltaY > 0 && (swipeVelocity > 0.5 || totalDeltaY > 80)) {
-            // Downward swipe - close completely
-            handleCloseAction();
-          } else {
-            // Not enough movement - stay in half state
-            drawer.style.transform = '';
-          }
+          // Not enough movement - stay expanded
+          drawer.style.transform = '';
+        }
+      } else {
+        // Currently collapsed
+        if (totalDeltaY < -100) {
+          // Significant upward swipe - expand
+          setDrawerExpanded(true);
+        } else if (totalDeltaY > 100) {
+          // Significant downward swipe - close
+          onClose();
+        } else {
+          // Not enough movement - stay collapsed
+          drawer.style.transform = '';
         }
       }
       
-      // Reset all tracking variables
+      // Reset dragging state
       isDragging.current = false;
-      isScrolling.current = false;
-      shouldHandleDrag = false;
-      dragStartY.current = null;
-      lastTouchY.current = null;
     };
     
-    // Add unified touch handlers to the entire drawer
-    // Using capture phase to intercept events before they reach content elements
+    // Add unified touch handlers to the drawer
     drawer.addEventListener('touchstart', handleTouchStart, { passive: true });
     drawer.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
     drawer.addEventListener('touchend', handleTouchEnd);
-    drawer.addEventListener('touchcancel', handleTouchEnd);
     
     return () => {
       drawer.removeEventListener('touchstart', handleTouchStart);
       drawer.removeEventListener('touchmove', handleTouchMove, { capture: true });
       drawer.removeEventListener('touchend', handleTouchEnd);
-      drawer.removeEventListener('touchcancel', handleTouchEnd);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location, isExpanded, mobileMode, mobileDrawerOpen]);
+  }, [isMobile, isDrawerExpanded, setDrawerExpanded, onClose]);
 
   // Reset transform when expanded state changes
   useEffect(() => {
@@ -419,21 +341,21 @@ const Drawer: React.FC<DrawerProps> = memo(({
       drawerRef.current.style.transform = '';
       drawerRef.current.style.transition = 'transform 0.3s ease-out, top 0.3s ease-out, height 0.3s ease-out';
     }
-  }, [isExpanded]);
+  }, [isDrawerExpanded]);
 
   // Preserve expanded state when transitioning from list to detail view on mobile
   useEffect(() => {
-    if (isMobile.current && location && mobileMode === 'detail' && mobileDrawerOpen) {
+    if (isMobile && location && mobileMode === 'detail' && mobileDrawerOpen) {
       // Check if we're coming from a list view that was expanded
-      const listWasExpanded = !location && isExpanded;
+      const listWasExpanded = !location && isDrawerExpanded;
       
       // If the drawer was already in expanded state in list view, keep it expanded
-      // Otherwise, use the current value of isExpanded
+      // Otherwise, use the current value of isDrawerExpanded
       if (listWasExpanded) {
-        setIsExpanded(true);
+        setDrawerExpanded(true);
       }
     }
-  }, [location, mobileMode, mobileDrawerOpen, isExpanded]);
+  }, [location, mobileMode, mobileDrawerOpen, isDrawerExpanded, isMobile]);
 
   // Add click handlers for the pull handle
   useEffect(() => {
@@ -441,18 +363,19 @@ const Drawer: React.FC<DrawerProps> = memo(({
     if (!handle) return;
     
     const handleClick = () => {
-      setIsExpanded(prev => !prev);
+      // Toggle drawer expanded state
+      setDrawerExpanded(!isDrawerExpanded);
     };
     
     handle.addEventListener('click', handleClick);
     return () => handle.removeEventListener('click', handleClick);
-  }, []);
+  }, [setDrawerExpanded, isDrawerExpanded]);
 
 
   
   // Handle back to list navigation on mobile
   const handleBackToList = () => {
-    if (isMobile.current && backToList) {
+    if (isMobile && backToList) {
       // We want to transition to list view while preserving expanded state
       backToList();
       // Reset location without changing the expanded state
@@ -462,7 +385,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // Handle closing the location list (mobile only)
   const handleCloseList = () => {
     // On mobile, this should trigger the onClose to hide the drawer completely
-    if (isMobile.current) {
+    if (isMobile) {
       onClose();
     }
   };
@@ -674,7 +597,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
   const displayedLocations = filteredLocations.slice(0, 15) || [];
 
   // Check if we should render the drawer at all
-  const shouldRenderDrawer = isMobile.current 
+  const shouldRenderDrawer = isMobile
     ? ((location !== null) || ((mobileMode === 'list') && (mobileDrawerOpen) && (visibleLocations.length > 0)))
     : true;
   
@@ -682,7 +605,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
   if (!shouldRenderDrawer) return null;
 
   // Desktop location list view (when no location is selected)
-  if (!location && !isMobile.current) {
+  if (!location && !isMobile) {
     return (
       <div className="hidden md:block fixed z-drawer-container bg-white shadow-lg w-[533px] left-0 top-[calc(4rem+3.25rem)] rounded-r-lg bottom-0 overflow-hidden">
         <div className="p-6 border-b">
@@ -714,13 +637,14 @@ const Drawer: React.FC<DrawerProps> = memo(({
 
   return (
     <>
-      {/* Backdrop - completely transparent on mobile for all views */}
-      <div
-        className={`fixed inset-0 md:hidden ${
-          (location || (isMobile.current && mobileMode === 'list')) && drawerRef.current ? 'pointer-events-auto' : 'pointer-events-none'
-        } bg-transparent z-drawer-backdrop`}
-        onClick={handleCloseAction}
-      />
+      {/* Backdrop - only visible on mobile when drawer is open */}
+      {isMobile && isDrawerOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-drawer-backdrop"
+          onClick={onClose}
+          style={{ pointerEvents: 'auto' }}
+        />
+      )}
       
       {/* Drawer Container */}
       <div 
@@ -728,40 +652,35 @@ const Drawer: React.FC<DrawerProps> = memo(({
         className={`
           fixed z-drawer-container bg-white shadow-lg
           md:w-[533px] left-0 md:top-[calc(4rem+3.25rem)] md:rounded-r-lg md:bottom-0
-          w-full rounded-t-xl
+          w-full rounded-t-xl overflow-hidden
           transition-all duration-300 ease-in-out
-          ${(location || (isMobile.current && mobileMode === 'list' && mobileDrawerOpen)) ? 'translate-y-0' : 'translate-y-full md:translate-y-0'}
-          ${!location && 'md:translate-x-0'}
-          ${isExpanded ? 'top-0 h-full' : 'bottom-0 h-[50vh]'}
+          ${isDrawerOpen ? 'translate-y-0' : 'translate-y-full md:translate-y-0'}
+          ${isDrawerExpanded ? 'top-0 h-full' : 'bottom-0 h-[50vh]'}
           md:h-[calc(100vh-4rem-3.25rem)] md:translate-x-0
           flex flex-col
-          ${(location || (isMobile.current && mobileMode === 'list' && mobileDrawerOpen)) ? 'visible' : 'md:visible invisible'}
         `}
         style={{
-          // Only enable pointer events after transition completes
-          pointerEvents: (location || (isMobile.current && mobileMode === 'list')) ? 'auto' : (window.innerWidth >= 768 ? 'auto' : 'none'),
-          // Add slight delay to pointer events to allow transitions to complete first
-          transitionDelay: (location || (isMobile.current && mobileMode === 'list')) ? '0ms' : '0ms',
-          // Control drawer behavior with transform instead of top/bottom values
+          pointerEvents: isDrawerOpen ? 'auto' : (isMobile ? 'none' : 'auto'),
           willChange: 'transform',
         }}
       >
-        {/* Pull Handle (visible on mobile only) */}
+        {/* Pull Handle with improved styles */}
         <div 
           ref={pullHandleRef}
-          className="h-6 w-full flex items-center justify-center cursor-pointer md:hidden z-drawer-pull-handle"
+          className="h-8 w-full flex items-center justify-center cursor-pointer md:hidden z-drawer-pull-handle bg-gray-50"
+          onClick={() => setDrawerExpanded(!isDrawerExpanded)}
         >
-          <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
+          <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
         </div>
         
         {/* Location Detail View */}
         {location && (
           <>
             {/* On desktop or when NOT expanded on mobile: Header stays separate */}
-            {(!isMobile.current || !isExpanded) && (
+            {(!isMobile || !isDrawerExpanded) && (
               <div
                 ref={headerRef}
-                className={`flex-shrink-0 bg-white border-b ${isExpanded && !isMobile.current ? 'sticky top-0 z-drawer-header-sticky' : 'z-drawer-header'}`}
+                className={`flex-shrink-0 bg-white border-b ${isDrawerExpanded && !isMobile ? 'sticky top-0 z-drawer-header-sticky' : 'z-drawer-header'}`}
               >
                 <div className="flex flex-col md:p-6 p-4">
                   <div className="flex items-start justify-between mb-2 md:mb-4">
@@ -769,7 +688,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
                       {/* Top row with back button and name */}
                       <div className="flex items-center">
                         {/* Back button for mobile only */}
-                        {isMobile.current && backToList ? (
+                        {isMobile && backToList ? (
                           <button
                             onClick={handleBackToList}
                             className="p-1.5 -ml-1.5 mr-2 rounded-full hover:bg-gray-100 transition-colors"
@@ -836,7 +755,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
             >
               <div className="p-6 space-y-6">
                 {/* For mobile expanded view: Include header content at the top of the scrollable area */}
-                {isMobile.current && isExpanded && (
+                {isMobile && isDrawerExpanded && (
                   <div className="mb-4 -mt-2 -mx-2 bg-white">
                     <div className="flex flex-col p-4">
                       <div className="flex items-start justify-between mb-2">
@@ -1010,7 +929,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
         )}
         
         {/* Mobile Location List View */}
-        {!location && isMobile.current && mobileMode === 'list' && (
+        {!location && isMobile && mobileMode === 'list' && (
           <>
             {/* List Header - Streamlined for mobile */}
             <div 
@@ -1020,7 +939,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
               <div className="flex items-center justify-between p-4">
                 <h2 className="text-xl font-bold text-gray-900">Nearby Activities</h2>
                 {/* Close button only shown on desktop */}
-                {!isMobile.current && (
+                {!isMobile && (
                   <button
                     onClick={handleCloseList}
                     className="p-2 rounded-full hover:bg-gray-100"

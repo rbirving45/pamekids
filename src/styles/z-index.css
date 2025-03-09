@@ -19,13 +19,14 @@
     --z-age-dropdown: 220;
     --z-filter-dropdown: 230;
     
-    /* Map Interactive Elements (300-399) */
-    --z-marker-normal: 300;
-    --z-marker-hover: 305;
-    --z-marker-selected: 310;
-    --z-marker-infowindow: 320;
-    --z-marker-infowindow-content: 325;
-    --z-mobile-floating-button: 350;
+  /* Map Interactive Elements (300-399) */
+  --z-marker-normal: 300;
+  --z-marker-hover: 305;
+  --z-marker-selected: 310;
+  --z-marker-infowindow: 320;
+  --z-marker-infowindow-content: 325;
+  --z-map-blocker: 340; /* For blocking map interactions when drawer is open */
+  --z-mobile-floating-button: 350;
     
     /* Drawer (400-599) */
     --z-drawer-backdrop: 400;
@@ -138,6 +139,10 @@
 
   .z-map-attribution {
     z-index: var(--z-map-attribution);
+  }
+  
+  .z-map-blocker {
+    z-index: var(--z-map-blocker);
   }
   
   .z-location-badge {

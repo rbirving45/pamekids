@@ -4,11 +4,11 @@ import Drawer from './Drawer';
 import { Location, ActivityType } from '../../data/locations';
 import { Search, ChevronDown } from 'lucide-react';
 import { trackMarkerClick } from '../../utils/analytics';
+import { useMobile } from '../../contexts/MobileContext';
+import { useUIState } from '../../contexts/UIStateContext';
+import MapBlockingOverlay from './MapBlockingOverlay';
 
-// Helper function to reliably detect mobile devices
-const checkIsMobile = () => {
-  return window.matchMedia('(max-width: 767px)').matches;
-};
+// Using MobileContext instead of local mobile detection
 
 // Define libraries as a static constant to prevent recreating the array on each render
 // This prevents the "LoadScript has been reloaded unintentionally" warning
@@ -35,14 +35,22 @@ const activityConfig = {
 };
 
 const MapComponent: React.FC<MapProps> = ({ locations }) => {
+  // Use context hooks for mobile detection and UI state
+  const { isMobile } = useMobile();
+  const {
+    isDrawerOpen,
+    setDrawerOpen,
+    isDrawerExpanded,
+    setDrawerExpanded,
+    activeLocationId,
+    setActiveLocationId
+  } = useUIState();
+
   // Helper function to safely get z-index from CSS variables
   const getZIndexValue = (variableName: string): number => {
     const value = getComputedStyle(document.documentElement).getPropertyValue(variableName);
     return parseInt(value.trim()) || 0; // fallback to 0 if parsing fails
   };
-
-  // State to track if drawer is open on mobile for showing location list
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(checkIsMobile());
   
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [hoveredLocation, setHoveredLocation] = useState<Location | null>(null);
@@ -86,7 +94,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
     // Early exit if we don't have map or hoveredLocation
     // Add additional check to close InfoWindow when drawer is open on mobile
     // Don't show InfoWindow at all on mobile devices
-    if (!map || !maps || !hoveredLocation || checkIsMobile() || (checkIsMobile() && selectedLocation)) {
+    if (!map || !maps || !hoveredLocation || isMobile || (isMobile && selectedLocation)) {
       // Clean up any existing infoWindow
       if (infoWindowRef.current) {
         infoWindowRef.current.close();
@@ -360,9 +368,9 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
     
     map.addListener('click', () => {
       // On mobile, clicking the map should close the drawer completely
-      if (checkIsMobile()) {
+      if (isMobile) {
         setSelectedLocation(null);
-        setMobileDrawerOpen(false);
+        setDrawerOpen(false);
         
         // Small delay to make sure the animation starts properly
         setTimeout(() => {
@@ -392,11 +400,11 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
   }, [locations]);
 
   // Handle drawer close action 
-  const handleDrawerClose = () => {
-    if (checkIsMobile()) {
+  const handleDrawerClose = useCallback(() => {
+    if (isMobile) {
       // On mobile: Always close the drawer completely regardless of current state
       setSelectedLocation(null);
-      setMobileDrawerOpen(false);
+      setDrawerOpen(false);
       
       // Small delay to make sure the animation starts properly
       setTimeout(() => {
@@ -409,7 +417,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
       // On desktop, just deselect the location
       setSelectedLocation(null);
     }
-  };
+  }, [isMobile, setDrawerOpen]);
 
   // Handle location selection from tile or marker
   const handleLocationSelect = useCallback((location: Location) => {
@@ -417,7 +425,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
     trackMarkerClick(location.name);
     
     // Only pan to the location on mobile view
-    if (map && checkIsMobile()) {
+    if (map && isMobile) {
       map.panTo(location.coordinates);
       
       // Mobile: Ensure marker is in good viewing position
@@ -617,6 +625,9 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
         libraries={GOOGLE_MAPS_LIBRARIES}
       >
         <div className="relative flex-1 flex">
+          {/* Map Blocking Overlay - only shows when drawer is open on mobile */}
+          <MapBlockingOverlay />
+
           <GoogleMap
             mapContainerStyle={{
               width: '100%',
@@ -626,7 +637,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               left: 0,
               right: 0,
               bottom: 0,
-              marginLeft: window.innerWidth >= 768 ? '533px' : 0, // Add margin for drawer in desktop view
+              marginLeft: !isMobile ? '533px' : 0, // Add margin for drawer in desktop view
             }}
             center={userLocation}
             zoom={13}
@@ -644,17 +655,18 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
                   stylers: [{ visibility: "off" }]
                 }
               ],
-              zoomControl: !checkIsMobile(), // Hide zoom controls on mobile
+              zoomControl: !isMobile, // Hide zoom controls on mobile
               mapTypeControl: false,
               scaleControl: true,
               streetViewControl: false,
               rotateControl: false,
               fullscreenControl: false,
               clickableIcons: false,
-              gestureHandling: 'greedy', // Enable one-finger panning
+              // Critical change: Only use 'greedy' when drawer is closed
+              gestureHandling: isMobile && isDrawerOpen ? 'none' : 'greedy',
               minZoom: 3, // Prevent zooming out too far
               maxZoom: 20, // Prevent excessive zoom
-              disableDefaultUI: checkIsMobile() // Hide all default UI on mobile
+              disableDefaultUI: isMobile // Hide all default UI on mobile
             }}
           >
             {/* Markers */}
@@ -727,12 +739,12 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
                   position={location.coordinates}
                   onClick={() => {
                     // Add a slight delay on mobile to allow map panning to complete first
-                    if (checkIsMobile()) {
+                    if (isMobile) {
                       // On mobile, ensure the marker is centered first, then open drawer
                       setTimeout(() => {
                         handleLocationSelect(location);
                         // Also make sure drawer is open on mobile
-                        setMobileDrawerOpen(true);
+                        setDrawerOpen(true);
                       }, 50);
                     } else {
                       // On desktop, open drawer immediately
@@ -888,11 +900,11 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               selectedAge={selectedAge}
               openNowFilter={openNowFilter}
               onLocationSelect={handleLocationSelect}
-              mobileDrawerOpen={mobileDrawerOpen}
+              mobileDrawerOpen={isDrawerOpen}
               backToList={() => {
                 // Transition to list view on mobile while preserving drawer state
                 setSelectedLocation(null);
-                setMobileDrawerOpen(true);
+                setDrawerOpen(true);
               }}
             />
 
@@ -902,9 +914,9 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
         </LoadScriptNext>
         
       {/* Mobile Drawer Floating Button - Shows when drawer is closed on mobile */}
-      {checkIsMobile() && !mobileDrawerOpen && (
+      {isMobile && !isDrawerOpen && (
         <button
-          onClick={() => setMobileDrawerOpen(true)}
+          onClick={() => setDrawerOpen(true)}
           className="fixed z-mobile-button bottom-6 left-1/2 transform -translate-x-1/2 px-4 py-3 rounded-full bg-white hover:bg-gray-50 shadow-lg flex items-center gap-2 border border-gray-200"
           aria-label="Show locations"
         >

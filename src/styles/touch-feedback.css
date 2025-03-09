@@ -1,0 +1,37 @@
+:root {
+  --touch-feedback-color: rgba(0, 0, 0, 0.05);
+  --touch-active-opacity: 0.9;
+  --touch-transition-duration: 150ms;
+}
+
+/* Apply to interactive elements */
+.touch-feedback {
+  position: relative;
+  overflow: hidden;
+}
+
+.touch-feedback::after {
+  content: '';
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--touch-feedback-color);
+  opacity: 0;
+  transition: opacity var(--touch-transition-duration) ease-out;
+  pointer-events: none;
+}
+
+.touch-feedback:active::after {
+  opacity: 1;
+}
+
+/* For elements that should block map interaction */
+.drawer-block-map {
+  touch-action: pan-x pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: auto !important;
+}

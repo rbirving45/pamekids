@@ -1,6 +1,9 @@
 // App.tsx
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { MobileProvider } from './contexts/MobileContext';
+import { UIStateProvider } from './contexts/UIStateContext';
+import TouchEventManager from './components/Map/TouchEventManager';
 import MapComponent from './components/Map/Map';
 import { sampleLocations } from './data/locations';
 import SuggestActivityButton from './components/SuggestActivity/SuggestActivityButton';
@@ -26,6 +29,7 @@ const MainApp = () => {
   
   return (
     <div className="h-screen w-full flex flex-col">
+      <TouchEventManager />
       <header className="bg-white shadow-md z-header relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -78,14 +82,18 @@ function App() {
   }, []);
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<MainApp />} />
-        <Route path="/admin" element={<AdminLogin />} />
-        <Route path="/admin/dashboard" element={<Dashboard />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+    <MobileProvider>
+      <UIStateProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<MainApp />} />
+            <Route path="/admin" element={<AdminLogin />} />
+            <Route path="/admin/dashboard" element={<Dashboard />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+      </UIStateProvider>
+    </MobileProvider>
   );
 }
 
