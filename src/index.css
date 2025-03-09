@@ -1,7 +1,7 @@
+@import './styles/z-index.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@import './styles/z-index.css';
 
 /* Add line-clamp utilities */
 @layer utilities {

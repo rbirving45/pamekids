@@ -39,6 +39,8 @@
     --z-location-tile: 600;
     --z-location-image: 610;
     --z-location-content: 620;
+    --z-location-controls: 630;
+    --z-location-badge: 640;
     
     /* Image Carousel (700-799) */
     --z-carousel-image: 700;
@@ -128,4 +130,20 @@
   
   .z-mobile-button {
     z-index: var(--z-mobile-floating-button);
+  }
+  
+  .z-map-controls {
+    z-index: var(--z-map-controls);
+  }
+
+  .z-map-attribution {
+    z-index: var(--z-map-attribution);
+  }
+  
+  .z-location-badge {
+    z-index: var(--z-location-badge);
+  }
+  
+  .z-location-controls {
+    z-index: var(--z-location-controls);
   }

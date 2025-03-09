@@ -684,7 +684,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // Desktop location list view (when no location is selected)
   if (!location && !isMobile.current) {
     return (
-      <div className="hidden md:block fixed z-40 bg-white shadow-lg w-[533px] left-0 top-[calc(4rem+3.25rem)] rounded-r-lg bottom-0 overflow-hidden">
+      <div className="hidden md:block fixed z-drawer-container bg-white shadow-lg w-[533px] left-0 top-[calc(4rem+3.25rem)] rounded-r-lg bottom-0 overflow-hidden">
         <div className="p-6 border-b">
           <h2 className="text-2xl font-bold text-gray-900">Nearby Activities</h2>
         </div>
@@ -716,9 +716,9 @@ const Drawer: React.FC<DrawerProps> = memo(({
     <>
       {/* Backdrop - completely transparent on mobile for all views */}
       <div
-        className={`fixed inset-0 z-drawer-backdrop md:hidden ${
+        className={`fixed inset-0 md:hidden ${
           (location || (isMobile.current && mobileMode === 'list')) && drawerRef.current ? 'pointer-events-auto' : 'pointer-events-none'
-        } bg-transparent`}
+        } bg-transparent z-drawer-backdrop`}
         onClick={handleCloseAction}
       />
       

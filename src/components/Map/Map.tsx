@@ -178,6 +178,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
           (container as HTMLElement).style.borderRadius = '8px';
           (container as HTMLElement).style.maxWidth = 'none'; // Remove max-width constraint
           (container as HTMLElement).style.maxHeight = 'none'; // Remove max-height constraint
+          (container as HTMLElement).style.zIndex = getComputedStyle(document.documentElement).getPropertyValue('--z-marker-infowindow').trim();
           
           // Forcefully hide the close button
           const closeButtons = document.querySelectorAll('.gm-ui-hover-effect, .gm-style-iw-d + button');
@@ -201,6 +202,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
             (innerContainer as HTMLElement).style.padding = '0';
             (innerContainer as HTMLElement).style.maxWidth = 'none';
             (innerContainer as HTMLElement).style.maxHeight = 'none';
+            (innerContainer as HTMLElement).style.zIndex = getComputedStyle(document.documentElement).getPropertyValue('--z-marker-infowindow-content').trim();
           }
           
           // Force the parent element to have no padding
@@ -768,7 +770,9 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               <Marker
                 position={userLocation}
                 icon={getUserLocationIcon()}
-                zIndex={900} // Lower than location markers (1000) so it appears behind them
+                options={{
+                  zIndex: getZIndexValue('--z-marker-normal') - 10 // Lower than location markers so it appears behind them
+                }}
                 title="Your current location" // Basic tooltip for non-touch devices
                 onMouseOver={() => {
                   // Create and open an info window for the user's location
@@ -841,6 +845,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
                       (container as HTMLElement).style.borderRadius = '8px';
                       (container as HTMLElement).style.maxWidth = 'none';
                       (container as HTMLElement).style.maxHeight = 'none';
+                      (container as HTMLElement).style.zIndex = getComputedStyle(document.documentElement).getPropertyValue('--z-marker-infowindow').trim();
                       
                       // Hide the close button
                       const closeButtons = document.querySelectorAll('.gm-ui-hover-effect, .gm-style-iw-d + button');
@@ -859,6 +864,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
                       if (innerContainer) {
                         (innerContainer as HTMLElement).style.overflow = 'visible';
                         (innerContainer as HTMLElement).style.padding = '0';
+                        (innerContainer as HTMLElement).style.zIndex = getComputedStyle(document.documentElement).getPropertyValue('--z-marker-infowindow-content').trim();
                       }
                     }
                   }, 0);
