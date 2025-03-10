@@ -518,9 +518,15 @@ const Drawer: React.FC<DrawerProps> = memo(({
       {/* Backdrop - only visible on mobile when drawer is open */}
       {isMobile && isDrawerOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-drawer-backdrop"
+          className="fixed inset-0 bg-black z-drawer-backdrop"
           onClick={onClose}
-          style={{ pointerEvents: 'auto' }}
+          style={{
+            pointerEvents: 'auto',
+            opacity: drawerState === 'full'
+              ? 'var(--backdrop-opacity-full)'
+              : 'var(--backdrop-opacity-partial)',
+            transition: 'opacity 0.3s ease-in-out'
+          }}
         />
       )}
       

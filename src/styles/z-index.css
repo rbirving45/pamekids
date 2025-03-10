@@ -1,4 +1,8 @@
 :root {
+    /* Backdrop Opacity Settings */
+    --backdrop-opacity-partial: 0;
+    --backdrop-opacity-full: 0.5;
+    
     /* Base Layer (1-99) */
     --z-base: 1;
     --z-map-container: 5;

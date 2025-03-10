@@ -19,7 +19,8 @@ const MapBlockingOverlay: React.FC = () => {
       className="fixed inset-0 z-map-blocker"
       style={{
         backgroundColor: 'transparent',
-        pointerEvents: 'auto'
+        pointerEvents: 'auto',
+        opacity: 0 // Ensure overlay is invisible
       }}
       onClick={blockInteraction}
       onTouchStart={blockInteraction}
