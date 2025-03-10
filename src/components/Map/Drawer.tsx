@@ -250,9 +250,13 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // Handle back to list navigation on mobile
   const handleBackToList = () => {
     if (isMobile && backToList) {
+      console.log('Back button clicked in drawer state:', drawerState); // Debug log
+      
       // We want to transition to list view while preserving expanded state
       backToList();
+      
       // Reset location without changing the expanded state
+      // No need to modify drawer state as backToList will handle this
     }
   };
 
@@ -612,8 +616,11 @@ const Drawer: React.FC<DrawerProps> = memo(({
                         {/* Back button for mobile only */}
                         {isMobile && backToList ? (
                           <button
-                            onClick={handleBackToList}
-                            className="p-1.5 -ml-1.5 mr-2 rounded-full hover:bg-gray-100 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation(); // Stop event bubbling
+                              handleBackToList();   // Call the handler directly
+                            }}
+                            className="p-1.5 -ml-1.5 mr-2 rounded-full hover:bg-gray-100 transition-colors relative z-10"
                             aria-label="Back to list"
                             onTouchStart={(e) => {
                               // Stop propagation to prevent map gestures
@@ -625,7 +632,11 @@ const Drawer: React.FC<DrawerProps> = memo(({
                               // Stop propagation and prevent default
                               e.stopPropagation();
                               e.preventDefault();
+                              
+                              // Directly trigger the back action on touch end
+                              handleBackToList();
                             }}
+                            style={{ touchAction: 'none' }} /* Prevent any touch action defaults */
                           >
                             <ChevronLeft size={20} className="text-gray-600" />
                           </button>
@@ -698,17 +709,27 @@ const Drawer: React.FC<DrawerProps> = memo(({
                             {/* Back button for mobile */}
                             {backToList && (
                               <button
-                                onClick={handleBackToList}
-                                className="p-1.5 -ml-1.5 mr-2 rounded-full hover:bg-gray-100 transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Stop event bubbling
+                                  handleBackToList();   // Call the handler directly
+                                }}
+                                className="p-1.5 -ml-1.5 mr-2 rounded-full hover:bg-gray-100 transition-colors relative z-10"
                                 aria-label="Back to list"
                                 onTouchStart={(e) => {
                                   // Stop propagation to prevent map gestures
                                   e.stopPropagation();
+                                  // Also prevent default
+                                  e.preventDefault();
                                 }}
                                 onTouchEnd={(e) => {
-                                  // Stop propagation
+                                  // Stop propagation and prevent default
                                   e.stopPropagation();
+                                  e.preventDefault();
+                                  
+                                  // Directly trigger the back action on touch end
+                                  handleBackToList();
                                 }}
+                                style={{ touchAction: 'none' }} /* Prevent any touch action defaults */
                               >
                                 <ChevronLeft size={20} className="text-gray-600" />
                               </button>

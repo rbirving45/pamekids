@@ -893,9 +893,19 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               backToList={() => {
                 // Transition to list view on mobile while preserving drawer state
                 setSelectedLocation(null);
-                // Keep current drawer state (partial or full)
+                
+                // Ensure drawer state is preserved in TouchContext
+                // When going back to list from detail, always keep the drawer visible
+                if (drawerState === 'closed') {
+                  // If drawer was somehow closed, set to partial
+                  setDrawerState('partial');
+                }
+                // else keep current state (partial or full)
+                
                 // Update UIState for backward compatibility
                 setDrawerOpen(true);
+                
+                console.log('Back to list: drawer state =', drawerState);
               }}
             />
 
