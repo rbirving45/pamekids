@@ -1,7 +1,7 @@
 // App.tsx
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { MobileProvider } from './contexts/MobileContext';
+import { MobileProvider, useMobile } from './contexts/MobileContext';
 import { UIStateProvider } from './contexts/UIStateContext';
 import { TouchProvider } from './contexts/TouchContext';
 
@@ -26,13 +26,14 @@ const activityConfig = {
 
 // Main application layout
 const MainApp = () => {
+  const { isMobile } = useMobile();
   const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
   const [isNewsletterModalOpen, setIsNewsletterModalOpen] = useState(false);
   
   return (
     <div className="h-screen w-full flex flex-col">
       <MapBlockingOverlay />
-      <header className="bg-white shadow-md z-header relative">
+      <header className={`bg-white shadow-md z-header ${isMobile ? 'fixed top-0 left-0 right-0' : 'relative'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="relative inline-flex items-baseline">

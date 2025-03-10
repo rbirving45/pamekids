@@ -454,7 +454,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
 
   return (
     <div className="relative h-full w-full flex flex-col">
-      <div className="bg-white p-2 overflow-x-auto shadow-sm z-filter-bar relative">
+      <div className={`bg-white p-2 overflow-x-auto shadow-sm z-filter-bar ${isMobile ? 'fixed top-16 left-0 right-0 w-full' : 'relative'}`}>
         <div className="flex items-center gap-2">
           {/* Search Component */}
           <div ref={searchRef} className="relative z-search-container">
@@ -615,7 +615,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               width: '100%',
               height: '100%',
               position: 'absolute',
-              top: 0,
+              top: isMobile ? '84px' : 0, // Add padding for header (64px) + filter bar (20px) on mobile
               left: 0,
               right: 0,
               bottom: 0,
