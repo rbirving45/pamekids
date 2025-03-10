@@ -3,8 +3,10 @@ import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { MobileProvider } from './contexts/MobileContext';
 import { UIStateProvider } from './contexts/UIStateContext';
-import TouchEventManager from './components/Map/TouchEventManager';
+import { TouchProvider } from './contexts/TouchContext';
+
 import MapComponent from './components/Map/Map';
+import MapBlockingOverlay from './components/Map/MapBlockingOverlay';
 import { sampleLocations } from './data/locations';
 import SuggestActivityButton from './components/SuggestActivity/SuggestActivityButton';
 import SuggestActivityModal from './components/SuggestActivity/SuggestActivityModal';
@@ -29,7 +31,7 @@ const MainApp = () => {
   
   return (
     <div className="h-screen w-full flex flex-col">
-      <TouchEventManager />
+      <MapBlockingOverlay />
       <header className="bg-white shadow-md z-header relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -84,14 +86,16 @@ function App() {
   return (
     <MobileProvider>
       <UIStateProvider>
-        <Router>
-          <Routes>
-            <Route path="/" element={<MainApp />} />
-            <Route path="/admin" element={<AdminLogin />} />
-            <Route path="/admin/dashboard" element={<Dashboard />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Router>
+        <TouchProvider>
+          <Router>
+            <Routes>
+              <Route path="/" element={<MainApp />} />
+              <Route path="/admin" element={<AdminLogin />} />
+              <Route path="/admin/dashboard" element={<Dashboard />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Router>
+        </TouchProvider>
       </UIStateProvider>
     </MobileProvider>
   );

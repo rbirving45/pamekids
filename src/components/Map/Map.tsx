@@ -6,6 +6,7 @@ import { Search, ChevronDown } from 'lucide-react';
 import { trackMarkerClick } from '../../utils/analytics';
 import { useMobile } from '../../contexts/MobileContext';
 import { useUIState } from '../../contexts/UIStateContext';
+import { useTouch } from '../../contexts/TouchContext';
 import MapBlockingOverlay from './MapBlockingOverlay';
 
 // Using MobileContext instead of local mobile detection
@@ -37,12 +38,10 @@ const activityConfig = {
 const MapComponent: React.FC<MapProps> = ({ locations }) => {
   // Use context hooks for mobile detection and UI state
   const { isMobile } = useMobile();
-  // Only destructure the values we actually use in this component
-  const {
-    isDrawerOpen,
-    setDrawerOpen
-    // Additional UIState values are available but not used in this component
-  } = useUIState();
+  // Get drawer state from TouchContext
+  const { drawerState, setDrawerState } = useTouch();
+  // For backward compatibility with older components
+  const { setDrawerOpen } = useUIState();
 
   // Helper function to safely get z-index from CSS variables
   const getZIndexValue = useCallback((variableName: string): number => {
@@ -368,14 +367,6 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
       if (isMobile) {
         setSelectedLocation(null);
         setDrawerOpen(false);
-        
-        // Small delay to make sure the animation starts properly
-        setTimeout(() => {
-          // Force CSS updates
-          if (document.body.style.overflow === 'hidden') {
-            document.body.style.overflow = 'auto';
-          }
-        }, 50);
       } else {
         // On desktop, just deselect the location
         setSelectedLocation(null);
@@ -401,20 +392,14 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
     if (isMobile) {
       // On mobile: Always close the drawer completely regardless of current state
       setSelectedLocation(null);
+      setDrawerState('closed');
+      // Keep setDrawerOpen for backward compatibility
       setDrawerOpen(false);
-      
-      // Small delay to make sure the animation starts properly
-      setTimeout(() => {
-        // Force CSS updates
-        if (document.body.style.overflow === 'hidden') {
-          document.body.style.overflow = 'auto';
-        }
-      }, 50);
     } else {
       // On desktop, just deselect the location
       setSelectedLocation(null);
     }
-  }, [isMobile, setDrawerOpen, setSelectedLocation]);
+  }, [isMobile, setDrawerState, setDrawerOpen, setSelectedLocation]);
 
   // Handle location selection from tile or marker
   const handleLocationSelect = useCallback((location: Location) => {
@@ -661,7 +646,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               clickableIcons: false, // Prevent clicks on POIs for better control
               // Critical change: Always use 'none' when drawer is open on mobile
               // This completely prevents map gestures when the drawer is showing
-              gestureHandling: isMobile && isDrawerOpen ? 'none' : (isMobile ? 'greedy' : 'auto'),
+              gestureHandling: isMobile && drawerState !== 'closed' ? 'none' : (isMobile ? 'greedy' : 'auto'),
               minZoom: 3, // Prevent zooming out too far
               maxZoom: 20, // Prevent excessive zoom
               disableDefaultUI: isMobile, // Hide all default UI on mobile
@@ -745,7 +730,9 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
                       // On mobile, ensure the marker is centered first, then open drawer
                       setTimeout(() => {
                         handleLocationSelect(location);
-                        // Also make sure drawer is open on mobile
+                        // Set drawer state to partial by default
+                        setDrawerState('partial');
+                        // Keep setDrawerOpen for backward compatibility
                         setDrawerOpen(true);
                       }, 50);
                     } else {
@@ -777,7 +764,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               />
             ))}
             // Close the useMemo callback and dependencies array
-            , [locations, activeFilters, selectedAge, openNowFilter, selectedLocation, hoveredLocation, getMarkerIcon, handleLocationSelect, isMobile, setDrawerOpen, setHoveredLocation, getZIndexValue])}
+            , [locations, activeFilters, selectedAge, openNowFilter, selectedLocation, hoveredLocation, getMarkerIcon, handleLocationSelect, isMobile, setDrawerOpen, setDrawerState, setHoveredLocation, getZIndexValue])}
 
             {/* User location marker */}
             {maps && (
@@ -902,10 +889,12 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               selectedAge={selectedAge}
               openNowFilter={openNowFilter}
               onLocationSelect={handleLocationSelect}
-              mobileDrawerOpen={isDrawerOpen}
+              mobileDrawerOpen={drawerState !== 'closed'}
               backToList={() => {
                 // Transition to list view on mobile while preserving drawer state
                 setSelectedLocation(null);
+                // Keep current drawer state (partial or full)
+                // Update UIState for backward compatibility
                 setDrawerOpen(true);
               }}
             />
@@ -916,9 +905,13 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
         </LoadScriptNext>
         
       {/* Mobile Drawer Floating Button - Shows when drawer is closed on mobile */}
-      {isMobile && !isDrawerOpen && (
+      {isMobile && drawerState === 'closed' && (
         <button
-          onClick={() => setDrawerOpen(true)}
+          onClick={() => {
+            setDrawerState('partial');
+            // Update UIState for backward compatibility
+            setDrawerOpen(true);
+          }}
           className="fixed z-mobile-button bottom-6 left-1/2 transform -translate-x-1/2 px-4 py-3 rounded-full bg-white hover:bg-gray-50 shadow-lg flex items-center gap-2 border border-gray-200"
           aria-label="Show locations"
         >

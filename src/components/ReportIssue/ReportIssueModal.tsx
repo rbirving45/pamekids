@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
+import ModalWrapper from '../common/ModalWrapper';
 
 interface ReportIssueModalProps {
   isOpen: boolean;
@@ -43,8 +44,6 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
       setSubmitMessage('');
     }
   }, [isOpen]);
-
-  if (!isOpen) return null;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -136,124 +135,105 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
   };
   
   return (
-      <div
-        className="fixed inset-0 z-modal-backdrop flex items-center justify-center p-4 bg-black bg-opacity-50"
-        onClick={(e) => e.stopPropagation()} // Prevent clicks from reaching elements behind
-        onTouchStart={(e) => e.stopPropagation()}
-        onTouchMove={(e) => {
-          e.stopPropagation();
-          // Only prevent default on the backdrop, not on the content
-          if (!(e.target as Element).closest('.z-modal-container')) {
-            e.preventDefault();
-          }
-        }}
-        onTouchEnd={(e) => e.stopPropagation()}
-        onWheel={(e) => e.stopPropagation()} // Stop wheel events too
-      >
-      <div className="relative w-full max-w-md p-6 bg-white rounded-lg shadow-xl max-h-[90vh] overflow-y-auto z-modal-container">
-        <button
-          className="absolute right-4 top-4 p-2 rounded-full hover:bg-gray-100 z-modal-close"
-          onClick={onClose}
-        >
-          <X size={20} className="text-gray-500" />
-        </button>
+    <ModalWrapper
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Report an Issue"
+    >
+      <p className="text-gray-600 mb-4">
+        Help us improve the information for <strong>{locationName}</strong> by reporting any issues you've found.
+      </p>
 
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Report an Issue</h2>
-        <p className="text-gray-600 mb-4">
-          Help us improve the information for <strong>{locationName}</strong> by reporting any issues you've found.
-        </p>
+      {submitStatus === 'success' ? (
+        <div className="p-4 bg-green-50 text-green-800 rounded-lg mb-4 flex items-center z-modal-success-message">
+          <CheckCircle className="mr-2 flex-shrink-0" size={20} />
+          <p>{submitMessage}</p>
+        </div>
+      ) : submitStatus === 'error' ? (
+        <div className="p-4 bg-red-50 text-red-800 rounded-lg mb-4 z-modal-success-message">
+          <p>{submitMessage}</p>
+        </div>
+      ) : null}
 
-        {submitStatus === 'success' ? (
-          <div className="p-4 bg-green-50 text-green-800 rounded-lg mb-4 flex items-center z-modal-success-message">
-            <CheckCircle className="mr-2 flex-shrink-0" size={20} />
-            <p>{submitMessage}</p>
+      <form onSubmit={handleSubmit}>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="issueType" className="block text-sm font-medium text-gray-700 mb-1">
+              Type of Issue *
+            </label>
+            <select
+              id="issueType"
+              name="issueType"
+              value={formData.issueType}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200"
+            >
+              <option value="incorrect-info">Incorrect Information</option>
+              <option value="closed-location">Location Closed/Moved</option>
+              <option value="inappropriate-content">Inappropriate Content</option>
+              <option value="other">Other</option>
+            </select>
           </div>
-        ) : submitStatus === 'error' ? (
-          <div className="p-4 bg-red-50 text-red-800 rounded-lg mb-4 z-modal-success-message">
-            <p>{submitMessage}</p>
+
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+              Description *
+            </label>
+            <textarea
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              rows={4}
+              maxLength={500}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                errors.description ? 'border-red-500 focus:ring-red-200' : 'border-gray-300 focus:ring-blue-200'
+              }`}
+              placeholder="Please describe the issue in detail"
+            ></textarea>
+            <p className="mt-1 text-xs text-gray-500">
+              {formData.description.length}/500 characters
+            </p>
+            {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
           </div>
-        ) : null}
 
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="issueType" className="block text-sm font-medium text-gray-700 mb-1">
-                Type of Issue *
-              </label>
-              <select
-                id="issueType"
-                name="issueType"
-                value={formData.issueType}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200"
-              >
-                <option value="incorrect-info">Incorrect Information</option>
-                <option value="closed-location">Location Closed/Moved</option>
-                <option value="inappropriate-content">Inappropriate Content</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Your Email (optional)
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                errors.email ? 'border-red-500 focus:ring-red-200' : 'border-gray-300 focus:ring-blue-200'
+              }`}
+              placeholder="your.email@example.com"
+            />
+            {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
+            <p className="mt-1 text-xs text-gray-500">
+              We'll only use this to contact you if we have questions about your report
+            </p>
+          </div>
 
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                Description *
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={4}
-                maxLength={500}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                  errors.description ? 'border-red-500 focus:ring-red-200' : 'border-gray-300 focus:ring-blue-200'
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className={`w-full px-4 py-3 text-white font-medium rounded-lg
+                ${isSubmitting
+                  ? 'bg-blue-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700'
                 }`}
-                placeholder="Please describe the issue in detail"
-              ></textarea>
-              <p className="mt-1 text-xs text-gray-500">
-                {formData.description.length}/500 characters
-              </p>
-              {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Your Email (optional)
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                  errors.email ? 'border-red-500 focus:ring-red-200' : 'border-gray-300 focus:ring-blue-200'
-                }`}
-                placeholder="your.email@example.com"
-              />
-              {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
-              <p className="mt-1 text-xs text-gray-500">
-                We'll only use this to contact you if we have questions about your report
-              </p>
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className={`w-full px-4 py-3 text-white font-medium rounded-lg
-                  ${isSubmitting
-                    ? 'bg-blue-400 cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-              >
-                {isSubmitting ? 'Submitting...' : 'Submit Report'}
-              </button>
-            </div>
+            >
+              {isSubmitting ? 'Submitting...' : 'Submit Report'}
+            </button>
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+      </form>
+    </ModalWrapper>
   );
 };
 
