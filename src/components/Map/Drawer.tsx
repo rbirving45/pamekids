@@ -46,8 +46,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
     isDrawerOpen,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     setDrawerOpen,
-    isDrawerExpanded,
-    setDrawerExpanded
+    isDrawerExpanded
   } = useUIState();
   
   // Use TouchContext hook with all needed properties - moved before any conditional returns
