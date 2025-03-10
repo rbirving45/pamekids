@@ -86,6 +86,124 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
     }
   }, []);
   
+  // Specialized function to properly center the map on a location
+  const centerMapOnLocation = useCallback((targetLocation: google.maps.LatLngLiteral) => {
+    if (!map || !maps) {
+      console.log('Map or maps API not available yet');
+      return;
+    }
+    
+    console.log(`Centering map on location: ${JSON.stringify(targetLocation)}, isMobile: ${isMobile}`);
+    
+    // On desktop, we need a simple offset since the map container is already positioned correctly
+    if (!isMobile) {
+      // No special calculations needed - the map container is already positioned
+      // correctly at left: 533px with appropriate width
+      map.setCenter(targetLocation);
+      console.log('Desktop: Set center directly using map.setCenter()');
+      return;
+    }
+    
+    // On mobile, we need to adjust for the header/filter bar
+    const projection = map.getProjection();
+    if (!projection) {
+      console.log('Map projection not available yet');
+      return;
+    }
+    
+    // Get the map container dimensions
+    const mapDiv = map.getDiv();
+    const mapHeight = mapDiv.offsetHeight;
+    
+    // Convert target location to pixel coordinates
+    const targetPoint = new maps.LatLng(targetLocation.lat, targetLocation.lng);
+    const targetPixel = projection.fromLatLngToPoint(targetPoint);
+    
+    // Get current center in pixels
+    const centerLatLng = map.getCenter();
+    if (!centerLatLng) {
+      console.log('Current map center not available');
+      return;
+    }
+    
+    const centerPixel = projection.fromLatLngToPoint(centerLatLng);
+    
+    // Make sure we have valid coordinates
+    if (!targetPixel || !centerPixel) {
+      console.log('Invalid pixel coordinates');
+      return;
+    }
+    
+    // Calculate the scale factor based on current zoom
+    const scale = Math.pow(2, map.getZoom() || 0);
+    
+    // For mobile, position the point at 40% from the top of the visible area
+    // to account for the header and to ensure good visibility
+    const targetYPercent = 0.4;
+    
+    // Calculate desired vertical position (horizontal stays centered)
+    const desiredY = targetYPercent * mapHeight;
+    
+    // Calculate current pixel position of target (Y only for mobile)
+    const currentTargetPixelY = (targetPixel.y - centerPixel.y) * scale + mapHeight / 2;
+    
+    // Calculate the vertical adjustment needed in pixels
+    const pixelAdjustY = desiredY - currentTargetPixelY;
+    
+    // Convert pixel adjustment to LatLng adjustment (Y only)
+    const adjustedCenterPixel = new maps.Point(
+      centerPixel.x,
+      centerPixel.y - pixelAdjustY / scale
+    );
+    
+    // Convert back to LatLng
+    const newCenter = projection.fromPointToLatLng(adjustedCenterPixel);
+    if (!newCenter) {
+      console.log('Failed to calculate new center');
+      return;
+    }
+    
+    // Apply the new center
+    console.log('Mobile: Applying adjusted center with map.panTo()');
+    map.panTo(newCenter);
+    
+  }, [map, maps, isMobile]);
+  
+  // Center map on user location after map is initialized
+  useEffect(() => {
+    // Only attempt centering once both map and maps are loaded
+    if (!map || !maps || !userLocation.lat || !userLocation.lng) return;
+    
+    console.log('Adjusting map center on device type change or user location update');
+    
+    // Wait for map to be ready with projection
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    const attemptCentering = () => {
+      attempts++;
+      
+      // Check if map projection is available
+      if (map.getProjection()) {
+        console.log(`Ready to center map (attempt ${attempts})`);
+        
+        // Use a slight delay to ensure everything is settled
+        setTimeout(() => {
+          centerMapOnLocation(userLocation);
+        }, 300);
+      } else if (attempts < maxAttempts) {
+        // Try again shortly
+        setTimeout(attemptCentering, 100);
+      } else {
+        console.warn('Failed to get map projection after maximum attempts');
+      }
+    };
+    
+    // Start the centering process
+    attemptCentering();
+    
+  }, [map, maps, userLocation, isMobile, centerMapOnLocation]);
+
   // Handle InfoWindow for marker hovering
   useEffect(() => {
     // Early exit if we don't have map or hoveredLocation
@@ -359,8 +477,15 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
   };
 
   const onMapLoad = useCallback((map: google.maps.Map) => {
+    console.log('Map loaded - initializing');
     setMap(map);
     setMaps(window.google.maps);
+    
+    // Initial map center - set it to user location immediately
+    if (userLocation.lat && userLocation.lng) {
+      console.log('Initial map center set to user location');
+      map.setCenter(userLocation);
+    }
     
     map.addListener('click', () => {
       // On mobile, clicking the map should close the drawer completely
@@ -385,7 +510,13 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
         setVisibleLocations(locationsInView);
       }
     });
-  }, [locations, isMobile, setDrawerOpen, setSelectedLocation, setHoveredLocation, setVisibleLocations]);
+    
+    // Force a bounds_changed event after initialization to populate visible locations
+    setTimeout(() => {
+      // Using setTimeout to ensure the map is fully rendered
+      map.setZoom(map.getZoom()!); // This triggers bounds_changed without changing the view
+    }, 300);
+  }, [locations, isMobile, setDrawerOpen, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation]);
 
   // Handle drawer close action 
   const handleDrawerClose = useCallback(() => {
@@ -408,47 +539,17 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
     
     // Only pan to the location on mobile view
     if (map && isMobile) {
+      // Simple initial pan
       map.panTo(location.coordinates);
       
-      // Mobile: Ensure marker is in good viewing position
-      const bounds = map.getBounds();
-      if (bounds) {
-        const point = location.coordinates;
-        const projection = map.getProjection();
-        
-        if (projection) {
-          // Since we now show the drawer in full screen on mobile, adjust targeting
-          // Convert marker position to pixels
-          const mapHeight = map.getDiv().offsetHeight;
-          
-          // Convert marker position to pixels
-          const pointPx = projection.fromLatLngToPoint(new google.maps.LatLng(point.lat, point.lng));
-          const centerPx = projection.fromLatLngToPoint(map.getCenter()!);
-          
-          if (pointPx && centerPx) {
-            const scale = Math.pow(2, map.getZoom() || 0);
-            
-            const markerScreenY = (pointPx.y - centerPx.y) * scale + mapHeight / 2;
-            
-            // Mobile: Position marker in the upper portion of the visible area
-            // Target 20% from top since we'll have a fullscreen drawer
-            const targetY = mapHeight * 0.2;
-            const newCenterPx = new google.maps.Point(
-              centerPx.x,
-              centerPx.y + (markerScreenY - targetY) / scale
-            );
-            const newCenter = projection.fromPointToLatLng(newCenterPx);
-            if (newCenter) {
-              // Use a small delay to ensure marker click is processed before panning
-              setTimeout(() => {
-                map.panTo(newCenter);
-              }, 20);
-            }
-          }
-        }
-      }
+      // Use specialized centering with a slight delay to ensure marker click is processed
+      setTimeout(() => {
+        // On mobile, we want to position the marker in the upper portion
+        // to make room for the drawer at the bottom
+        centerMapOnLocation(location.coordinates);
+      }, 20);
     }
-  }, [map, isMobile, setSelectedLocation]);
+  }, [map, isMobile, setSelectedLocation, centerMapOnLocation]);
 
   const ageOptions = Array.from({ length: 19 }, (_, i) => i);
 
@@ -612,16 +713,15 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
 
           <GoogleMap
             mapContainerStyle={{
-              width: '100%',
+              width: !isMobile ? `calc(100% - 533px)` : '100%', // Explicitly set width on desktop
               height: '100%',
               position: 'absolute',
               top: isMobile ? '84px' : 0, // Add padding for header (64px) + filter bar (20px) on mobile
-              left: 0,
+              left: !isMobile ? '533px' : 0, // Position after drawer on desktop
               right: 0,
               bottom: 0,
-              marginLeft: !isMobile ? '533px' : 0, // Add margin for drawer in desktop view
             }}
-            center={userLocation}
+            // Don't set initial center here - we'll handle it in onLoad
             zoom={13}
             onLoad={onMapLoad}
             options={{
