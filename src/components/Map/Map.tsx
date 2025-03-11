@@ -473,8 +473,9 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
     setSelectedAge(null);
     setOpenNowFilter(false);
   };
-
+  // Handle search select
   const handleSearchSelect = (location: Location) => {
+    console.log('Search item selected:', location.name);
     setSelectedLocation(location);
     setSearchExpanded(false);
     setSearchTerm('');
@@ -482,6 +483,15 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
       map.panTo(location.coordinates);
     }
   };
+
+  // Debug helper for search results
+  useEffect(() => {
+    if (searchResults.length > 0) {
+      console.log(`Search results updated: ${searchResults.length} items found`);
+      console.log('Search expanded:', searchExpanded);
+      console.log('Is mobile:', isMobile);
+    }
+  }, [searchResults, searchExpanded, isMobile]);
 
   const handleAgeSelect = (age: number | null) => {
     setSelectedAge(age);
@@ -590,6 +600,53 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
 
   const ageOptions = Array.from({ length: 19 }, (_, i) => i);
 
+  // Render search results dropdown outside the map container
+  const renderSearchDropdown = () => {
+    if (!searchExpanded || searchResults.length === 0) return null;
+    
+    // Get position for dropdown from the search reference
+    const searchRect = searchRef.current?.getBoundingClientRect();
+    if (!searchRect) return null;
+    
+    // Calculate position
+    const dropdownTop = searchRect.bottom + window.scrollY;
+    
+    // For both mobile and desktop, align the dropdown's left edge with the input's left edge
+    const dropdownLeft = searchRect.left + window.scrollX;
+    
+    // Determine width - use input width on mobile, and wider width for desktop
+    const dropdownWidth = isMobile
+      ? `${searchRect.width}px`
+      : `${Math.min(Math.max(searchRect.width * 2, 350), 600)}px`; // min 350px, max 600px, approx twice as wide on desktop
+    
+    return (
+      <div
+        className="fixed bg-white rounded-lg shadow-lg overflow-y-auto z-search-dropdown"
+        style={{
+          top: `${dropdownTop}px`,
+          left: `${dropdownLeft}px`,
+          width: dropdownWidth,
+          maxHeight: '300px',
+          zIndex: 2000, // High z-index to ensure visibility
+        }}
+      >
+        {searchResults.map((result, index) => (
+          <button
+            key={`${result.location.id}-${result.matchField}-${index}`}
+            onClick={() => handleSearchSelect(result.location)}
+            data-search-result="true"
+            className="w-full p-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-0"
+          >
+            <p className="font-medium">{result.location.name}</p>
+            <p className="text-sm text-gray-600 truncate">
+              {result.matchText}
+            </p>
+          </button>
+        ))}
+      </div>
+    );
+  };
+  
   return (
     <div className="relative h-full w-full flex flex-col">
       <div className={`bg-white p-2 overflow-x-auto shadow-sm z-filter-bar ${isMobile ? 'fixed top-16 left-0 right-0 w-full' : 'relative'}`}>
@@ -616,29 +673,6 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
                     className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     autoFocus
                   />
-                  
-                  {searchResults.length > 0 && (
-                    <div className="fixed mt-1 bg-white rounded-lg shadow-lg max-h-60 overflow-y-auto z-search-dropdown" style={{
-                      top: searchRef.current?.getBoundingClientRect().bottom,
-                      left: searchRef.current?.getBoundingClientRect().left,
-                      width: searchRef.current?.getBoundingClientRect().width,
-                      maxWidth: '350px'
-                    }}>
-                      {searchResults.map((result, index) => (
-                        <button
-                          key={`${result.location.id}-${result.matchField}-${index}`}
-                          onClick={() => handleSearchSelect(result.location)}
-                          data-search-result="true"
-                          className="w-full p-2 text-left hover:bg-gray-50 border-b border-gray-100 last:border-0"
-                        >
-                          <p className="font-medium">{result.location.name}</p>
-                          <p className="text-sm text-gray-600 truncate">
-                            {result.matchText}
-                          </p>
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -1097,6 +1131,9 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
           </svg>
         </button>
       )}
+      
+      {/* Render search dropdown outside map container */}
+      {renderSearchDropdown()}
     </div>
   );
 };
