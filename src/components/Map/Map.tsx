@@ -66,155 +66,108 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
   });
   const [visibleLocations, setVisibleLocations] = useState<Location[]>([]);
   const [mapReady, setMapReady] = useState(false);
-  const isInitialCentering = useRef(true);
+  // This ref was removed as we simplified the map initialization logic
 
   const searchRef = useRef<HTMLDivElement>(null);
   const ageDropdownRef = useRef<HTMLDivElement>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
 
-  // Calculate the initial center position based on device type
-  const calculateInitialCenter = useCallback((location: google.maps.LatLngLiteral) => {
-    if (!isMobile) {
-      // On desktop, no adjustment needed - the map container is properly positioned
-      return { ...location };
-    }
-    
-    // On mobile, we want to pre-adjust the center so the marker appears
-    // at 30% from the top instead of in the center (50%)
-    
-    // We need to shift the center slightly north so the marker appears higher on screen
-    // This adjustment is approximate and will be refined once the map is fully loaded
-    
-    // ~0.003 degrees roughly corresponds to a 10% shift on the vertical axis at typical zoom levels
-    // We want to shift from 50% to 30%, so that's a 20% shift
-    const latAdjustment = 0.006; // Doubled from previous value to get ~20% shift
-    
-    return {
-      lat: location.lat - latAdjustment, // Shift north by subtracting from latitude
-      lng: location.lng
-    };
-  }, [isMobile]);
+  // This function has been removed as we now use a simpler approach for map positioning
   
+  // Get user location on component mount with a timeout
   useEffect(() => {
+    let locationTimeout: NodeJS.Timeout;
+    const defaultLocation = { lat: 37.9838, lng: 23.7275 }; // Athens center
+    
+    // Initially, set map as not ready until we get location
+    setMapReady(false);
+    
+    // Function to handle location retrieval timeouts
+    const handleLocationTimeout = () => {
+      console.log('Geolocation timed out, using default Athens location');
+      setUserLocation(defaultLocation);
+      setMapReady(true); // Allow map to render with default location
+    };
+    
     if (navigator.geolocation) {
+      // Set a timeout in case geolocation takes too long
+      locationTimeout = setTimeout(handleLocationTimeout, 3000); // 3 seconds timeout
+      
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          // Clear the timeout since we got a position
+          clearTimeout(locationTimeout);
+          
           const rawLocation = {
             lat: position.coords.latitude,
             lng: position.coords.longitude
           };
           
-          // Store the raw location
+          // Store the raw location and signal map can render
           setUserLocation(rawLocation);
+          setMapReady(true);
         },
-        () => {
-          console.log('Using default Athens location');
+        (error) => {
+          // Clear the timeout and use default location
+          clearTimeout(locationTimeout);
+          console.log('Geolocation error:', error.message);
+          setUserLocation(defaultLocation);
+          setMapReady(true);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0
         }
       );
+    } else {
+      // No geolocation support, use default immediately
+      setUserLocation(defaultLocation);
+      setMapReady(true);
     }
+    
+    return () => {
+      // Clean up timeout if component unmounts
+      if (locationTimeout) clearTimeout(locationTimeout);
+    };
   }, []);
   
-  // Specialized function to properly center the map on a location
+  // Simplified function to center the map on a location
   const centerMapOnLocation = useCallback((targetLocation: google.maps.LatLngLiteral) => {
-    if (!map || !maps) {
-      console.log('Map or maps API not available yet');
+    if (!map) {
+      console.log('Map not available yet');
       return;
     }
     
     console.log(`Centering map on location: ${JSON.stringify(targetLocation)}, isMobile: ${isMobile}`);
     
-    // On desktop, we need a simple offset since the map container is already positioned correctly
-    if (!isMobile) {
-      // No special calculations needed - the map container is already positioned
-      // correctly at left: 533px with appropriate width
+    if (isMobile) {
+      // On mobile, we need a slight vertical adjustment to account for header/filter bar
+      // Shift the center point slightly south to make the marker appear higher on screen
+      const adjustedLocation = {
+        lat: targetLocation.lat - 0.003, // Shift center slightly south
+        lng: targetLocation.lng
+      };
+      
+      // Use panTo for smoother animation
+      map.panTo(adjustedLocation);
+      console.log('Mobile: Applied adjusted center with slight vertical shift');
+    } else {
+      // On desktop, simple centering is sufficient since the container is properly positioned
       map.setCenter(targetLocation);
-      console.log('Desktop: Set center directly using map.setCenter()');
-      return;
+      console.log('Desktop: Set center directly');
     }
-    
-    // On mobile, we need to adjust for the header/filter bar
-    const projection = map.getProjection();
-    if (!projection) {
-      console.log('Map projection not available yet');
-      return;
-    }
-    
-    // Get the map container dimensions
-    const mapDiv = map.getDiv();
-    const mapHeight = mapDiv.offsetHeight;
-    
-    // Convert target location to pixel coordinates
-    const targetPoint = new maps.LatLng(targetLocation.lat, targetLocation.lng);
-    const targetPixel = projection.fromLatLngToPoint(targetPoint);
-    
-    // Get current center in pixels
-    const centerLatLng = map.getCenter();
-    if (!centerLatLng) {
-      console.log('Current map center not available');
-      return;
-    }
-    
-    const centerPixel = projection.fromLatLngToPoint(centerLatLng);
-    
-    // Make sure we have valid coordinates
-    if (!targetPixel || !centerPixel) {
-      console.log('Invalid pixel coordinates');
-      return;
-    }
-    
-    // Calculate the scale factor based on current zoom
-    const scale = Math.pow(2, map.getZoom() || 0);
-    
-    // For mobile, position the point at 30% from the top of the visible area
-    // to account for the header and to ensure good visibility
-    const targetYPercent = 0.3;
-    
-    // Calculate desired vertical position (horizontal stays centered)
-    const desiredY = targetYPercent * mapHeight;
-    
-    // Calculate current pixel position of target (Y only for mobile)
-    const currentTargetPixelY = (targetPixel.y - centerPixel.y) * scale + mapHeight / 2;
-    
-    // Calculate the vertical adjustment needed in pixels
-    const pixelAdjustY = desiredY - currentTargetPixelY;
-    
-    // Convert pixel adjustment to LatLng adjustment (Y only)
-    const adjustedCenterPixel = new maps.Point(
-      centerPixel.x,
-      centerPixel.y - pixelAdjustY / scale
-    );
-    
-    // Convert back to LatLng
-    const newCenter = projection.fromPointToLatLng(adjustedCenterPixel);
-    if (!newCenter) {
-      console.log('Failed to calculate new center');
-      return;
-    }
-    
-    // Apply the new center
-    console.log('Mobile: Applying adjusted center with map.panTo()');
-    map.panTo(newCenter);
-    
-  }, [map, maps, isMobile]);
+  }, [map, isMobile]);
   
-  // This effect handles centering when the device type changes (mobile/desktop)
-  // or if the user location updates while the map is already loaded
+  // Re-center when device type or user location changes while map is loaded
   useEffect(() => {
-    // Only attempt centering once both map and maps are loaded and map is marked as ready
-    if (!map || !maps || !userLocation.lat || !userLocation.lng || !mapReady) return;
-    
-    // Skip the initial centering (handled by onMapLoad)
-    if (isInitialCentering.current) {
-      isInitialCentering.current = false;
-      return;
-    }
-    
-    console.log('Re-centering map due to device type change or user location update');
+    if (!map || !userLocation.lat || !userLocation.lng || !mapReady) return;
     
     // The map is already initialized, so we can center immediately
+    console.log('Re-centering map due to device type change or user location update');
     centerMapOnLocation(userLocation);
     
-  }, [map, maps, userLocation, isMobile, centerMapOnLocation, mapReady]);
+  }, [map, userLocation, isMobile, centerMapOnLocation, mapReady]);
 
   // Handle InfoWindow for marker hovering
   useEffect(() => {
@@ -503,35 +456,12 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
     setMap(map);
     setMaps(window.google.maps);
     
-    // Set initial center with the pre-calculated position
+    // Center on user location - this only happens if mapReady is true,
+    // which means we've already determined the location
     if (userLocation.lat && userLocation.lng) {
-      const initialCenter = calculateInitialCenter(userLocation);
-      console.log('Setting initial map center with adjustment', initialCenter);
-      map.setCenter(initialCenter);
-      
-      // Apply the final centering once projection is available
-      const waitForProjection = () => {
-        if (map.getProjection()) {
-          // Map is fully initialized - make it visible and do one final center adjustment if needed
-          setMapReady(true);
-          
-          // On mobile, apply one final precise centering
-          if (isMobile) {
-            setTimeout(() => {
-              centerMapOnLocation(userLocation);
-            }, 100);
-          }
-        } else {
-          // Try again in a moment
-          setTimeout(waitForProjection, 50);
-        }
-      };
-      
-      // Start checking for projection readiness
-      waitForProjection();
-    } else {
-      // If no user location yet, just make the map visible
-      setMapReady(true);
+      // Use the simplified centering function
+      centerMapOnLocation(userLocation);
+      console.log('Initial map centering on:', userLocation);
     }
     
     map.addListener('click', () => {
@@ -563,7 +493,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
       // Using setTimeout to ensure the map is fully rendered
       map.setZoom(map.getZoom()!); // This triggers bounds_changed without changing the view
     }, 300);
-  }, [locations, isMobile, setDrawerOpen, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation, calculateInitialCenter, centerMapOnLocation]);
+  }, [locations, isMobile, setDrawerOpen, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation, centerMapOnLocation]);
 
   // Handle drawer close action 
   const handleDrawerClose = useCallback(() => {
@@ -782,7 +712,7 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
           {/* Map Blocking Overlay - only shows when drawer is open on mobile */}
           <MapBlockingOverlay />
 
-        {/* Add a simple loading overlay */}
+        {/* Enhanced loading overlay */}
         {!mapReady && (
           <div
             style={{
@@ -795,15 +725,25 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              zIndex: 50 // Above map but below other UI elements
+              zIndex: 50, // Above map but below other UI elements
+              transition: 'opacity 0.3s ease-in-out'
             }}
           >
-            <div className="animate-pulse flex flex-col items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500 w-12 h-12 mb-3">
-                <circle cx="12" cy="10" r="3"></circle>
-                <path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z"></path>
-              </svg>
-              <span className="text-gray-500">Loading map...</span>
+            <div className="flex flex-col items-center text-center px-4">
+              <div className="relative mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500 w-16 h-16">
+                  <circle cx="12" cy="10" r="3"></circle>
+                  <path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z"></path>
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <p className="text-gray-700 font-medium">Finding your location...</p>
+                <p className="text-gray-500 text-sm">We're preparing your map experience</p>
+              </div>
             </div>
           </div>
         )}
@@ -817,8 +757,9 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
               left: !isMobile ? '533px' : 0, // Position after drawer on desktop
               right: 0,
               bottom: 0,
-              opacity: mapReady ? 1 : 0.01, // Hide map until ready but keep it loading
-              transition: 'opacity 0.3s ease-in-out'
+              opacity: mapReady ? 1 : 0, // Completely hide map until fully ready
+              transition: 'opacity 0.5s ease-in-out',
+              pointerEvents: mapReady ? 'auto' : 'none' // Prevent interaction until ready
             }}
             // Don't set initial center here - we'll handle it in onLoad
             zoom={13}
