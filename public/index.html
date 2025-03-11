@@ -34,9 +34,9 @@
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       
-      // Set default consent mode
+      // Set default consent mode - allow analytics_storage by default
       gtag('consent', 'default', {
-        'analytics_storage': 'denied',
+        'analytics_storage': 'granted',
         'ad_storage': 'denied'
       });
       
