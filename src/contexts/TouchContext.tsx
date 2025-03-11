@@ -68,6 +68,21 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     
     if (!isDrawerTouch && !isModalTouch) return;
     
+    // Get the proper drawer height based on current state
+    const getDrawerHeight = () => {
+      if (drawerState === 'full') {
+        return window.innerHeight;
+      } else if (drawerState === 'partial') {
+        // Try to get the value from CSS variable, fallback to calculation
+        const mobileMapArea = parseInt(
+          getComputedStyle(document.documentElement).getPropertyValue('--mobile-map-area') ||
+          `${window.innerHeight - 84}`
+        );
+        return mobileMapArea * 0.5;
+      }
+      return window.innerHeight * 0.5; // Default fallback
+    };
+    
     // Initialize touch tracking
     touchState.current = {
       startY: touch.clientY,
@@ -75,14 +90,14 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       velocity: 0,
       isDragging: false,
       startTime: Date.now(),
-      drawerHeight: window.innerHeight
+      drawerHeight: getDrawerHeight()
     };
     
     // Prevent default only for drawer pull handle
     if (target.closest('.z-drawer-pull-handle')) {
       e.preventDefault();
     }
-  }, [isMobile]);
+  }, [isMobile, drawerState]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isMobile || isModalOpen) return;

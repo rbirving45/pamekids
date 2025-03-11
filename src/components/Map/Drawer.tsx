@@ -539,7 +539,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
           w-full rounded-t-xl overflow-hidden
           transition-all duration-300 ease-in-out
           ${drawerState !== 'closed' ? 'translate-y-0' : 'translate-y-full md:translate-y-0'}
-          ${drawerState === 'full' ? 'top-0 h-full' : drawerState === 'partial' ? 'bottom-0 h-[50vh]' : ''}
+          ${drawerState === 'full' ? 'top-0 h-full' : drawerState === 'partial' ? 'bottom-0 h-[var(--mobile-drawer-partial-height,50vh)]' : ''}
           md:h-[calc(100vh-4rem-3.25rem)] md:translate-x-0
           flex flex-col
         `}

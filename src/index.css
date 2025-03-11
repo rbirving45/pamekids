@@ -4,6 +4,13 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --mobile-header-height: 64px; /* 4rem */
+  --mobile-filter-bar-height: 20px;
+  --mobile-map-area: calc(100vh - var(--mobile-header-height) - var(--mobile-filter-bar-height));
+  --mobile-drawer-partial-height: calc(var(--mobile-map-area) * 0.5);
+}
+
 /* Add line-clamp utilities */
 @layer utilities {
   .line-clamp-1 {
