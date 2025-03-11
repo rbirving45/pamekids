@@ -103,52 +103,39 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
               Ages {location.ageRange.min}-{location.ageRange.max}
             </span>
             
-            {/* Rating display - Show inline with age on mobile */}
+            {/* Full rating display - shown on all devices */}
             {mergedPlaceData?.rating && mergedPlaceData.userRatingsTotal && (
               <div className="flex items-center">
-                <Star
-                  size={12}
-                  className="text-yellow-400 fill-yellow-400"
-                />
-                <span className="text-xs text-gray-600 ml-0.5">
-                  {mergedPlaceData.rating.toFixed(1)}
-                </span>
+                <div className="flex items-center">
+                  {[...Array(5)].map((_, i) => {
+                    const rating = mergedPlaceData.rating || 0;
+                    const starFilled = i < Math.floor(rating);
+                    const hasHalfStar = i === Math.floor(rating) && rating % 1 >= 0.5;
+                    
+                    return (
+                      <Star
+                        key={i}
+                        size={14}
+                        className={`${
+                          starFilled || hasHalfStar
+                            ? 'text-yellow-400 fill-yellow-400'
+                            : 'text-gray-300'
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="text-xs text-gray-600 ml-1">
+                  {mergedPlaceData.rating.toFixed(1)} ({mergedPlaceData.userRatingsTotal > 1000
+                    ? `${Math.floor(mergedPlaceData.userRatingsTotal / 1000)}k`
+                    : mergedPlaceData.userRatingsTotal})
+                </div>
               </div>
             )}
           </div>
           
           {/* Location description - truncated */}
           <p className="text-xs md:text-sm text-gray-600 line-clamp-2 mb-0.5 md:mb-1">{location.description}</p>
-          
-          {/* Full rating display - desktop only */}
-          {mergedPlaceData?.rating && mergedPlaceData.userRatingsTotal && (
-            <div className="hidden md:flex items-center">
-              <div className="flex items-center">
-                {[...Array(5)].map((_, i) => {
-                  const rating = mergedPlaceData.rating || 0;
-                  const starFilled = i < Math.floor(rating);
-                  const hasHalfStar = i === Math.floor(rating) && rating % 1 >= 0.5;
-                  
-                  return (
-                    <Star
-                      key={i}
-                      size={14}
-                      className={`${
-                        starFilled || hasHalfStar
-                          ? 'text-yellow-400 fill-yellow-400'
-                          : 'text-gray-300'
-                      }`}
-                    />
-                  );
-                })}
-              </div>
-              <div className="text-xs text-gray-600 ml-1">
-                {mergedPlaceData.rating.toFixed(1)} ({mergedPlaceData.userRatingsTotal > 1000
-                  ? `${Math.floor(mergedPlaceData.userRatingsTotal / 1000)}k`
-                  : mergedPlaceData.userRatingsTotal})
-              </div>
-            </div>
-          )}
         </div>
         
         {/* Right side - Featured image (square with rounded corners) */}
