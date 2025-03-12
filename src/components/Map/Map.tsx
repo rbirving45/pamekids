@@ -176,7 +176,7 @@ const MapComponent: React.FC<MapProps> = () => {
     };
   }, []);
   
-  // Simplified function to center the map on a location with context awareness
+  // Specialized function to position markers optimally based on context
   const centerMapOnLocation = useCallback((targetLocation: google.maps.LatLngLiteral, context?: 'marker-selection' | 'initial-load') => {
     if (!map) {
       console.log('Map not available yet');
@@ -187,33 +187,40 @@ const MapComponent: React.FC<MapProps> = () => {
     
     if (isMobile) {
       try {
-        // Use simplified offset calculations to prevent errors
-        let verticalOffset = 0.003; // Default small offset for general centering
-        
-        // When a marker is selected, we need a larger offset to position above the drawer
+        // Use different offsets based on context
         if (context === 'marker-selection') {
-          // Use a larger fixed offset for marker selections on mobile
-          // This places the marker approximately in the upper third of the visible area
-          verticalOffset = 0.006; // Double the default offset
-          console.log(`Mobile marker selection: using fixed offset ${verticalOffset}`);
+          // For selected markers, apply a significant offset to position them above the drawer
+          // Position marker approximately in the upper quarter of the screen
+          // The drawer takes up about 50% of the screen, so we need to position well above that
+          const markerOffset = 0.03; // Much larger offset specifically for markers
+          
+          const adjustedLocation = {
+            lat: targetLocation.lat - markerOffset,
+            lng: targetLocation.lng
+          };
+          
+          map.panTo(adjustedLocation);
+          console.log(`Mobile marker selection: using larger offset ${markerOffset} for better visibility above drawer`);
+        } else {
+          // For user location or other general centering, use the original smaller offset
+          // This accounts for just the header/filter bar
+          const defaultOffset = 0.003;
+          
+          const adjustedLocation = {
+            lat: targetLocation.lat - defaultOffset,
+            lng: targetLocation.lng
+          };
+          
+          map.panTo(adjustedLocation);
+          console.log(`Mobile default centering: using standard offset ${defaultOffset}`);
         }
-        
-        // Apply the vertical adjustment
-        const adjustedLocation = {
-          lat: targetLocation.lat - verticalOffset,
-          lng: targetLocation.lng
-        };
-        
-        // Use panTo for smoother animation
-        map.panTo(adjustedLocation);
-        console.log(`Mobile: Applied vertical shift of ${verticalOffset}`);
       } catch (error) {
         // Fallback to simple centering if anything goes wrong
         console.error('Error in centerMapOnLocation:', error);
         map.panTo(targetLocation);
       }
     } else {
-      // On desktop, simple centering is sufficient since the container is properly positioned
+      // On desktop, simple centering is sufficient
       map.setCenter(targetLocation);
       console.log('Desktop: Set center directly');
     }
