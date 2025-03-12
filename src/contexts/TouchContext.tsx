@@ -91,8 +91,16 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     
     if (!isDrawerTouch && !isModalTouch) return;
     
-    // Check if touch is on pull handle - always allow pull handle interactions
+    // Additional checks for specific elements
     const isPullHandleTouch = target.closest('.z-drawer-pull-handle');
+    const isScrollableContent = target.closest('.drawer-block-map');
+    const isTextElement = target.closest('.touchable-text') ||
+                          target.tagName === 'P' ||
+                          target.tagName === 'SPAN' ||
+                          target.tagName === 'H1' ||
+                          target.tagName === 'H2' ||
+                          target.tagName === 'H3' ||
+                          target.tagName === 'DIV';
     
     // Get the proper drawer height based on current state
     const getDrawerHeight = () => {
@@ -119,19 +127,27 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       drawerHeight: getDrawerHeight()
     };
     
-    // In partial drawer state, prevent default for ALL touches to the drawer
-    // This prevents scrolling content and ensures all swipes control drawer movement
+    // Decision logic for touch handling:
+    
+    // 1. For partial drawer state - always control drawer, not content
     if (drawerState === 'partial' && isDrawerTouch) {
       e.preventDefault();
     }
-    // For pull handle, always prevent default to ensure it works for drawer control
+    // 2. Pull handle always controls drawer
     else if (isPullHandleTouch) {
       e.preventDefault();
     }
-    // For full drawer state, only prevent default if content is at top (allows scrolling otherwise)
-    else if (drawerState === 'full' && isDrawerTouch && isContentAtTop) {
-      // Only prevent when at the top of content
-      e.preventDefault();
+    // 3. For full drawer state, handle differently based on context:
+    else if (drawerState === 'full' && isDrawerTouch) {
+      // Only control drawer if at top of content
+      if (isContentAtTop) {
+        e.preventDefault();
+      }
+      // When touching text in full drawer, prioritize scrolling
+      else if (isTextElement && isScrollableContent && !isPullHandleTouch) {
+        // Don't prevent default - allow natural scrolling
+        touchState.current.isDragging = false;
+      }
     }
   }, [isMobile, drawerState, isContentAtTop]);
 
@@ -146,39 +162,56 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const isDrawerTouch = target.closest('.z-drawer-container');
     if (!isDrawerTouch) return;
     
-    // Check if touch is on pull handle - always allow pull handle to drag
+    // Additional element checks
     const isPullHandleTouch = target.closest('.z-drawer-pull-handle');
+    const isScrollableContent = target.closest('.drawer-block-map');
+    const isTextElement = target.closest('.touchable-text') ||
+                          target.tagName === 'P' ||
+                          target.tagName === 'SPAN' ||
+                          target.tagName === 'H1' ||
+                          target.tagName === 'H2' ||
+                          target.tagName === 'H3' ||
+                          target.tagName === 'DIV';
     
-    // Special case for full drawer state:
-    // Only allow dragging when content is at top OR using pull handle
+    // Determine if this should be a drawer drag or content scroll
+    let shouldAllowDrag = false;
+    
+    // Decision logic for dragging
     if (drawerState === 'full') {
-      // For pull handle, always allow dragging
+      // 1. Always allow pull handle to drag
       if (isPullHandleTouch && Math.abs(deltaY) > 2) {
-        touchState.current.isDragging = true;
-        e.preventDefault();
+        shouldAllowDrag = true;
       }
-      // For content area, only allow dragging when at top AND swiping down
-      else if (isContentAtTop && deltaY > 0 && Math.abs(deltaY) > 5) {
-        touchState.current.isDragging = true;
-        e.preventDefault();
+      // 2. For content area in full drawer state:
+      else if (isScrollableContent) {
+        // 2a. If we're at the top AND swiping down, control the drawer
+        if (isContentAtTop && deltaY > 5) {
+          shouldAllowDrag = true;
+        }
+        // 2b. If touching text and not at the top, prioritize scrolling
+        else if (isTextElement && !isContentAtTop) {
+          shouldAllowDrag = false;
+          // Reset dragging state to ensure scrolling works
+          touchState.current.isDragging = false;
+          return; // Exit early to allow natural scroll
+        }
       }
-      // All other cases in full drawer state - do not intercept to allow regular scrolling
     }
-    // For partial drawer state: immediately start dragging with any vertical movement
+    // For partial drawer state: always control drawer movement
     else if (drawerState === 'partial' && Math.abs(deltaY) > 2) {
-      touchState.current.isDragging = true;
-      // Prevent default to stop any scrolling within the drawer
-      e.preventDefault();
+      shouldAllowDrag = true;
     }
-    // For other states or pull handle: start dragging after more significant movement
-    else if (Math.abs(deltaY) > 5) {
+    
+    // Start dragging if conditions are met
+    if (shouldAllowDrag || (Math.abs(deltaY) > 8 && !isTextElement)) {
       touchState.current.isDragging = true;
     }
     
+    // Handle drawer movement if we're dragging
     if (touchState.current.isDragging) {
       // Calculate velocity
       const deltaTime = Date.now() - touchState.current.startTime;
-      touchState.current.velocity = deltaY / deltaTime;
+      touchState.current.velocity = deltaY / (deltaTime || 1); // Avoid division by zero
       
       // Update current position
       touchState.current.currentY = touch.clientY;
@@ -186,16 +219,30 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Prevent default to stop scrolling while dragging
       e.preventDefault();
       
+      // Apply resistance when dragging down in full state or up in partial state
+      let adjustedDeltaY = deltaY;
+      if ((drawerState === 'full' && deltaY > 0) ||
+          (drawerState === 'partial' && deltaY < 0)) {
+        adjustedDeltaY = deltaY * 0.5; // Add resistance
+      }
+      
       // Update drawer transform based on drag
       const drawer = target.closest('.z-drawer-container') as HTMLElement;
       if (drawer) {
-        drawer.style.transform = `translateY(${deltaY}px)`;
+        drawer.style.transform = `translateY(${adjustedDeltaY}px)`;
       }
     }
   }, [isMobile, isModalOpen, drawerState, isContentAtTop]);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!isMobile || !touchState.current.isDragging) return;
+    if (!isMobile) return;
+    
+    // If not dragging, this was probably a tap or scroll - just clean up
+    if (!touchState.current.isDragging) {
+      // Reset touch tracking to clean state
+      touchState.current.isDragging = false;
+      return;
+    }
     
     const deltaY = touchState.current.currentY - touchState.current.startY;
     const velocity = touchState.current.velocity;
@@ -203,7 +250,7 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     
     if (!drawer) return;
     
-    // Reset transform
+    // Reset transform with smooth transition
     drawer.style.transform = '';
     drawer.style.transition = 'transform 0.3s ease-out';
     
@@ -229,6 +276,9 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }
     
+    // Detect if we're changing states or staying in the same state
+    const isStateChanging = newDrawerState !== drawerState;
+    
     // If we're closing the drawer with a gesture, invoke the callback to clear selection
     if (newDrawerState === 'closed' && drawerState !== 'closed' && clearLocationCallbackRef.current) {
       // Small delay to ensure the drawer transition starts first
@@ -244,6 +294,19 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     
     // Reset touch tracking
     touchState.current.isDragging = false;
+    
+    // Add a small delay after state transitions to ensure proper handling of subsequent touches
+    if (isStateChanging) {
+      // This helps resolve issues where scrolling doesn't work immediately after a transition
+      setTimeout(() => {
+        // Re-enable scrolling after transition completes
+        const scrollableContent = document.querySelector('.drawer-block-map');
+        if (scrollableContent && newDrawerState === 'full') {
+          (scrollableContent as HTMLElement).style.overflowY = 'auto';
+          console.log('Re-enabled scrolling after transition');
+        }
+      }, 350); // Slightly longer than the transition duration (300ms)
+    }
   }, [isMobile, drawerState]);
 
   // Effect to handle document-level touch events

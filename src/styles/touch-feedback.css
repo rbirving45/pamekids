@@ -50,12 +50,36 @@
   z-index: var(--z-drawer-content);
 }
 
+/* Ensure text elements participate properly in scrolling */
+.touchable-text {
+  touch-action: pan-y; /* Allow vertical scrolling */
+  pointer-events: auto !important;
+  user-select: text; /* Allow text selection if desired */
+  -webkit-user-select: text;
+}
+
+/* Container for scrollable content sections */
+.drawer-content-section {
+  width: 100%;
+  position: relative;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Additional classes for different drawer elements */
 .z-drawer-container {
   touch-action: pan-x pan-y; /* Allow vertical scrolling within drawer */
   pointer-events: auto !important;
   will-change: transform;
   backface-visibility: hidden; /* Improve performance */
+}
+
+/* Ensure proper scrolling in the drawer's full state */
+.z-drawer-container[style*="top: 0"] .drawer-block-map,
+.z-drawer-container.translate-y-0 .drawer-block-map {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
 }
 
 /* Style for map container when blocked */

@@ -729,7 +729,9 @@ const Drawer: React.FC<DrawerProps> = memo(({
               className={`flex-1 ${isPartialDrawer ? 'overflow-hidden' : 'overflow-y-auto overscroll-contain'} drawer-block-map`}
               style={{
                 touchAction: isPartialDrawer ? 'none' : 'pan-y',
-                pointerEvents: 'auto'
+                pointerEvents: 'auto',
+                WebkitOverflowScrolling: 'touch', // Improve iOS scrolling
+                overscrollBehavior: 'contain' // Prevent scroll chaining
               }}
             >
               <div className="p-6 space-y-6">
@@ -827,83 +829,85 @@ const Drawer: React.FC<DrawerProps> = memo(({
                 )}
 
                 {/* Description */}
-                <p className="text-lg text-gray-600">{location.description}</p>
+                <div className="drawer-content-section">
+                  <p className="text-lg text-gray-600 touchable-text">{location.description}</p>
+                </div>
 
                 {/* Action Buttons - Show in content on desktop */}
                 <div className="hidden md:block">
                   <ActionButtons />
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-3 drawer-content-section">
                   <div className="flex items-center text-lg">
-                    <span className="font-medium">Ages:</span>
-                    <span className="ml-3 text-gray-600">
+                    <span className="font-medium touchable-text">Ages:</span>
+                    <span className="ml-3 text-gray-600 touchable-text">
                       {location.ageRange.min}-{location.ageRange.max} years
                     </span>
                   </div>
 
                   {location.priceRange && (
                     <div className="flex items-center text-lg">
-                      <span className="font-medium">Price:</span>
-                      <span className="ml-3 text-gray-600">{location.priceRange}</span>
+                      <span className="font-medium touchable-text">Price:</span>
+                      <span className="ml-3 text-gray-600 touchable-text">{location.priceRange}</span>
                     </div>
                   )}
                 </div>
 
-                <div>
-                  <h3 className="text-xl font-medium text-gray-900 mb-3">Opening Hours</h3>
+                <div className="drawer-content-section">
+                  <h3 className="text-xl font-medium text-gray-900 mb-3 touchable-text">Opening Hours</h3>
                   <div className="space-y-2">
                     {Object.entries(location.openingHours).map(([day, hours]) => (
                       <div key={day} className="text-base grid grid-cols-2">
-                        <span className="text-gray-600">{day}</span>
-                        <span className="text-gray-900">{hours}</span>
+                        <span className="text-gray-600 touchable-text">{day}</span>
+                        <span className="text-gray-900 touchable-text">{hours}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="pb-6">
-                  <h3 className="text-xl font-medium text-gray-900 mb-3">Contact Information</h3>
+                <div className="pb-6 drawer-content-section">
+                  <h3 className="text-xl font-medium text-gray-900 mb-3 touchable-text">Contact Information</h3>
                   <div className="space-y-2 text-base text-gray-600">
                     {location.contact.phone && (
-                      <p>
+                      <p className="touchable-text">
                         Phone:{" "}
                         <a
                           href={`tel:${location.contact.phone}`}
                           onClick={() => trackExternalLink('phone', location.name, `tel:${location.contact.phone}`)}
-                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                          className="text-blue-600 hover:text-blue-800 hover:underline touchable-text"
                         >
                           {location.contact.phone}
                         </a>
                       </p>
                     )}
                     {location.contact.email && location.contact.email !== 'email' && (
-                      <p>
+                      <p className="touchable-text">
                         Email:{" "}
                         <a
                           href={`mailto:${location.contact.email}`}
                           onClick={() => trackExternalLink('website', location.name, `mailto:${location.contact.email}`)}
-                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                          className="text-blue-600 hover:text-blue-800 hover:underline touchable-text"
                         >
                           {location.contact.email}
                         </a>
                       </p>
                     )}
                     {location.contact.website && location.contact.website !== 'website' && (
-                      <p>
+                      <p className="touchable-text">
                         Website:{" "}
                         <a
                           href={addUtmParams(location.contact.website)}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={() => trackExternalLink('website', location.name, location.contact.website!)}
-                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                          className="text-blue-600 hover:text-blue-800 hover:underline touchable-text"
                         >
                           {location.contact.website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
                         </a>
                       </p>
                     )}
-                    <p>Address: {location.address}</p>
+                    <p className="touchable-text">Address: {location.address}</p>
                   </div>
                 </div>
                 
