@@ -13,6 +13,7 @@ interface TouchContextType {
   isMapBlocked: boolean;
   isModalOpen: boolean;
   setModalOpen: (open: boolean) => void;
+  isPartialDrawer: boolean; // Helper to check if drawer is in partial state
   
   // Touch event handlers
   handleTouchStart: (e: React.TouchEvent) => void;
@@ -104,8 +105,13 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       drawerHeight: getDrawerHeight()
     };
     
-    // Prevent default only for drawer pull handle
-    if (target.closest('.z-drawer-pull-handle')) {
+    // In partial drawer state, prevent default for ALL touches to the drawer
+    // This prevents scrolling content and ensures all swipes control drawer movement
+    if (drawerState === 'partial' && isDrawerTouch) {
+      e.preventDefault();
+    }
+    // For other cases, only prevent default for drawer pull handle
+    else if (target.closest('.z-drawer-pull-handle')) {
       e.preventDefault();
     }
   }, [isMobile, drawerState]);
@@ -121,8 +127,14 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const isDrawerTouch = target.closest('.z-drawer-container');
     if (!isDrawerTouch) return;
     
-    // Start tracking drag after slight movement
-    if (Math.abs(deltaY) > 5) {
+    // For partial drawer state: immediately start dragging with any vertical movement
+    if (drawerState === 'partial' && Math.abs(deltaY) > 2) {
+      touchState.current.isDragging = true;
+      // Prevent default to stop any scrolling within the drawer
+      e.preventDefault();
+    }
+    // For other states: only start dragging after more significant movement
+    else if (Math.abs(deltaY) > 5) {
       touchState.current.isDragging = true;
     }
     
@@ -143,7 +155,7 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         drawer.style.transform = `translateY(${deltaY}px)`;
       }
     }
-  }, [isMobile, isModalOpen]);
+  }, [isMobile, isModalOpen, drawerState]);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     if (!isMobile || !touchState.current.isDragging) return;
@@ -197,12 +209,16 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => document.removeEventListener('touchmove', handleDocumentTouch);
   }, [isMobile, isMapBlocked]);
 
+  // Add a simple computed property to check if drawer is in partial state
+  const isPartialDrawer = drawerState === 'partial';
+  
   const contextValue = useMemo(() => ({
     drawerState,
     setDrawerState,
     isMapBlocked,
     isModalOpen,
     setModalOpen,
+    isPartialDrawer,
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd
@@ -212,6 +228,7 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     isMapBlocked,
     isModalOpen,
     setModalOpen,
+    isPartialDrawer,
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd

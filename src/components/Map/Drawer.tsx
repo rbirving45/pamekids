@@ -50,7 +50,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
   } = useUIState();
   
   // Use TouchContext hook with all needed properties - moved before any conditional returns
-  const { drawerState, setDrawerState, handleTouchStart, handleTouchMove, handleTouchEnd } = useTouch();
+  const { drawerState, setDrawerState, handleTouchStart, handleTouchMove, handleTouchEnd, isPartialDrawer } = useTouch();
   
   // Debug log to verify TouchContext is available
   console.log('TouchContext drawer state:', drawerState);
@@ -551,10 +551,10 @@ const Drawer: React.FC<DrawerProps> = memo(({
         onTouchMoveCapture={handleTouchMove}
         onTouchEndCapture={handleTouchEnd}
       >
-        {/* Pull Handle with improved styles */}
+        {/* Pull Handle with improved styles and visual indication when in partial state */}
         <div 
           ref={pullHandleRef}
-          className="h-8 w-full flex items-center justify-center cursor-pointer md:hidden z-drawer-pull-handle bg-gray-50 drawer-block-all"
+          className={`h-8 w-full flex items-center justify-center cursor-pointer md:hidden z-drawer-pull-handle ${isPartialDrawer ? 'bg-blue-50' : 'bg-gray-50'} drawer-block-all`}
           onClick={() => {
             // Toggle between partial and full states
             setDrawerState(drawerState === 'partial' ? 'full' : 'partial');
@@ -698,11 +698,14 @@ const Drawer: React.FC<DrawerProps> = memo(({
               </div>
             )}
 
-            {/* Scrollable Content */}
+            {/* Scrollable Content - with conditional scrolling based on drawer state */}
             <div 
               ref={contentRef}
-              className="flex-1 overflow-y-auto overscroll-contain drawer-block-map"
-              style={{ touchAction: 'pan-y' }} /* Explicitly override to ensure scrolling works */
+              className={`flex-1 ${isPartialDrawer ? 'overflow-hidden' : 'overflow-y-auto overscroll-contain'} drawer-block-map`}
+              style={{
+                touchAction: isPartialDrawer ? 'none' : 'pan-y',
+                pointerEvents: 'auto'
+              }}
             >
               <div className="p-6 space-y-6">
                 {/* For mobile expanded view: Include header content at the top of the scrollable area */}
@@ -931,10 +934,14 @@ const Drawer: React.FC<DrawerProps> = memo(({
               </div>
             </div>
             
-            {/* List Content */}
+            {/* List Content - with conditional scrolling based on drawer state */}
             <div 
               ref={contentRef}
-              className="flex-1 overflow-y-auto overscroll-contain"
+              className={`flex-1 ${isPartialDrawer ? 'overflow-hidden' : 'overflow-y-auto overscroll-contain'} drawer-block-map`}
+              style={{
+                touchAction: isPartialDrawer ? 'none' : 'pan-y',
+                pointerEvents: 'auto'
+              }}
             >
               {displayedLocations.length === 0 ? (
                 <div className="p-6 text-center text-gray-500">
