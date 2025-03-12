@@ -19,6 +19,9 @@ interface TouchContextType {
   handleTouchStart: (e: React.TouchEvent) => void;
   handleTouchMove: (e: React.TouchEvent) => void;
   handleTouchEnd: (e: React.TouchEvent) => void;
+  
+  // Callback for clearing selection when drawer is closed via gestures
+  setLocationClearCallback: (callback: () => void) => void;
 }
 
 const TouchContext = createContext<TouchContextType | undefined>(undefined);
@@ -38,6 +41,9 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Core state
   const [drawerState, setDrawerState] = useState<DrawerState>('closed');
   const [isModalOpen, setModalOpen] = useState(false);
+  
+  // Callback reference for clearing selection when drawer is closed
+  const clearLocationCallbackRef = useRef<(() => void) | null>(null);
   
   // Touch tracking refs
   const touchState = useRef<TouchStateTracker>({
@@ -174,21 +180,36 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const VELOCITY_THRESHOLD = 0.5; // pixels per millisecond
     const DISTANCE_THRESHOLD = touchState.current.drawerHeight * 0.2; // 20% of drawer height
     
+    let newDrawerState = drawerState;
+    
     if (drawerState === 'partial') {
       if (deltaY > DISTANCE_THRESHOLD || (velocity > VELOCITY_THRESHOLD && deltaY > 0)) {
-        setDrawerState('closed');
+        newDrawerState = 'closed';
       } else if (deltaY < -DISTANCE_THRESHOLD || (velocity < -VELOCITY_THRESHOLD && deltaY < 0)) {
-        setDrawerState('full');
+        newDrawerState = 'full';
       } else {
-        setDrawerState('partial');
+        newDrawerState = 'partial';
       }
     } else if (drawerState === 'full') {
       if (deltaY > DISTANCE_THRESHOLD || (velocity > VELOCITY_THRESHOLD && deltaY > 0)) {
-        setDrawerState('partial');
+        newDrawerState = 'partial';
       } else {
-        setDrawerState('full');
+        newDrawerState = 'full';
       }
     }
+    
+    // If we're closing the drawer with a gesture, invoke the callback to clear selection
+    if (newDrawerState === 'closed' && drawerState !== 'closed' && clearLocationCallbackRef.current) {
+      // Small delay to ensure the drawer transition starts first
+      setTimeout(() => {
+        clearLocationCallbackRef.current?.();
+      }, 10);
+      console.log('Drawer closed by gesture - clearing selection');
+      clearLocationCallbackRef.current();
+    }
+    
+    // Set the new drawer state
+    setDrawerState(newDrawerState);
     
     // Reset touch tracking
     touchState.current.isDragging = false;
@@ -212,26 +233,46 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Add a simple computed property to check if drawer is in partial state
   const isPartialDrawer = drawerState === 'partial';
   
+  // Track if a drawer state change is from user interaction or programmatic
+  const isProgrammaticChange = useRef(false);
+
+  // Callback setter function
+  const setLocationClearCallback = useCallback((callback: () => void) => {
+    clearLocationCallbackRef.current = callback;
+  }, []);
+  
+  // Wrapped version of setDrawerState that allows indicating programmatic changes
+  const setDrawerStateWrapper = useCallback((state: DrawerState, isProgrammatic: boolean = false) => {
+    isProgrammaticChange.current = isProgrammatic;
+    setDrawerState(state);
+    // Reset flag after a short delay to ensure it's available during state update effects
+    setTimeout(() => {
+      isProgrammaticChange.current = false;
+    }, 50);
+  }, [setDrawerState]);
+  
   const contextValue = useMemo(() => ({
     drawerState,
-    setDrawerState,
+    setDrawerState: setDrawerStateWrapper,
     isMapBlocked,
     isModalOpen,
     setModalOpen,
     isPartialDrawer,
     handleTouchStart,
     handleTouchMove,
-    handleTouchEnd
+    handleTouchEnd,
+    setLocationClearCallback
   }), [
     drawerState,
-    setDrawerState,
+    setDrawerStateWrapper,
     isMapBlocked,
     isModalOpen,
     setModalOpen,
     isPartialDrawer,
     handleTouchStart,
     handleTouchMove,
-    handleTouchEnd
+    handleTouchEnd,
+    setLocationClearCallback
   ]);
 
   return (

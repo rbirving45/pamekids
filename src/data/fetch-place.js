@@ -217,7 +217,7 @@ function formatPlaceData(place, placeId, aiSummary) {
   const minAge = primaryType === 'education' ? 3 : 0;
   const maxAge = 16;
 
-  // Format price level - use '$' as default value instead of "undefined"
+  // Format price level - use '€' as default value instead of "undefined"
   let priceRangeStr = '"$"';
   if (place.price_level === 0) {
     priceRangeStr = '"Free entrance"';

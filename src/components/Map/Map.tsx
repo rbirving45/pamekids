@@ -44,7 +44,7 @@ const MapComponent: React.FC<MapProps> = () => {
   // Use context hooks for mobile detection and UI state
   const { isMobile } = useMobile();
   // Get drawer state and map blocking state from TouchContext
-  const { drawerState, setDrawerState, isMapBlocked } = useTouch();
+  const { drawerState, setDrawerState, isMapBlocked, setLocationClearCallback } = useTouch();
   // For backward compatibility with older components
   const { setDrawerOpen } = useUIState();
 
@@ -78,6 +78,19 @@ const MapComponent: React.FC<MapProps> = () => {
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
 
   // This function has been removed as we now use a simpler approach for map positioning
+  
+  // Register callback to clear selected location when drawer is closed by gestures
+  useEffect(() => {
+    setLocationClearCallback(() => {
+      // Only clear marker selection if map is already initialized
+      // and there's an active selection to clear
+      if (mapReady && selectedLocation) {
+        console.log('Clearing marker selection due to drawer gesture close');
+        setSelectedLocation(null);
+        setHoveredLocation(null);
+      }
+    });
+  }, [setLocationClearCallback, setSelectedLocation, setHoveredLocation, mapReady, selectedLocation]);
   
   // Fetch locations from Firebase on component mount
   useEffect(() => {
