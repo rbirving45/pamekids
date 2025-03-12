@@ -21,9 +21,33 @@ const COLLECTIONS = {
   LOCATIONS: 'locations' // Ensure this matches exactly with Firebase rules
 };
 
-// Debug collection references - log full path to help troubleshoot
-console.log('Firebase collection paths:');
-console.log('- Locations:', 'databases/{database}/documents/' + COLLECTIONS.LOCATIONS);
+// Helper function to check if user is authenticated as admin
+const verifyAdminAuth = (): string => {
+  const adminToken = localStorage.getItem('adminToken');
+  if (!adminToken) {
+    throw new Error('Admin authentication required. Please log in again.');
+  }
+  return adminToken;
+};
+
+// Helper to format Firestore errors with more user-friendly messages
+const formatFirestoreError = (error: any): string => {
+  console.error('Firestore operation error:', error);
+  
+  if (error.code === 'permission-denied') {
+    return 'You do not have permission to perform this operation. Please make sure you are logged in as an admin.';
+  }
+  
+  if (error.code === 'unavailable') {
+    return 'Database is currently unavailable. Please check your internet connection and try again.';
+  }
+  
+  if (error.code === 'not-found') {
+    return 'The requested document does not exist.';
+  }
+  
+  return error.message || 'An unknown error occurred';
+};
 
 // Newsletter functions
 export const addNewsletterSubscriber = async (data: any) => {
@@ -35,12 +59,15 @@ export const addNewsletterSubscriber = async (data: any) => {
     return { success: true, id: docRef.id };
   } catch (error) {
     console.error('Error adding newsletter subscriber:', error);
-    throw error;
+    throw new Error(formatFirestoreError(error));
   }
 };
 
 export const getNewsletterSubscribers = async (): Promise<DocumentData[]> => {
   try {
+    // Verify admin authentication for sensitive data
+    verifyAdminAuth();
+    
     const q = query(collection(db, COLLECTIONS.NEWSLETTER));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({
@@ -49,7 +76,7 @@ export const getNewsletterSubscribers = async (): Promise<DocumentData[]> => {
     }));
   } catch (error) {
     console.error('Error getting newsletter subscribers:', error);
-    throw error;
+    throw new Error(formatFirestoreError(error));
   }
 };
 
@@ -64,12 +91,15 @@ export const addReport = async (data: any) => {
     return { success: true, id: docRef.id };
   } catch (error) {
     console.error('Error adding report:', error);
-    throw error;
+    throw new Error(formatFirestoreError(error));
   }
 };
 
 export const getReports = async (): Promise<DocumentData[]> => {
   try {
+    // Verify admin authentication for sensitive data
+    verifyAdminAuth();
+    
     const q = query(collection(db, COLLECTIONS.REPORTS));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({
@@ -78,7 +108,7 @@ export const getReports = async (): Promise<DocumentData[]> => {
     }));
   } catch (error) {
     console.error('Error getting reports:', error);
-    throw error;
+    throw new Error(formatFirestoreError(error));
   }
 };
 
@@ -93,12 +123,15 @@ export const addActivitySuggestion = async (data: any) => {
     return { success: true, id: docRef.id };
   } catch (error) {
     console.error('Error adding activity suggestion:', error);
-    throw error;
+    throw new Error(formatFirestoreError(error));
   }
 };
 
 export const getActivitySuggestions = async (): Promise<DocumentData[]> => {
   try {
+    // Verify admin authentication for sensitive data
+    verifyAdminAuth();
+    
     const q = query(collection(db, COLLECTIONS.ACTIVITIES));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({
@@ -107,7 +140,7 @@ export const getActivitySuggestions = async (): Promise<DocumentData[]> => {
     }));
   } catch (error) {
     console.error('Error getting activity suggestions:', error);
-    throw error;
+    throw new Error(formatFirestoreError(error));
   }
 };
 
@@ -125,7 +158,7 @@ export const getLocations = async (): Promise<Location[]> => {
     })) as Location[];
   } catch (error) {
     console.error('Error getting locations:', error);
-    throw error;
+    throw new Error(formatFirestoreError(error));
   }
 };
 
@@ -142,13 +175,18 @@ export const getLocationById = async (id: string): Promise<Location | null> => {
     }
   } catch (error) {
     console.error(`Error getting location with ID ${id}:`, error);
-    throw error;
+    throw new Error(formatFirestoreError(error));
   }
 };
 
 // Function to add a new location (for admin use)
 export const addLocation = async (location: Omit<Location, 'id'> & { id?: string }) => {
   try {
+    // Verify admin authentication
+    verifyAdminAuth();
+    
+    console.log('Adding location:', location.name);
+    
     // If an ID is provided, use it, otherwise let Firebase generate one
     if (location.id) {
       const docRef = doc(db, COLLECTIONS.LOCATIONS, location.id);
@@ -160,30 +198,38 @@ export const addLocation = async (location: Omit<Location, 'id'> & { id?: string
     }
   } catch (error) {
     console.error('Error adding location:', error);
-    throw error;
+    throw new Error(formatFirestoreError(error));
   }
 };
 
 // Function to update an existing location (for admin use)
 export const updateLocation = async (id: string, data: Partial<Location>) => {
   try {
+    // Verify admin authentication
+    verifyAdminAuth();
+    
+    console.log(`Updating location with ID ${id}`);
     const docRef = doc(db, COLLECTIONS.LOCATIONS, id);
     await setDoc(docRef, data, { merge: true });
     return { success: true, id };
   } catch (error) {
     console.error(`Error updating location with ID ${id}:`, error);
-    throw error;
+    throw new Error(formatFirestoreError(error));
   }
 };
 
 // Function to delete a location (for admin use)
 export const deleteLocation = async (id: string) => {
   try {
+    // Verify admin authentication
+    verifyAdminAuth();
+    
+    console.log(`Deleting location with ID ${id}`);
     const docRef = doc(db, COLLECTIONS.LOCATIONS, id);
     await deleteDoc(docRef);
     return { success: true, id };
   } catch (error) {
     console.error(`Error deleting location with ID ${id}:`, error);
-    throw error;
+    throw new Error(formatFirestoreError(error));
   }
 };
