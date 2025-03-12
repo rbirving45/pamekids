@@ -50,7 +50,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
   } = useUIState();
   
   // Use TouchContext hook with all needed properties - moved before any conditional returns
-  const { drawerState, setDrawerState, handleTouchStart, handleTouchMove, handleTouchEnd, isPartialDrawer } = useTouch();
+  const { drawerState, setDrawerState, handleTouchStart, handleTouchMove, handleTouchEnd, isPartialDrawer, setContentScrollPosition } = useTouch();
   
   // Debug log to verify TouchContext is available
   console.log('TouchContext drawer state:', drawerState);
@@ -221,6 +221,31 @@ const Drawer: React.FC<DrawerProps> = memo(({
       drawerRef.current.style.transition = 'transform 0.3s ease-out, top 0.3s ease-out, height 0.3s ease-out';
     }
   }, [drawerState]);
+  
+  // Track scroll position of content container
+  useEffect(() => {
+    const handleScroll = () => {
+      if (contentRef.current) {
+        // Check if scrolled to the top
+        const isAtTop = contentRef.current.scrollTop <= 10; // Using small threshold to account for elastic scroll on iOS
+        setContentScrollPosition(isAtTop);
+      }
+    };
+    
+    // Add scroll event listener to content container
+    const contentEl = contentRef.current;
+    if (contentEl) {
+      contentEl.addEventListener('scroll', handleScroll);
+      // Initial check
+      handleScroll();
+    }
+    
+    return () => {
+      if (contentEl) {
+        contentEl.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [setContentScrollPosition, drawerState]);
 
   // Preserve drawer state when transitioning from list to detail view on mobile
   useEffect(() => {

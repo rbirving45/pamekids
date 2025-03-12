@@ -15,6 +15,10 @@ interface TouchContextType {
   setModalOpen: (open: boolean) => void;
   isPartialDrawer: boolean; // Helper to check if drawer is in partial state
   
+  // Scroll position tracking
+  isContentAtTop: boolean;
+  setContentScrollPosition: (isAtTop: boolean) => void;
+  
   // Touch event handlers
   handleTouchStart: (e: React.TouchEvent) => void;
   handleTouchMove: (e: React.TouchEvent) => void;
@@ -41,6 +45,7 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Core state
   const [drawerState, setDrawerState] = useState<DrawerState>('closed');
   const [isModalOpen, setModalOpen] = useState(false);
+  const [isContentAtTop, setIsContentAtTop] = useState(true);
   
   // Callback reference for clearing selection when drawer is closed
   const clearLocationCallbackRef = useRef<(() => void) | null>(null);
@@ -86,6 +91,9 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     
     if (!isDrawerTouch && !isModalTouch) return;
     
+    // Check if touch is on pull handle - always allow pull handle interactions
+    const isPullHandleTouch = target.closest('.z-drawer-pull-handle');
+    
     // Get the proper drawer height based on current state
     const getDrawerHeight = () => {
       if (drawerState === 'full') {
@@ -116,11 +124,16 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (drawerState === 'partial' && isDrawerTouch) {
       e.preventDefault();
     }
-    // For other cases, only prevent default for drawer pull handle
-    else if (target.closest('.z-drawer-pull-handle')) {
+    // For pull handle, always prevent default to ensure it works for drawer control
+    else if (isPullHandleTouch) {
       e.preventDefault();
     }
-  }, [isMobile, drawerState]);
+    // For full drawer state, only prevent default if content is at top (allows scrolling otherwise)
+    else if (drawerState === 'full' && isDrawerTouch && isContentAtTop) {
+      // Only prevent when at the top of content
+      e.preventDefault();
+    }
+  }, [isMobile, drawerState, isContentAtTop]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isMobile || isModalOpen) return;
@@ -129,17 +142,35 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const target = e.target as HTMLElement;
     const deltaY = touch.clientY - touchState.current.startY;
     
-    // Check if this is a drawer touch
+    // Check if touch is on drawer
     const isDrawerTouch = target.closest('.z-drawer-container');
     if (!isDrawerTouch) return;
     
+    // Check if touch is on pull handle - always allow pull handle to drag
+    const isPullHandleTouch = target.closest('.z-drawer-pull-handle');
+    
+    // Special case for full drawer state:
+    // Only allow dragging when content is at top OR using pull handle
+    if (drawerState === 'full') {
+      // For pull handle, always allow dragging
+      if (isPullHandleTouch && Math.abs(deltaY) > 2) {
+        touchState.current.isDragging = true;
+        e.preventDefault();
+      }
+      // For content area, only allow dragging when at top AND swiping down
+      else if (isContentAtTop && deltaY > 0 && Math.abs(deltaY) > 5) {
+        touchState.current.isDragging = true;
+        e.preventDefault();
+      }
+      // All other cases in full drawer state - do not intercept to allow regular scrolling
+    }
     // For partial drawer state: immediately start dragging with any vertical movement
-    if (drawerState === 'partial' && Math.abs(deltaY) > 2) {
+    else if (drawerState === 'partial' && Math.abs(deltaY) > 2) {
       touchState.current.isDragging = true;
       // Prevent default to stop any scrolling within the drawer
       e.preventDefault();
     }
-    // For other states: only start dragging after more significant movement
+    // For other states or pull handle: start dragging after more significant movement
     else if (Math.abs(deltaY) > 5) {
       touchState.current.isDragging = true;
     }
@@ -161,7 +192,7 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         drawer.style.transform = `translateY(${deltaY}px)`;
       }
     }
-  }, [isMobile, isModalOpen, drawerState]);
+  }, [isMobile, isModalOpen, drawerState, isContentAtTop]);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     if (!isMobile || !touchState.current.isDragging) return;
@@ -241,6 +272,11 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     clearLocationCallbackRef.current = callback;
   }, []);
   
+  // Scroll position tracking function
+  const setContentScrollPosition = useCallback((isAtTop: boolean) => {
+    setIsContentAtTop(isAtTop);
+  }, []);
+  
   // Wrapped version of setDrawerState that allows indicating programmatic changes
   const setDrawerStateWrapper = useCallback((state: DrawerState, isProgrammatic: boolean = false) => {
     isProgrammaticChange.current = isProgrammatic;
@@ -258,6 +294,8 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     isModalOpen,
     setModalOpen,
     isPartialDrawer,
+    isContentAtTop,
+    setContentScrollPosition,
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd,
@@ -269,6 +307,8 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     isModalOpen,
     setModalOpen,
     isPartialDrawer,
+    isContentAtTop,
+    setContentScrollPosition,
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd,
