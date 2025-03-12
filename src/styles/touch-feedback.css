@@ -28,14 +28,25 @@
   opacity: 1;
 }
 
-/* For elements that should block map interaction */
+/* For elements that need scrolling but should still block map interaction */
 .drawer-block-map {
-  touch-action: none; /* Prevent all touch actions */
+  touch-action: pan-y; /* Allow vertical scrolling */
   -webkit-user-select: none;
   user-select: none;
   pointer-events: auto !important;
   will-change: transform; /* Optimize for hardware acceleration */
   position: relative; /* Ensure stacking context */
+  z-index: var(--z-drawer-content);
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+/* For elements that should block ALL interaction (non-scrollable areas) */
+.drawer-block-all {
+  touch-action: none; /* Prevent all touch actions */
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: auto !important;
+  position: relative;
   z-index: var(--z-drawer-content);
 }
 

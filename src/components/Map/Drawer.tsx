@@ -554,7 +554,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
         {/* Pull Handle with improved styles */}
         <div 
           ref={pullHandleRef}
-          className="h-8 w-full flex items-center justify-center cursor-pointer md:hidden z-drawer-pull-handle bg-gray-50"
+          className="h-8 w-full flex items-center justify-center cursor-pointer md:hidden z-drawer-pull-handle bg-gray-50 drawer-block-all"
           onClick={() => {
             // Toggle between partial and full states
             setDrawerState(drawerState === 'partial' ? 'full' : 'partial');
@@ -702,6 +702,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
             <div 
               ref={contentRef}
               className="flex-1 overflow-y-auto overscroll-contain drawer-block-map"
+              style={{ touchAction: 'pan-y' }} /* Explicitly override to ensure scrolling works */
             >
               <div className="p-6 space-y-6">
                 {/* For mobile expanded view: Include header content at the top of the scrollable area */}
