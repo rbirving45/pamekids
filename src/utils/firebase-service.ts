@@ -7,6 +7,7 @@ import {
   doc,
   getDoc,
   getDocs, 
+  deleteDoc,
   query, 
   Timestamp, 
   DocumentData 
@@ -171,6 +172,18 @@ export const updateLocation = async (id: string, data: Partial<Location>) => {
     return { success: true, id };
   } catch (error) {
     console.error(`Error updating location with ID ${id}:`, error);
+    throw error;
+  }
+};
+
+// Function to delete a location (for admin use)
+export const deleteLocation = async (id: string) => {
+  try {
+    const docRef = doc(db, COLLECTIONS.LOCATIONS, id);
+    await deleteDoc(docRef);
+    return { success: true, id };
+  } catch (error) {
+    console.error(`Error deleting location with ID ${id}:`, error);
     throw error;
   }
 };

@@ -4,6 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { testFirebaseConnection } from '../../utils/firebase-test';
 import MigrationUtility from './MigrationUtility';
+import LocationsList from './LocationsList';
+import AddLocationForm from './AddLocationForm';
+import BatchAddLocations from './BatchAddLocations';
 
 interface Subscription {
   id: string;
@@ -71,6 +74,7 @@ const Dashboard: React.FC = () => {
   const [reports, setReports] = useState<Report[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [locationsRefreshKey, setLocationsRefreshKey] = useState(0);
   const navigate = useNavigate();
 
   // Check if admin is logged in
@@ -266,8 +270,11 @@ const Dashboard: React.FC = () => {
           </div>
         )}
 
-        <Tabs defaultValue="activities" className="w-full">
+        <Tabs defaultValue="locations" className="w-full">
           <TabsList className="mb-6">
+            <TabsTrigger value="locations" className="px-4 py-2">
+              Locations
+            </TabsTrigger>
             <TabsTrigger value="activities" className="px-4 py-2">
               Activity Suggestions ({activities.length})
             </TabsTrigger>
@@ -281,6 +288,58 @@ const Dashboard: React.FC = () => {
               Utilities
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="locations">
+            <Card>
+              <CardHeader>
+                <CardTitle>Locations</CardTitle>
+                <CardDescription>
+                  View and manage all locations in the PameKids database.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="list" className="w-full">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="list" className="px-4 py-1">
+                      Location List
+                    </TabsTrigger>
+                    <TabsTrigger value="add" className="px-4 py-1">
+                      Add Location
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="list">
+                    <LocationsList key={locationsRefreshKey} />
+                  </TabsContent>
+                  
+                  <TabsContent value="add">
+                    <Tabs defaultValue="single" className="w-full">
+                      <TabsList className="mb-4">
+                        <TabsTrigger value="single" className="px-4 py-1">
+                          Add Single Location
+                        </TabsTrigger>
+                        <TabsTrigger value="batch" className="px-4 py-1">
+                          Batch Add Locations
+                        </TabsTrigger>
+                      </TabsList>
+                      
+                      <TabsContent value="single">
+                        <AddLocationForm
+                          onLocationAdded={() => setLocationsRefreshKey(prev => prev + 1)}
+                        />
+                      </TabsContent>
+                      
+                      <TabsContent value="batch">
+                        <BatchAddLocations
+                          onComplete={() => setLocationsRefreshKey(prev => prev + 1)}
+                        />
+                      </TabsContent>
+                    </Tabs>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="activities">
             <Card>
