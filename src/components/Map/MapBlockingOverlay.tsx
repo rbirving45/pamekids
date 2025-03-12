@@ -1,15 +1,15 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { useTouch } from '../../contexts/TouchContext';
 
+/**
+ * MapBlockingOverlay - A simple invisible overlay that prevents map interaction
+ * by capturing and stopping all events from reaching the map.
+ *
+ * This works alongside the gestureHandling='none' option as a second layer
+ * of protection against unwanted map interactions.
+ */
 const MapBlockingOverlay: React.FC = () => {
   const { isMapBlocked } = useTouch();
-  
-  // Single handler for all interaction types
-  const blockInteraction = useCallback((e: React.UIEvent) => {
-    // Always prevent propagation and default behavior
-    e.stopPropagation();
-    e.preventDefault();
-  }, []);
   
   // Don't render anything if map shouldn't be blocked
   if (!isMapBlocked) return null;
@@ -20,17 +20,22 @@ const MapBlockingOverlay: React.FC = () => {
       style={{
         backgroundColor: 'transparent',
         pointerEvents: 'auto',
-        opacity: 0 // Ensure overlay is invisible
+        opacity: 0, // Ensure overlay is invisible
+        touchAction: 'none' // Prevent all browser touch actions
       }}
-      onClick={blockInteraction}
-      onTouchStart={blockInteraction}
-      onTouchMove={blockInteraction}
-      onTouchEnd={blockInteraction}
-      onTouchCancel={blockInteraction}
-      onMouseDown={blockInteraction}
-      onMouseMove={blockInteraction}
-      onMouseUp={blockInteraction}
-      onWheel={blockInteraction}
+      // Use passive: false to ensure preventDefault works
+      onTouchStart={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}
+      onTouchMove={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}
+      onTouchEnd={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}
       aria-hidden="true"
     />
   );

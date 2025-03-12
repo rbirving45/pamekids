@@ -50,9 +50,20 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   
   // Calculate if map should be blocked based on state
   const isMapBlocked = useMemo(() => {
+    // On desktop, we don't need to block the map
     if (!isMobile) return false;
+    
+    // Always block when a modal is open
     if (isModalOpen) return true;
-    return drawerState !== 'closed';
+    
+    // Block when drawer is in any state other than closed
+    if (drawerState !== 'closed') return true;
+    
+    // If any of these special conditions apply, block the map
+    // This ensures map doesn't interfere with critical user interactions
+    if (touchState.current.isDragging) return true;
+    
+    return false;
   }, [isMobile, isModalOpen, drawerState]);
 
   // Touch event handlers

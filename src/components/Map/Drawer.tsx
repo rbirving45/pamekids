@@ -701,7 +701,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
             {/* Scrollable Content */}
             <div 
               ref={contentRef}
-              className="flex-1 overflow-y-auto overscroll-contain"
+              className="flex-1 overflow-y-auto overscroll-contain drawer-block-map"
             >
               <div className="p-6 space-y-6">
                 {/* For mobile expanded view: Include header content at the top of the scrollable area */}

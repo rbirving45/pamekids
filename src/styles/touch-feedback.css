@@ -30,8 +30,26 @@
 
 /* For elements that should block map interaction */
 .drawer-block-map {
-  touch-action: pan-x pan-y;
+  touch-action: none; /* Prevent all touch actions */
   -webkit-user-select: none;
   user-select: none;
   pointer-events: auto !important;
+  will-change: transform; /* Optimize for hardware acceleration */
+  position: relative; /* Ensure stacking context */
+  z-index: var(--z-drawer-content);
+}
+
+/* Additional classes for different drawer elements */
+.z-drawer-container {
+  touch-action: pan-x pan-y; /* Allow vertical scrolling within drawer */
+  pointer-events: auto !important;
+  will-change: transform;
+  backface-visibility: hidden; /* Improve performance */
+}
+
+/* Style for map container when blocked */
+.map-blocked {
+  pointer-events: none !important; /* Prevent all interactions */
+  touch-action: none !important;
+  user-select: none !important;
 }

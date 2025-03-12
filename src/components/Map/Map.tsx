@@ -43,8 +43,8 @@ const MapComponent: React.FC<MapProps> = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   // Use context hooks for mobile detection and UI state
   const { isMobile } = useMobile();
-  // Get drawer state from TouchContext
-  const { drawerState, setDrawerState } = useTouch();
+  // Get drawer state and map blocking state from TouchContext
+  const { drawerState, setDrawerState, isMapBlocked } = useTouch();
   // For backward compatibility with older components
   const { setDrawerOpen } = useUIState();
 
@@ -847,8 +847,10 @@ const MapComponent: React.FC<MapProps> = () => {
               bottom: 0,
               opacity: mapReady ? 1 : 0, // Completely hide map until fully ready
               transition: 'opacity 0.5s ease-in-out',
-              pointerEvents: mapReady ? 'auto' : 'none' // Prevent interaction until ready
+              pointerEvents: (mapReady && !isMapBlocked) ? 'auto' : 'none', // Prevent interaction when blocked
+              touchAction: isMapBlocked ? 'none' : 'auto' // Prevent touch actions when blocked
             }}
+            mapContainerClassName={isMapBlocked ? 'map-blocked' : ''}
             // Don't set initial center here - we'll handle it in onLoad
             zoom={13}
             onLoad={onMapLoad}
@@ -872,9 +874,9 @@ const MapComponent: React.FC<MapProps> = () => {
               rotateControl: false,
               fullscreenControl: false,
               clickableIcons: false, // Prevent clicks on POIs for better control
-              // Critical change: Always use 'none' when drawer is open on mobile
+              // Critical change: Use isMapBlocked to fully prevent map interaction
               // This completely prevents map gestures when the drawer is showing
-              gestureHandling: isMobile && drawerState !== 'closed' ? 'none' : (isMobile ? 'greedy' : 'auto'),
+              gestureHandling: isMapBlocked ? 'none' : (isMobile ? 'greedy' : 'auto'),
               minZoom: 3, // Prevent zooming out too far
               maxZoom: 20, // Prevent excessive zoom
               disableDefaultUI: isMobile, // Hide all default UI on mobile
