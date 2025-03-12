@@ -131,30 +131,18 @@ const MapComponent: React.FC<MapProps> = () => {
     fetchLocations();
   }, []);
 
-  // Get user location on component mount with a timeout
+  // Get user location on component mount without a timeout to ensure we wait for user permission response
   useEffect(() => {
-    let locationTimeout: NodeJS.Timeout;
     const defaultLocation = { lat: 37.9838, lng: 23.7275 }; // Athens center
     
     // Initially, set map as not ready until we get location
     setMapReady(false);
     
-    // Function to handle location retrieval timeouts
-    const handleLocationTimeout = () => {
-      console.log('Geolocation timed out, using default Athens location');
-      setUserLocation(defaultLocation);
-      setMapReady(true); // Allow map to render with default location
-    };
-    
     if (navigator.geolocation) {
-      // Set a timeout in case geolocation takes too long
-      locationTimeout = setTimeout(handleLocationTimeout, 3000); // 3 seconds timeout
-      
+      // No timeout - we'll wait for an explicit response from the user
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          // Clear the timeout since we got a position
-          clearTimeout(locationTimeout);
-          
+          // User granted permission and we have their position
           const rawLocation = {
             lat: position.coords.latitude,
             lng: position.coords.longitude
@@ -163,30 +151,27 @@ const MapComponent: React.FC<MapProps> = () => {
           // Store the raw location and signal map can render
           setUserLocation(rawLocation);
           setMapReady(true);
+          console.log('Location permission granted, using user location');
         },
         (error) => {
-          // Clear the timeout and use default location
-          clearTimeout(locationTimeout);
-          console.log('Geolocation error:', error.message);
+          // User denied permission or there was an error
+          console.log('Geolocation error or denied:', error.message);
           setUserLocation(defaultLocation);
           setMapReady(true);
+          console.log('Using default Athens location');
         },
         {
           enableHighAccuracy: true,
-          timeout: 5000,
+          timeout: 10000, // Increased timeout to give more time for user to respond
           maximumAge: 0
         }
       );
     } else {
       // No geolocation support, use default immediately
+      console.log('Geolocation not supported by browser, using default Athens location');
       setUserLocation(defaultLocation);
       setMapReady(true);
     }
-    
-    return () => {
-      // Clean up timeout if component unmounts
-      if (locationTimeout) clearTimeout(locationTimeout);
-    };
   }, []);
   
   // Specialized function to position markers optimally based on context
