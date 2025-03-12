@@ -726,11 +726,11 @@ const Drawer: React.FC<DrawerProps> = memo(({
             {/* Scrollable Content - with conditional scrolling based on drawer state */}
             <div 
               ref={contentRef}
-              className={`flex-1 ${isPartialDrawer ? 'overflow-hidden' : 'overflow-y-auto overscroll-contain'} drawer-block-map`}
+              className={`flex-1 ${isPartialDrawer ? 'overflow-hidden drawer-no-scroll' : 'overflow-y-auto overscroll-contain'} drawer-block-map`}
               style={{
                 touchAction: isPartialDrawer ? 'none' : 'pan-y',
                 pointerEvents: 'auto',
-                WebkitOverflowScrolling: 'touch', // Improve iOS scrolling
+                WebkitOverflowScrolling: isPartialDrawer ? undefined : 'touch', // Only enable smooth scrolling in full state
                 overscrollBehavior: 'contain' // Prevent scroll chaining
               }}
             >

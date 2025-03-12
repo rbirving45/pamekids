@@ -197,9 +197,12 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       }
     }
-    // For partial drawer state: always control drawer movement
-    else if (drawerState === 'partial' && Math.abs(deltaY) > 2) {
+    // For partial drawer state: ALWAYS control drawer movement
+    else if (drawerState === 'partial') {
+      // In partial state, ANY touch on the drawer should control drawer movement
       shouldAllowDrag = true;
+      // Always prevent default in partial state to block any scrolling
+      e.preventDefault();
     }
     
     // Start dragging if conditions are met
