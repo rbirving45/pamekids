@@ -176,26 +176,42 @@ const MapComponent: React.FC<MapProps> = () => {
     };
   }, []);
   
-  // Simplified function to center the map on a location
-  const centerMapOnLocation = useCallback((targetLocation: google.maps.LatLngLiteral) => {
+  // Simplified function to center the map on a location with context awareness
+  const centerMapOnLocation = useCallback((targetLocation: google.maps.LatLngLiteral, context?: 'marker-selection' | 'initial-load') => {
     if (!map) {
       console.log('Map not available yet');
       return;
     }
     
-    console.log(`Centering map on location: ${JSON.stringify(targetLocation)}, isMobile: ${isMobile}`);
+    console.log(`Centering map on location: ${JSON.stringify(targetLocation)}, isMobile: ${isMobile}, context: ${context || 'default'}`);
     
     if (isMobile) {
-      // On mobile, we need a slight vertical adjustment to account for header/filter bar
-      // Shift the center point slightly south to make the marker appear higher on screen
-      const adjustedLocation = {
-        lat: targetLocation.lat - 0.003, // Shift center slightly south
-        lng: targetLocation.lng
-      };
-      
-      // Use panTo for smoother animation
-      map.panTo(adjustedLocation);
-      console.log('Mobile: Applied adjusted center with slight vertical shift');
+      try {
+        // Use simplified offset calculations to prevent errors
+        let verticalOffset = 0.003; // Default small offset for general centering
+        
+        // When a marker is selected, we need a larger offset to position above the drawer
+        if (context === 'marker-selection') {
+          // Use a larger fixed offset for marker selections on mobile
+          // This places the marker approximately in the upper third of the visible area
+          verticalOffset = 0.006; // Double the default offset
+          console.log(`Mobile marker selection: using fixed offset ${verticalOffset}`);
+        }
+        
+        // Apply the vertical adjustment
+        const adjustedLocation = {
+          lat: targetLocation.lat - verticalOffset,
+          lng: targetLocation.lng
+        };
+        
+        // Use panTo for smoother animation
+        map.panTo(adjustedLocation);
+        console.log(`Mobile: Applied vertical shift of ${verticalOffset}`);
+      } catch (error) {
+        // Fallback to simple centering if anything goes wrong
+        console.error('Error in centerMapOnLocation:', error);
+        map.panTo(targetLocation);
+      }
     } else {
       // On desktop, simple centering is sufficient since the container is properly positioned
       map.setCenter(targetLocation);
@@ -209,7 +225,7 @@ const MapComponent: React.FC<MapProps> = () => {
     
     // The map is already initialized, so we can center immediately
     console.log('Re-centering map due to device type change or user location update');
-    centerMapOnLocation(userLocation);
+    centerMapOnLocation(userLocation, 'initial-load');
     
   }, [map, userLocation, isMobile, centerMapOnLocation, mapReady]);
 
@@ -503,8 +519,8 @@ const MapComponent: React.FC<MapProps> = () => {
     // Center on user location - this only happens if mapReady is true,
     // which means we've already determined the location
     if (userLocation.lat && userLocation.lng) {
-      // Use the simplified centering function
-      centerMapOnLocation(userLocation);
+      // Use the enhanced centering function with 'initial-load' context
+      centerMapOnLocation(userLocation, 'initial-load');
       console.log('Initial map centering on:', userLocation);
     }
     
@@ -560,14 +576,13 @@ const MapComponent: React.FC<MapProps> = () => {
     
     // Only pan to the location on mobile view
     if (map && isMobile) {
-      // Simple initial pan
+      // Simple initial pan to the location
       map.panTo(location.coordinates);
       
-      // Use specialized centering with a slight delay to ensure marker click is processed
+      // Use enhanced centering with a slight delay to ensure marker click is processed
       setTimeout(() => {
-        // On mobile, we want to position the marker in the upper portion
-        // to make room for the drawer at the bottom
-        centerMapOnLocation(location.coordinates);
+        // Pass 'marker-selection' context to position the marker above the drawer
+        centerMapOnLocation(location.coordinates, 'marker-selection');
       }, 20);
     }
   }, [map, isMobile, setSelectedLocation, centerMapOnLocation]);
