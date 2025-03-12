@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { testFirebaseConnection } from '../../utils/firebase-test';
+import MigrationUtility from './MigrationUtility';
 
 interface Subscription {
   id: string;
@@ -276,6 +277,9 @@ const Dashboard: React.FC = () => {
             <TabsTrigger value="subscriptions" className="px-4 py-2">
               Newsletter Subscribers ({subscriptions.length})
             </TabsTrigger>
+            <TabsTrigger value="utilities" className="px-4 py-2">
+              Utilities
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="activities">
@@ -423,6 +427,20 @@ const Dashboard: React.FC = () => {
                     </table>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="utilities">
+            <Card>
+              <CardHeader>
+                <CardTitle>Admin Utilities</CardTitle>
+                <CardDescription>
+                  Advanced utilities for database management.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MigrationUtility />
               </CardContent>
             </Card>
           </TabsContent>

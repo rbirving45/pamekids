@@ -7,7 +7,6 @@ import { TouchProvider } from './contexts/TouchContext';
 
 import MapComponent from './components/Map/Map';
 import MapBlockingOverlay from './components/Map/MapBlockingOverlay';
-import { sampleLocations } from './data/locations';
 import SuggestActivityButton from './components/SuggestActivity/SuggestActivityButton';
 import SuggestActivityModal from './components/SuggestActivity/SuggestActivityModal';
 import { NewsletterButton, NewsletterModal } from './components/Newsletter';
@@ -51,7 +50,7 @@ const MainApp = () => {
         </div>
       </header>
       <main className="flex-1 relative overflow-hidden">
-        <MapComponent locations={sampleLocations} />
+        <MapComponent />
       </main>
 
       <SuggestActivityModal

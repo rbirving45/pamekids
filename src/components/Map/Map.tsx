@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { GoogleMap, LoadScriptNext, Marker, Libraries } from '@react-google-maps/api';
 import Drawer from './Drawer';
-import { Location, ActivityType } from '../../data/locations';
+import { ActivityType, Location } from '../../types/location';
 import { Search, ChevronDown } from 'lucide-react';
 import { trackMarkerClick } from '../../utils/analytics';
 import { useMobile } from '../../contexts/MobileContext';
 import { useUIState } from '../../contexts/UIStateContext';
 import { useTouch } from '../../contexts/TouchContext';
 import MapBlockingOverlay from './MapBlockingOverlay';
+import { getLocations } from '../../utils/firebase-service';
 
 // Using MobileContext instead of local mobile detection
 
@@ -16,7 +17,7 @@ import MapBlockingOverlay from './MapBlockingOverlay';
 const GOOGLE_MAPS_LIBRARIES: Libraries = ['places'];
 
 interface MapProps {
-  locations: Location[];
+  // No longer need locations as props, as we'll fetch them from Firebase
 }
 
 interface SearchResult {
@@ -35,7 +36,11 @@ const activityConfig = {
   'entertainment': { name: 'Entertainment', color: '#FFB300' }
 };
 
-const MapComponent: React.FC<MapProps> = ({ locations }) => {
+const MapComponent: React.FC<MapProps> = () => {
+  // Add state for locations, loading state, and error handling
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [isLoadingLocations, setIsLoadingLocations] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   // Use context hooks for mobile detection and UI state
   const { isMobile } = useMobile();
   // Get drawer state from TouchContext
@@ -74,6 +79,45 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
 
   // This function has been removed as we now use a simpler approach for map positioning
   
+  // Fetch locations from Firebase on component mount
+  useEffect(() => {
+    const fetchLocations = async () => {
+      setIsLoadingLocations(true);
+      setLoadError(null);
+      try {
+        // Try to get locations from the session storage cache first
+        const cachedLocations = sessionStorage.getItem('cachedLocations');
+        if (cachedLocations) {
+          console.log('Using cached locations data');
+          setLocations(JSON.parse(cachedLocations));
+          setIsLoadingLocations(false);
+          
+          // Fetch fresh data in the background to update the cache
+          getLocations().then(freshLocations => {
+            sessionStorage.setItem('cachedLocations', JSON.stringify(freshLocations));
+            setLocations(freshLocations);
+          }).catch(console.error);
+          
+          return;
+        }
+        
+        // If no cache, fetch from Firebase
+        const fetchedLocations = await getLocations();
+        setLocations(fetchedLocations);
+        
+        // Cache the locations in session storage
+        sessionStorage.setItem('cachedLocations', JSON.stringify(fetchedLocations));
+      } catch (error) {
+        console.error('Error fetching locations:', error);
+        setLoadError('Failed to load locations. Please try again later.');
+      } finally {
+        setIsLoadingLocations(false);
+      }
+    };
+
+    fetchLocations();
+  }, []);
+
   // Get user location on component mount with a timeout
   useEffect(() => {
     let locationTimeout: NodeJS.Timeout;
@@ -579,6 +623,28 @@ const MapComponent: React.FC<MapProps> = ({ locations }) => {
   
   return (
     <div className="relative h-full w-full flex flex-col">
+      {/* Add loading overlay */}
+      {isLoadingLocations && (
+        <div className="absolute inset-0 bg-white bg-opacity-80 z-50 flex items-center justify-center">
+          <div className="flex flex-col items-center">
+            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="mt-4 text-gray-700">Loading locations...</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Add error message */}
+      {loadError && (
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-red-50 text-red-600 p-4 rounded-lg shadow-lg z-50">
+          <p>{loadError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-2 text-sm text-blue-600 hover:underline"
+          >
+            Retry
+          </button>
+        </div>
+      )}
       <div className={`bg-white p-2 overflow-x-auto shadow-sm z-filter-bar ${isMobile ? 'fixed top-16 left-0 right-0 w-full' : 'relative'}`}>
         <div className="flex items-center gap-2">
           {/* Search Component */}

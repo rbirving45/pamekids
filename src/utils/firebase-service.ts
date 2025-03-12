@@ -1,7 +1,11 @@
 import { db } from './firebase';
+import { Location } from '../types/location';
 import { 
   collection, 
   addDoc, 
+  setDoc,
+  doc,
+  getDoc,
   getDocs, 
   query, 
   Timestamp, 
@@ -12,8 +16,13 @@ import {
 const COLLECTIONS = {
   NEWSLETTER: 'newsletter-subscribers',
   REPORTS: 'location-reports',
-  ACTIVITIES: 'activity-suggestions'
+  ACTIVITIES: 'activity-suggestions',
+  LOCATIONS: 'locations' // Ensure this matches exactly with Firebase rules
 };
+
+// Debug collection references - log full path to help troubleshoot
+console.log('Firebase collection paths:');
+console.log('- Locations:', 'databases/{database}/documents/' + COLLECTIONS.LOCATIONS);
 
 // Newsletter functions
 export const addNewsletterSubscriber = async (data: any) => {
@@ -97,6 +106,71 @@ export const getActivitySuggestions = async (): Promise<DocumentData[]> => {
     }));
   } catch (error) {
     console.error('Error getting activity suggestions:', error);
+    throw error;
+  }
+};
+
+// Location functions
+
+// Function to get all locations
+export const getLocations = async (): Promise<Location[]> => {
+  try {
+    console.log('Fetching locations from Firebase...');
+    const q = query(collection(db, COLLECTIONS.LOCATIONS));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Location[];
+  } catch (error) {
+    console.error('Error getting locations:', error);
+    throw error;
+  }
+};
+
+// Function to get a single location by ID
+export const getLocationById = async (id: string): Promise<Location | null> => {
+  try {
+    const docRef = doc(db, COLLECTIONS.LOCATIONS, id);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() } as Location;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error(`Error getting location with ID ${id}:`, error);
+    throw error;
+  }
+};
+
+// Function to add a new location (for admin use)
+export const addLocation = async (location: Omit<Location, 'id'> & { id?: string }) => {
+  try {
+    // If an ID is provided, use it, otherwise let Firebase generate one
+    if (location.id) {
+      const docRef = doc(db, COLLECTIONS.LOCATIONS, location.id);
+      await setDoc(docRef, location);
+      return { success: true, id: location.id };
+    } else {
+      const docRef = await addDoc(collection(db, COLLECTIONS.LOCATIONS), location);
+      return { success: true, id: docRef.id };
+    }
+  } catch (error) {
+    console.error('Error adding location:', error);
+    throw error;
+  }
+};
+
+// Function to update an existing location (for admin use)
+export const updateLocation = async (id: string, data: Partial<Location>) => {
+  try {
+    const docRef = doc(db, COLLECTIONS.LOCATIONS, id);
+    await setDoc(docRef, data, { merge: true });
+    return { success: true, id };
+  } catch (error) {
+    console.error(`Error updating location with ID ${id}:`, error);
     throw error;
   }
 };
