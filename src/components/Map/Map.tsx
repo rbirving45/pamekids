@@ -204,7 +204,7 @@ const MapComponent: React.FC<MapProps> = () => {
         } else {
           // For user location or other general centering, use the original smaller offset
           // This accounts for just the header/filter bar
-          const defaultOffset = 0.003;
+          const defaultOffset = 0.008;
           
           const adjustedLocation = {
             lat: targetLocation.lat - defaultOffset,
