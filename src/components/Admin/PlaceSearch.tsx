@@ -74,14 +74,19 @@ const PlaceSearch: React.FC<PlaceSearchProps> = ({ onPlaceSelected, placeholder 
     const place = autocompleteRef.current.getPlace();
     
     if (place && place.place_id) {
+      const placeId = place.place_id.trim();
+      console.log('Place selected:', place.name, 'with ID:', placeId);
+      
       onPlaceSelected({
-        placeId: place.place_id,
+        placeId: placeId,
         name: place.name || '',
         address: place.formatted_address || ''
       });
       
       // Clear the input
       setSearchQuery('');
+    } else {
+      console.warn('Place selected but missing place_id', place);
     }
   }, [onPlaceSelected]);
 

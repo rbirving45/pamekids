@@ -111,7 +111,7 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
       const coordinates = getLocationCoordinates();
       
       const formattedData = {
-        id: placeId,
+        id: placeIdToFetch, // Use the placeIdToFetch which is guaranteed to be defined
         name: placeData.name,
         coordinates: coordinates,
         placeData: {
@@ -174,14 +174,18 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
 
     try {
       // Ensure we're using the Google Place ID as our internal ID
-      // Make sure the ID is explicitly set and not undefined or empty
-      if (!previewData.id || previewData.id.trim() === '') {
+      // First check previewData.id, then fall back to placeId state if needed
+      const locationId = previewData.id || placeId;
+      
+      // Validate that we have a non-empty ID
+      if (!locationId || locationId.trim() === '') {
         throw new Error('Missing Place ID. Please try fetching the location details again.');
       }
       
+      // Create a copy of the location data with the confirmed ID
       const locationData = {
         ...previewData,
-        id: previewData.id // This is the placeId from our fetchPlace function
+        id: locationId.trim() // Ensure ID is trimmed
       };
       
       console.log('Saving location with ID:', locationData.id);
@@ -218,8 +222,10 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
             <h4 className="text-sm font-medium mb-2">Search for a place</h4>
             <PlaceSearch
               onPlaceSelected={(place) => {
-                setPlaceId(place.placeId);
-                fetchPlace(place.placeId);
+                const selectedPlaceId = place.placeId;
+                console.log('Place selected with ID:', selectedPlaceId);
+                setPlaceId(selectedPlaceId);
+                fetchPlace(selectedPlaceId);
               }}
               placeholder="Search for a location in Athens..."
             />

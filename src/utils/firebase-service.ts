@@ -515,42 +515,36 @@ export const addLocation = async (location: Location) => {
     
     console.log('Adding location:', location.name);
     
-    // Check if the ID is truly defined and not an empty string
-    const hasValidId = location.id && typeof location.id === 'string' && location.id.trim() !== '';
+    // Ensure location ID is properly defined
+    if (!location.id || typeof location.id !== 'string' || location.id.trim() === '') {
+      throw new Error('A valid Google Place ID is required for adding locations');
+    }
+    
+    // Use the Google Place ID as the document ID
+    const placeId = location.id.trim();
+    console.log(`Using Google Place ID as document ID: ${placeId}`);
     
     // Add timestamps
     const locationWithTimestamps = {
       ...location,
+      id: placeId, // Ensure ID is consistent
       created_at: serverTimestamp(),
       updated_at: serverTimestamp()
     };
     
-    // If a valid ID is provided (which should be the Google Place ID), use it
-    // This is now our preferred approach for all locations
-    if (hasValidId) {
-      const id = location.id!.trim();
-      console.log(`Using provided ID (Google Place ID): ${id}`);
-      const docRef = doc(db, COLLECTIONS.LOCATIONS, id);
-      
-      // Remove any extra id field to avoid duplication in the document
-      const { id: _, ...locationData } = locationWithTimestamps;
-      
-      await setDoc(docRef, locationData);
-      
-      // Clear cache to ensure admin UI is updated immediately
-      clearLocationsCache();
-      
-      return { success: true, id };
-    } else {
-      // Fallback only if no ID is provided (should be rare)
-      console.warn('No ID provided for location - using Firebase generated ID instead');
-      const docRef = await addDoc(collection(db, COLLECTIONS.LOCATIONS), locationWithTimestamps);
-      
-      // Clear cache to ensure admin UI is updated immediately
-      clearLocationsCache();
-      
-      return { success: true, id: docRef.id };
-    }
+    // Create a document reference with the Place ID
+    const docRef = doc(db, COLLECTIONS.LOCATIONS, placeId);
+    
+    // Remove id field to avoid duplication in the document
+    const { id: _, ...locationData } = locationWithTimestamps;
+    
+    // Save to Firestore
+    await setDoc(docRef, locationData);
+    
+    // Clear cache to ensure admin UI is updated immediately
+    clearLocationsCache();
+    
+    return { success: true, id: placeId };
   } catch (error) {
     console.error('Error adding location:', error);
     throw new Error(formatFirestoreError(error));
