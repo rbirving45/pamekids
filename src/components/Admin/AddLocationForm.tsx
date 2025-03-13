@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { addLocation } from '../../utils/firebase-service';
 import { fetchPlaceDetails } from '../../utils/places-api';
+import { generatePlaceDescription } from '../../utils/description-generator';
 import PlaceSearch from './PlaceSearch';
 
 const activityTypeMapping: Record<string, string> = {
@@ -28,6 +29,7 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<any | null>(null);
+  const [generatingDescription, setGeneratingDescription] = useState(false);
 
   const fetchPlace = async (id?: string) => {
     // Use the provided id or fall back to the state value
@@ -71,7 +73,7 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
         }
       }
       
-      // Format the place data for preview
+      // Format the place data for preview with a default description initially
       const formattedData = {
         id: placeId,
         name: placeData.name,
@@ -100,7 +102,25 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
         }
       };
 
+      // Set preview data with default description first
       setPreviewData(formattedData);
+      
+      // Generate AI description
+      try {
+        setGeneratingDescription(true);
+        const aiDescription = await generatePlaceDescription(placeData);
+        
+        // Update the formattedData with the AI-generated description
+        setPreviewData((prevData: any) => ({
+          ...prevData,
+          description: aiDescription
+        }));
+      } catch (descError) {
+        console.error('Error generating AI description:', descError);
+        // Keep the default description - no need to show error to user
+      } finally {
+        setGeneratingDescription(false);
+      }
     } catch (err) {
       console.error('Error fetching place data:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch place data');
@@ -233,13 +253,26 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
           </div>
           
           <div className="mb-4">
-            <p className="text-sm font-medium text-gray-600">Description</p>
+            <div className="flex justify-between">
+              <p className="text-sm font-medium text-gray-600">Description</p>
+              {generatingDescription && (
+                <span className="text-xs text-blue-600 animate-pulse">
+                  Generating AI description...
+                </span>
+              )}
+            </div>
             <textarea
               value={previewData.description}
               onChange={(e) => setPreviewData({...previewData, description: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md mt-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md mt-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${generatingDescription ? 'bg-gray-50' : ''}`}
               rows={3}
+              disabled={generatingDescription}
             />
+            <p className="text-xs text-gray-500 mt-1">
+              {generatingDescription
+                ? "AI is creating a custom description based on location data..."
+                : "You can edit this description if needed."}
+            </p>
           </div>
           
           <div className="flex justify-end mt-4">

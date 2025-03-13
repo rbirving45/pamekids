@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { addLocation } from '../../utils/firebase-service';
 import { fetchPlaceDetails } from '../../utils/places-api';
+import { generatePlaceDescription } from '../../utils/description-generator';
 import { ActivityType } from '../../types/location';
 
 // Activity type mapping similar to your existing batch-process.js
@@ -83,8 +84,8 @@ const BatchAddLocations: React.FC<BatchAddLocationsProps> = ({ onComplete }) => 
           }
         }
         
-        // Format the place data
-        const formattedData = {
+        // Prepare the place data with a temporary description
+        let formattedData = {
           id: placeId,
           name: placeData.name,
           coordinates: {
@@ -111,6 +112,21 @@ const BatchAddLocations: React.FC<BatchAddLocationsProps> = ({ onComplete }) => 
             website: placeData.website || ''
           }
         };
+
+        // Try to generate an AI description
+        try {
+          // Update results to show description generation
+          setResults(prev => [
+            ...prev.filter(r => r.id !== placeId),
+            { id: placeId, name: placeData.name, success: false, error: 'Generating AI description...' }
+          ]);
+          
+          const aiDescription = await generatePlaceDescription(placeData);
+          formattedData.description = aiDescription;
+        } catch (descError) {
+          console.error(`Error generating AI description for ${placeData.name}:`, descError);
+          // Keep the default description
+        }
 
         // Add to Firebase
         await addLocation(formattedData);
