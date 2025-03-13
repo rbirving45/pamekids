@@ -510,8 +510,31 @@ const MapComponent: React.FC<MapProps> = () => {
     setSelectedLocation(location);
     setSearchExpanded(false);
     setSearchTerm('');
+    
+    // Track the marker click for analytics, same as direct marker clicks
+    trackMarkerClick(location.name);
+    
     if (map) {
-      map.panTo(location.coordinates);
+      // On mobile, ensure the drawer opens and map pans correctly
+      if (isMobile) {
+        // First do a simple pan to the location
+        map.panTo(location.coordinates);
+        
+        // Set drawer state to partial by default
+        setDrawerState('partial');
+        
+        // Keep setDrawerOpen for backward compatibility
+        setDrawerOpen(true);
+        
+        // Use enhanced centering with a slight delay to ensure proper positioning
+        setTimeout(() => {
+          // Pass 'marker-selection' context to position the marker above the drawer
+          centerMapOnLocation(location.coordinates, 'marker-selection');
+        }, 50);
+      } else {
+        // On desktop, simply pan to the location
+        map.panTo(location.coordinates);
+      }
     }
   };
 
