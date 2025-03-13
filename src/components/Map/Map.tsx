@@ -424,8 +424,8 @@ const MapComponent: React.FC<MapProps> = () => {
       // Limit to first 10 results for better performance
       setSearchResults(results.slice(0, 10));
       
-      // Debug log to verify search is working correctly
-      if (process.env.NODE_ENV === 'development') {
+      // Debug logging only when explicitly enabled via localStorage
+      if (process.env.NODE_ENV === 'development' && localStorage.getItem('enableSearchDebug') === 'true') {
         console.groupCollapsed(`Enhanced search for: "${searchTerm}"`);
         console.log(`Found ${results.length} results`);
         if (results.length > 0) {
@@ -521,9 +521,9 @@ const MapComponent: React.FC<MapProps> = () => {
     }
   };
 
-  // Debug helper for search results
+  // Debug helper for search results - only enabled when explicitly turned on
   useEffect(() => {
-    if (searchResults.length > 0) {
+    if (searchResults.length > 0 && process.env.NODE_ENV === 'development' && localStorage.getItem('enableSearchDebug') === 'true') {
       console.log(`Search results updated: ${searchResults.length} items found`);
       console.log('Search expanded:', searchExpanded);
       console.log('Is mobile:', isMobile);
