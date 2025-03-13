@@ -177,11 +177,20 @@ const MapComponent: React.FC<MapProps> = () => {
   // Specialized function to position markers optimally based on context
   const centerMapOnLocation = useCallback((targetLocation: google.maps.LatLngLiteral, context?: 'marker-selection' | 'initial-load') => {
     if (!map) {
-      console.log('Map not available yet');
+      if (process.env.NODE_ENV === 'development') {
+        console.groupCollapsed('Map centering - failed');
+        console.log('Map not available yet');
+        console.groupEnd();
+      }
       return;
     }
     
-    console.log(`Centering map on location: ${JSON.stringify(targetLocation)}, isMobile: ${isMobile}, context: ${context || 'default'}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.groupCollapsed(`Map centering - ${context || 'default'}`);
+      console.log('Target:', targetLocation);
+      console.log('Mobile:', isMobile);
+      console.groupEnd();
+    }
     
     if (isMobile) {
       try {
@@ -229,7 +238,11 @@ const MapComponent: React.FC<MapProps> = () => {
     if (!map || !userLocation.lat || !userLocation.lng || !mapReady) return;
     
     // The map is already initialized, so we can center immediately
-    console.log('Re-centering map due to device type change or user location update');
+    if (process.env.NODE_ENV === 'development') {
+      console.groupCollapsed('Map re-centering');
+      console.log('Reason: device type or user location update');
+      console.groupEnd();
+    }
     centerMapOnLocation(userLocation, 'initial-load');
     
   }, [map, userLocation, isMobile, centerMapOnLocation, mapReady]);
@@ -516,8 +529,29 @@ const MapComponent: React.FC<MapProps> = () => {
     setIsAgeDropdownOpen(false);
   };
 
+  // Reference to track if map has been initialized
+  const mapInitializedRef = useRef(false);
+  
   const onMapLoad = useCallback((map: google.maps.Map) => {
-    console.log('Map loaded - initializing');
+    // Skip if map has already been initialized
+    if (mapInitializedRef.current) {
+      if (process.env.NODE_ENV === 'development') {
+        console.groupCollapsed('Map initialization - skipped');
+        console.log('Map was already initialized');
+        console.groupEnd();
+      }
+      return;
+    }
+    
+    // Mark as initialized
+    mapInitializedRef.current = true;
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.groupCollapsed('Map initialization');
+      console.log('Map loaded successfully');
+      console.groupEnd();
+    }
+    
     setMap(map);
     setMaps(window.google.maps);
     
@@ -526,7 +560,11 @@ const MapComponent: React.FC<MapProps> = () => {
     if (userLocation.lat && userLocation.lng) {
       // Use the enhanced centering function with 'initial-load' context
       centerMapOnLocation(userLocation, 'initial-load');
-      console.log('Initial map centering on:', userLocation);
+      if (process.env.NODE_ENV === 'development') {
+        console.groupCollapsed('Initial map centering');
+        console.log('Coordinates:', userLocation);
+        console.groupEnd();
+      }
     }
     
     map.addListener('click', () => {
