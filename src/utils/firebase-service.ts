@@ -397,9 +397,41 @@ export const updateLocation = async (id: string, data: Partial<Location>) => {
     console.log(`Updating location with ID ${id}`);
     const docRef = doc(db, COLLECTIONS.LOCATIONS, id);
     
+    // Deep clean function to handle complex nested objects
+    const deepCleanUndefined = (obj: any): any => {
+      // Return non-objects as is (includes null, which is valid for Firestore)
+      if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
+        return obj;
+      }
+      
+      // Clean each property in the object
+      const result: Record<string, any> = {};
+      Object.entries(obj).forEach(([key, value]) => {
+        // Skip undefined values completely
+        if (value === undefined) return;
+        
+        // Recursively clean objects
+        if (value !== null && typeof value === 'object') {
+          const cleanedValue = deepCleanUndefined(value);
+          // Only add non-empty objects
+          if (Array.isArray(cleanedValue) || Object.keys(cleanedValue).length > 0) {
+            result[key] = cleanedValue;
+          }
+        } else {
+          // Add primitive values directly
+          result[key] = value;
+        }
+      });
+      
+      return result;
+    };
+    
+    // Clean up data to remove any undefined values to avoid Firestore errors
+    const cleanedData = deepCleanUndefined(data);
+    
     // Add the updated_at timestamp
     const dataWithTimestamp = {
-      ...data,
+      ...cleanedData,
       updated_at: serverTimestamp()
     };
     

@@ -120,7 +120,27 @@ const LocationEditor: React.FC<LocationEditorProps> = ({ locationId, onClose, on
       setIsSaving(true);
       setError(null);
       
-      await updateLocation(location.id, location);
+      // Create a cleaned version of the location for saving
+      // This ensures we don't send any undefined fields to Firestore
+      const locationToSave = { ...location };
+      
+      // If placeData exists but has undefined values, clean them up
+      if (locationToSave.placeData) {
+        // Keep only defined properties in placeData
+        locationToSave.placeData = Object.entries(locationToSave.placeData)
+          .reduce((acc, [key, value]) => {
+            if (value !== undefined) {
+              acc[key] = value;
+            }
+            return acc;
+          }, {} as Record<string, any>);
+        
+        // If placeData is now empty, we'll just keep the empty object
+        // This is safer for TypeScript than using null
+        // The empty object is still valid for the placeData type
+      }
+      
+      await updateLocation(location.id, locationToSave);
       
       onSaved();
       onClose();
