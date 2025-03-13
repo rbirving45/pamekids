@@ -807,8 +807,8 @@ const MapComponent: React.FC<MapProps> = () => {
               Open Now
             </button>
 
-            {/* Clear Filters */}
-            {(activeFilters.length > 0 || selectedAge !== null || openNowFilter) && (
+            {/* Clear Filters - visible only on desktop when filters are active */}
+            {!isMobile && (activeFilters.length > 0 || selectedAge !== null || openNowFilter) && (
               <button
                 onClick={clearFilters}
                 className="flex-shrink-0 px-3 py-1 rounded-full text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100"
@@ -820,6 +820,26 @@ const MapComponent: React.FC<MapProps> = () => {
         </div>
       </div>
 
+      {/* Mobile-only floating Clear All button */}
+      {isMobile && (activeFilters.length > 0 || selectedAge !== null || openNowFilter) && (
+        <button
+          onClick={clearFilters}
+          className="fixed z-mobile-button bg-white bg-opacity-75 shadow-sm border border-gray-200 rounded-full px-3 py-1.5 text-xs font-medium text-red-600 flex items-center gap-1"
+          style={{
+            top: '120px', // Increased position to ensure it's below filter bar (header 64px + filter bar 42px)
+            left: '8px', // Align to the left with some padding
+            transition: 'opacity 0.2s ease-in-out'
+          }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="15" y1="9" x2="9" y2="15"></line>
+            <line x1="9" y1="9" x2="15" y2="15"></line>
+          </svg>
+          Clear Filters
+        </button>
+      )}
+      
       {/* Map */}
       <LoadScriptNext
         googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY || ''}
