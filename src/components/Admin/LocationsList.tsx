@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getLocations, deleteLocation } from '../../utils/firebase-service';
 import { Location } from '../../types/location';
 import LocationEditor from './LocationEditor';
@@ -9,6 +9,12 @@ const LocationsList: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activityTypeFilter, setActivityTypeFilter] = useState<string>('all');
+  const [minAgeFilter, setMinAgeFilter] = useState<number | null>(null);
+  const [maxAgeFilter, setMaxAgeFilter] = useState<number | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -70,7 +76,38 @@ const LocationsList: React.FC = () => {
   };
 
   // Ensure all locations have a valid ID to use as a key
-  const locationsWithValidKeys = locations.map((location, index) => {
+  // Filter locations based on search query and filters
+  const filteredLocations = useMemo(() => {
+    return locations
+      .filter(location => {
+        // Filter by activity type
+        if (activityTypeFilter !== 'all' && location.primaryType !== activityTypeFilter) {
+          return false;
+        }
+        
+        // Filter by age range
+        if (minAgeFilter !== null && location.ageRange.max < minAgeFilter) {
+          return false;
+        }
+        if (maxAgeFilter !== null && location.ageRange.min > maxAgeFilter) {
+          return false;
+        }
+        
+        // Filter by search query
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          return (
+            location.name.toLowerCase().includes(query) ||
+            location.address.toLowerCase().includes(query)
+          );
+        }
+        
+        return true;
+      });
+  }, [locations, searchQuery, activityTypeFilter, minAgeFilter, maxAgeFilter]);
+
+  // Ensure all locations have a valid ID to use as a key
+  const locationsWithValidKeys = filteredLocations.map((location, index) => {
     if (!location.id) {
       return { ...location, id: `location-${index}` };
     }
@@ -84,6 +121,18 @@ const LocationsList: React.FC = () => {
   const handleLocationSaved = () => {
     setRefreshKey(prev => prev + 1); // Refresh the list
   };
+  
+  // Activity type options for filter dropdown
+  const activityTypeOptions = [
+    { value: 'all', label: 'All Types' },
+    { value: 'indoor-play', label: 'Indoor Play' },
+    { value: 'outdoor-play', label: 'Outdoor Play' },
+    { value: 'sports', label: 'Sports' },
+    { value: 'arts', label: 'Arts' },
+    { value: 'music', label: 'Music' },
+    { value: 'education', label: 'Education' },
+    { value: 'entertainment', label: 'Entertainment' }
+  ];
 
   if (isLoading) {
     return (
@@ -117,8 +166,109 @@ const LocationsList: React.FC = () => {
         </div>
       )}
 
+      {/* Search and Filter Controls */}
+      <div className="mb-6 bg-white p-4 rounded-lg shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Search Input */}
+          <div>
+            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+              Search
+            </label>
+            <input
+              type="text"
+              id="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name or address"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+          
+          {/* Activity Type Filter */}
+          <div>
+            <label htmlFor="activityType" className="block text-sm font-medium text-gray-700 mb-1">
+              Activity Type
+            </label>
+            <select
+              id="activityType"
+              value={activityTypeFilter}
+              onChange={(e) => setActivityTypeFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              {activityTypeOptions.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Age Range Filter - Min Age */}
+          <div>
+            <label htmlFor="minAge" className="block text-sm font-medium text-gray-700 mb-1">
+              Min Age
+            </label>
+            <select
+              id="minAge"
+              value={minAgeFilter === null ? '' : minAgeFilter.toString()}
+              onChange={(e) => setMinAgeFilter(e.target.value ? parseInt(e.target.value, 10) : null)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="">Any</option>
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16].map(age => (
+                <option key={age} value={age}>
+                  {age} years
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Age Range Filter - Max Age */}
+          <div>
+            <label htmlFor="maxAge" className="block text-sm font-medium text-gray-700 mb-1">
+              Max Age
+            </label>
+            <select
+              id="maxAge"
+              value={maxAgeFilter === null ? '' : maxAgeFilter.toString()}
+              onChange={(e) => setMaxAgeFilter(e.target.value ? parseInt(e.target.value, 10) : null)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="">Any</option>
+              {[2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 18].map(age => (
+                <option key={age} value={age}>
+                  {age} years
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        {/* Filter Reset Button */}
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={() => {
+              setSearchQuery('');
+              setActivityTypeFilter('all');
+              setMinAgeFilter(null);
+              setMaxAgeFilter(null);
+            }}
+            className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-100"
+          >
+            Reset Filters
+          </button>
+        </div>
+      </div>
+
       {/* Locations List */}
       <div className="overflow-x-auto">
+        {locations.length > 0 && (
+          <p className="text-sm text-gray-500 mb-2">
+            Showing {locationsWithValidKeys.length} of {locations.length} locations
+            {(searchQuery || activityTypeFilter !== 'all' || minAgeFilter !== null || maxAgeFilter !== null) &&
+              " (filtered results)"}
+          </p>
+        )}
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -133,7 +283,9 @@ const LocationsList: React.FC = () => {
             {locationsWithValidKeys.length === 0 ? (
               <tr key="empty-row">
                 <td colSpan={5} className="px-4 py-4 text-center text-gray-500">
-                  No locations found. Add a location to get started.
+                  {locations.length === 0 ?
+                    "No locations found. Add a location to get started." :
+                    "No locations match your search criteria. Try adjusting your filters."}
                 </td>
               </tr>
             ) : (
