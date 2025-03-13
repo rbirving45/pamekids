@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Location, ActivityType } from '../../types/location';
 import { fetchPlaceDetails } from '../../utils/places-api';
 import { Star } from 'lucide-react';
@@ -11,10 +11,14 @@ interface LocationTileProps {
 
 const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, onSelect }) => {
   const [placeData, setPlaceData] = useState<Location['placeData']>();
-  // Track loading state for visual feedback (used in future feature)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_isLoading, setIsLoading] = useState(false);
+  // Track loading state for visual feedback
+  const [isLoading, setIsLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
+  
+  // Reset error state when location changes
+  useEffect(() => {
+    setImageError(false);
+  }, [location.id]);
 
   // Fetch place data when component mounts
   useEffect(() => {
@@ -22,8 +26,19 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
     let isMounted = true;
     
     const fetchData = async () => {
-      // Skip if we already have data
-      if (location.placeData || !window.google?.maps) return;
+      // Check if we have cached data in location object
+      if (location.placeData && location.placeData?.photoUrls && location.placeData?.photoUrls.length > 0) {
+        // Use cached data immediately
+        setPlaceData(location.placeData);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Skip if Google Maps isn't loaded yet
+      if (!window.google?.maps) {
+        setIsLoading(false);
+        return;
+      }
       
       setIsLoading(true);
       
@@ -32,9 +47,16 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
         
         // Only update state if the component is still mounted
         if (isMounted && data) {
-          setPlaceData(data);
+          // Ensure we have a valid photos array and not undefined
+          const validData = {
+            ...data,
+            photos: data.photos || [],
+            photoUrls: data.photoUrls || []
+          };
+          
+          setPlaceData(validData);
           // Update the original location object to avoid refetching
-          location.placeData = data;
+          location.placeData = validData;
         }
       } catch (error) {
         if (isMounted) {
@@ -47,21 +69,43 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
       }
     };
 
+    // Execute fetch immediately rather than waiting
     fetchData();
     
     // Cleanup function to prevent state updates after unmounting
     return () => {
       isMounted = false;
     };
-  }, [location, location.id, location.placeData]);
+  }, [location, location.id]);
 
-  // Combine placeData from state or from location
+  // Combine placeData from state or from location, ensuring we get the most complete data
   const mergedPlaceData = placeData || location.placeData;
 
-  // Get the first available photo URL
-  const featuredImageUrl = !imageError && mergedPlaceData?.photoUrls && mergedPlaceData.photoUrls.length > 0
-    ? mergedPlaceData.photoUrls[0]
-    : null;
+  // Get the first available photo URL with more robust error handling
+  const featuredImageUrl = useMemo(() => {
+    // If image already errored, don't try to show it
+    if (imageError) return null;
+    
+    // Check for photoUrls first (pre-processed URLs)
+    if (mergedPlaceData?.photoUrls && mergedPlaceData.photoUrls.length > 0) {
+      return mergedPlaceData.photoUrls[0];
+    }
+    
+    // Check for raw photo objects as fallback (would need processing)
+    if (mergedPlaceData?.photos && mergedPlaceData.photos.length > 0 &&
+        typeof mergedPlaceData.photos[0]?.getUrl === 'function') {
+      try {
+        return mergedPlaceData.photos[0].getUrl({
+          maxWidth: 400,
+          maxHeight: 400
+        });
+      } catch (e) {
+        console.warn('Error getting photo URL:', e);
+      }
+    }
+    
+    return null;
+  }, [mergedPlaceData, imageError]);
 
   // Fallback image based on the primary activity type
   const primaryType = location.primaryType || location.types[0];
@@ -145,7 +189,10 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
               src={featuredImageUrl}
               alt={location.name}
               className="w-full h-full object-cover"
-              onError={() => setImageError(true)}
+              onError={() => {
+                console.warn(`Image loading error for: ${location.name}`);
+                setImageError(true);
+              }}
               referrerPolicy="no-referrer"
               loading="lazy"
             />
@@ -154,12 +201,16 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
               className="w-full h-full flex items-center justify-center"
               style={{ backgroundColor: fallbackImageColor + '20' }}
             >
-              <span
-                className="text-3xl font-bold"
-                style={{ color: fallbackImageColor }}
-              >
-                {initialLetter}
-              </span>
+              {isLoading ? (
+                <div className="animate-pulse w-full h-full bg-gray-200"></div>
+              ) : (
+                <span
+                  className="text-3xl font-bold"
+                  style={{ color: fallbackImageColor }}
+                >
+                  {initialLetter}
+                </span>
+              )}
             </div>
           )}
         </div>
