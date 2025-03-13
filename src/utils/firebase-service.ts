@@ -366,6 +366,9 @@ export const addLocation = async (location: Omit<Location, 'id'> & { id?: string
     
     console.log('Adding location:', location.name);
     
+    // Check if the ID is truly defined and not an empty string
+    const hasValidId = location.id && typeof location.id === 'string' && location.id.trim() !== '';
+    
     // Add timestamps
     const locationWithTimestamps = {
       ...location,
@@ -373,12 +376,21 @@ export const addLocation = async (location: Omit<Location, 'id'> & { id?: string
       updated_at: serverTimestamp()
     };
     
-    // If an ID is provided, use it, otherwise let Firebase generate one
-    if (location.id) {
-      const docRef = doc(db, COLLECTIONS.LOCATIONS, location.id);
-      await setDoc(docRef, locationWithTimestamps);
-      return { success: true, id: location.id };
+    // If a valid ID is provided (which should be the Google Place ID), use it
+    // This is now our preferred approach for all locations
+    if (hasValidId) {
+      const id = location.id!.trim();
+      console.log(`Using provided ID (Google Place ID): ${id}`);
+      const docRef = doc(db, COLLECTIONS.LOCATIONS, id);
+      
+      // Remove any extra id field to avoid duplication in the document
+      const { id: _, ...locationData } = locationWithTimestamps;
+      
+      await setDoc(docRef, locationData);
+      return { success: true, id };
     } else {
+      // Fallback only if no ID is provided (should be rare)
+      console.warn('No ID provided for location - using Firebase generated ID instead');
       const docRef = await addDoc(collection(db, COLLECTIONS.LOCATIONS), locationWithTimestamps);
       return { success: true, id: docRef.id };
     }

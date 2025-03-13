@@ -74,13 +74,46 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
       }
       
       // Format the place data for preview with a default description initially
+      // Handle both function and direct property patterns for coordinates
+      const getLocationCoordinates = () => {
+        const location = placeData.geometry?.location;
+        if (!location) return { lat: 0, lng: 0 };
+        
+        // First check if location has lat/lng functions (common in Google Maps API)
+        if (typeof location.lat === 'function' && typeof location.lng === 'function') {
+          return {
+            lat: location.lat(),
+            lng: location.lng()
+          };
+        }
+        
+        // Then check if lat/lng are direct properties
+        if (typeof location.lat === 'number' && typeof location.lng === 'number') {
+          return {
+            lat: location.lat,
+            lng: location.lng
+          };
+        }
+        
+        // Finally, see if we can access lat/lng from other properties
+        if (location.latitude !== undefined && location.longitude !== undefined) {
+          return {
+            lat: Number(location.latitude),
+            lng: Number(location.longitude)
+          };
+        }
+        
+        // Fallback to zeros
+        console.warn('Could not determine location coordinates, using default zeros');
+        return { lat: 0, lng: 0 };
+      };
+
+      const coordinates = getLocationCoordinates();
+      
       const formattedData = {
         id: placeId,
         name: placeData.name,
-        coordinates: {
-          lat: placeData.geometry?.location.lat() || 0,
-          lng: placeData.geometry?.location.lng() || 0
-        },
+        coordinates: coordinates,
         placeData: {
           rating: placeData.rating,
           userRatingsTotal: placeData.userRatingsTotal
@@ -140,7 +173,19 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
     setError(null);
 
     try {
-      await addLocation(previewData);
+      // Ensure we're using the Google Place ID as our internal ID
+      // Make sure the ID is explicitly set and not undefined or empty
+      if (!previewData.id || previewData.id.trim() === '') {
+        throw new Error('Missing Place ID. Please try fetching the location details again.');
+      }
+      
+      const locationData = {
+        ...previewData,
+        id: previewData.id // This is the placeId from our fetchPlace function
+      };
+      
+      console.log('Saving location with ID:', locationData.id);
+      await addLocation(locationData);
       setPlaceId('');
       setPreviewData(null);
       if (onLocationAdded) {

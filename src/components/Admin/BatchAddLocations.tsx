@@ -85,13 +85,46 @@ const BatchAddLocations: React.FC<BatchAddLocationsProps> = ({ onComplete }) => 
         }
         
         // Prepare the place data with a temporary description
-        let formattedData = {
+        // Handle both function and direct property patterns for coordinates
+        const getLocationCoordinates = () => {
+          const location = placeData.geometry?.location;
+          if (!location) return { lat: 0, lng: 0 };
+          
+          // First check if location has lat/lng functions (common in Google Maps API)
+          if (typeof location.lat === 'function' && typeof location.lng === 'function') {
+            return {
+              lat: location.lat(),
+              lng: location.lng()
+            };
+          }
+          
+          // Then check if lat/lng are direct properties
+          if (typeof location.lat === 'number' && typeof location.lng === 'number') {
+            return {
+              lat: location.lat,
+              lng: location.lng
+            };
+          }
+          
+          // Finally, see if we can access lat/lng from other properties
+          if (location.latitude !== undefined && location.longitude !== undefined) {
+            return {
+              lat: Number(location.latitude),
+              lng: Number(location.longitude)
+            };
+          }
+          
+          // Fallback to zeros
+          console.warn('Could not determine location coordinates, using default zeros');
+          return { lat: 0, lng: 0 };
+        };
+
+        const coordinates = getLocationCoordinates();
+        
+        const formattedData = {
           id: placeId,
           name: placeData.name,
-          coordinates: {
-            lat: placeData.geometry?.location.lat() || 0,
-            lng: placeData.geometry?.location.lng() || 0
-          },
+          coordinates: coordinates,
           placeData: {
             rating: placeData.rating,
             userRatingsTotal: placeData.userRatingsTotal
@@ -129,8 +162,15 @@ const BatchAddLocations: React.FC<BatchAddLocationsProps> = ({ onComplete }) => 
           // Keep the default description
         }
 
-        // Add to Firebase
-        await addLocation(formattedData);
+        // Add to Firebase - ensure we're using the Place ID as the document ID
+        const locationData = {
+          ...formattedData,
+          id: placeId // Explicitly set the ID to be the Google Place ID
+        };
+        
+        // Logging to verify the ID is set
+        console.log(`Adding location with Place ID: ${placeId}`);
+        await addLocation(locationData);
         
         // Update results
         setResults(prev => [
