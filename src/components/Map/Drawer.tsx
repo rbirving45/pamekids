@@ -53,10 +53,13 @@ const Drawer: React.FC<DrawerProps> = memo(({
   const { drawerState, setDrawerState, handleTouchStart, handleTouchMove, handleTouchEnd, isPartialDrawer, setContentScrollPosition } = useTouch();
   
   // Debug log to verify TouchContext is available (only in development)
-  if (process.env.NODE_ENV === 'development') {
+  // Use a static check to ensure we only log once per component instance
+  const hasLoggedRef = useRef(false);
+  if (process.env.NODE_ENV === 'development' && !hasLoggedRef.current) {
     console.groupCollapsed('TouchContext initialization');
     console.log('Initial drawer state:', drawerState);
     console.groupEnd();
+    hasLoggedRef.current = true;
   }
   
   const [placeData, setPlaceData] = useState<Location['placeData']>();
