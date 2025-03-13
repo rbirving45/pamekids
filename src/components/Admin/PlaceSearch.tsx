@@ -38,17 +38,21 @@ const loadGooglePlacesScript = () => {
 
     console.log('Loading Google Places API script');
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    
-    script.onload = () => {
+    // Use callback parameter instead of onload for better compatibility
+    const callbackName = `googleMapsCallback_${Date.now()}`;
+    (window as any)[callbackName] = () => {
       console.log('Google Places API script loaded successfully');
+      delete (window as any)[callbackName];
       resolve();
     };
     
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places&callback=${callbackName}&loading=async`;
+    script.async = true;
+    script.defer = true;
+    
     script.onerror = () => {
       console.error('Failed to load Google Places API script');
+      delete (window as any)[callbackName];
       reject(new Error('Failed to load Google Places API'));
     };
     

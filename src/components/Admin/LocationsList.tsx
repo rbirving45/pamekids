@@ -45,6 +45,14 @@ const LocationsList: React.FC = () => {
     }
   };
 
+  // Ensure all locations have a valid ID to use as a key
+  const locationsWithValidKeys = locations.map((location, index) => {
+    if (!location.id) {
+      return { ...location, id: `location-${index}` };
+    }
+    return location;
+  });
+
   const handleEditorClosed = () => {
     setEditingLocationId(null);
   };
@@ -98,15 +106,15 @@ const LocationsList: React.FC = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {locations.length === 0 ? (
-              <tr>
+            {locationsWithValidKeys.length === 0 ? (
+              <tr key="empty-row">
                 <td colSpan={5} className="px-4 py-4 text-center text-gray-500">
                   No locations found. Add a location to get started.
                 </td>
               </tr>
             ) : (
-              locations.map(location => (
-                <tr key={location.id}>
+              locationsWithValidKeys.map(location => (
+                <tr key={location.id || `fallback-${Math.random()}`}>
                   <td className="px-4 py-4 whitespace-nowrap">
                     <div className="font-medium text-gray-900">{location.name}</div>
                   </td>
