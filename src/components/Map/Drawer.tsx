@@ -143,18 +143,26 @@ const Drawer: React.FC<DrawerProps> = memo(({
     isScrolling.current = false;
   }, [locationId]);
 
-  // Your existing fetchData function
+  // Import the updateLocationPlaceData function at the top of the file
+  // Add this import statement along with the other imports
+  
+  // Enhanced fetchData function with caching and background refreshes
   const fetchData = useCallback(async () => {
-    // Existing implementation...
     if (!locationId || !window.google?.maps) return;
     
     setIsLoading(true);
+    setHasAttemptedFetch(true);
     
     try {
+      // The fetchPlaceDetails function now handles caching internally
+      // It will return cached data if available and refresh in background if needed
       const data = await fetchPlaceDetails(locationId, window.google.maps);
       
       if (data) {
+        let finalData;
+        
         if (location?.placeData) {
+          // Merge with existing data
           const mergedData = {
             ...location.placeData,
             ...data,
@@ -169,17 +177,39 @@ const Drawer: React.FC<DrawerProps> = memo(({
             userRatingsTotal: data.userRatingsTotal || location.placeData.userRatingsTotal
           };
           
-          setPlaceData(mergedData);
-          location.placeData = mergedData;
+          finalData = mergedData;
         } else {
-          setPlaceData(data);
+          finalData = data;
+        }
+        
+        // Update state with the place data
+        setPlaceData(finalData);
+        
+        // Update the location object reference
+        if (location) {
+          location.placeData = finalData;
+        }
+        
+        // If this was fresh data (not from cache), update it in Firestore
+        // This helps build our server-side cache over time from user interactions
+        if (data.last_fetched) {
+          const lastFetchedTime = new Date(data.last_fetched).getTime();
+          const isFreshData = Date.now() - lastFetchedTime < 60000; // Less than a minute old
           
-          if (location) {
-            location.placeData = data;
+          if (isFreshData) {
+            // This is a background operation - don't await it
+            import('../../utils/firebase-service').then(({ updateLocationPlaceData }) => {
+              // Don't block the UI for this background operation
+              updateLocationPlaceData(locationId, data).catch(err => {
+                console.warn('Background Firestore update failed:', err);
+              });
+            });
           }
         }
       }
     } catch (error) {
+      console.error('Error fetching place details:', error);
+      // Fallback to existing place data if available
       if (location?.placeData) {
         setPlaceData(location.placeData);
       }
@@ -191,9 +221,84 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // Fetch data immediately when a location is selected
   useEffect(() => {
     if (locationId) {
-      fetchData();
+      const timer = setTimeout(() => {
+        fetchData();
+      }, 10); // Small delay to prioritize UI rendering first
+      
+      return () => clearTimeout(timer);
     }
   }, [locationId, fetchData]);
+
+  // Use separate effect to check if we already have placeData in the location object
+  useEffect(() => {
+    // If location has placeData already, use it immediately to prevent flickering
+    if (location?.placeData && !placeData) {
+      setPlaceData(location.placeData);
+      setIsLoading(false);
+      
+      // Still fetch fresh data in the background after a small delay
+      const timer = setTimeout(() => {
+        // Skip if location or location ID is no longer available
+        if (!location?.placeData || !locationId) return;
+        
+        // Only fetch if there's no timestamp or it's older than 6 hours
+        const lastFetchedStr = location.placeData.last_fetched;
+        let needsRefresh = true; // Default to refresh if no timestamp
+        
+        if (lastFetchedStr) {
+          try {
+            const lastFetchedTime = new Date(lastFetchedStr).getTime();
+            const sixHoursMs = 6 * 60 * 60 * 1000;
+            // Only consider valid if within the last 6 hours
+            needsRefresh = Date.now() - lastFetchedTime > sixHoursMs;
+          } catch (e) {
+            console.warn('Invalid last_fetched timestamp:', e);
+            // If date parsing fails, default to refresh
+            needsRefresh = true;
+          }
+        }
+        
+        if (needsRefresh && window.google?.maps) {
+          // Force refresh to get latest data
+          fetchPlaceDetails(locationId, window.google.maps, true)
+            .then(freshData => {
+              if (freshData && location?.placeData) {
+                // Update place data with fresh data
+                const updatedData = {
+                  ...location.placeData,
+                  ...freshData,
+                  // Handle possibly undefined photoUrls with optional chaining
+                  photoUrls: freshData.photoUrls?.length ?
+                    freshData.photoUrls :
+                    location.placeData.photoUrls
+                };
+                setPlaceData(updatedData);
+                
+                // Only update location reference if it still exists
+                if (location) {
+                  location.placeData = updatedData;
+                }
+                
+                // Background update to Firestore if locationId is defined
+                if (locationId) {
+                  import('../../utils/firebase-service').then(({ updateLocationPlaceData }) => {
+                    updateLocationPlaceData(locationId, freshData).catch(err => {
+                      console.warn('Failed to update Firestore:', err);
+                    });
+                  });
+                }
+              }
+            })
+            .catch(err => {
+              // Don't show errors for background refreshes
+              console.warn('Background refresh failed:', err);
+            });
+        }
+      }, 3000); // 3 second delay for background refresh
+      
+      return () => clearTimeout(timer);
+    }
+  }, [location, locationId, placeData]);
 
   // Touch handling is now fully managed by TouchContext
   // This comment is kept to document the migration

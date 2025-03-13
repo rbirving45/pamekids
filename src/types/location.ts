@@ -28,6 +28,11 @@ export interface Location {
     userRatingsTotal?: number;
     photos?: google.maps.places.PlacePhoto[];
     photoUrls?: string[];
+    last_fetched?: string; // ISO string timestamp for when the data was fetched
+    hours?: Record<string, string>;
+    phone?: string;
+    website?: string;
+    address?: string;
   };
   images?: string[];
   featured?: boolean;
@@ -39,6 +44,10 @@ export interface Location {
     nanoseconds: number;
   } | null;
   updated_at?: {
+    seconds: number;
+    nanoseconds: number;
+  } | null;
+  placeData_updated_at?: {
     seconds: number;
     nanoseconds: number;
   } | null;

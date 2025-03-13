@@ -94,7 +94,7 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
         },
         description: `${placeData.name} is a great place for kids in Athens. Suitable for various age groups.`,
         openingHours: placeData.hours || {},
-        priceRange: placeData.priceLevel ? '$'.repeat(placeData.priceLevel) : '$',
+        priceRange: placeData.priceLevel ? '€'.repeat(placeData.priceLevel) : '€',
         contact: {
           phone: placeData.phone || placeData.formatted_phone_number || '',
           email: `contact@${placeData.name.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`,

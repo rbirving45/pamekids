@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import LocationsList from './LocationsList';
 import AddLocationForm from './AddLocationForm';
 import BatchAddLocations from './BatchAddLocations';
+import CacheManager from './CacheManager';
 
 interface Subscription {
   id: string;
@@ -242,6 +243,9 @@ const Dashboard: React.FC = () => {
                     <TabsTrigger value="add" className="px-4 py-1">
                       Add Location
                     </TabsTrigger>
+                    <TabsTrigger value="cache" className="px-4 py-1">
+                      Cache Management
+                    </TabsTrigger>
                   </TabsList>
                   
                   <TabsContent value="list">
@@ -271,6 +275,10 @@ const Dashboard: React.FC = () => {
                         />
                       </TabsContent>
                     </Tabs>
+                  </TabsContent>
+                  
+                  <TabsContent value="cache">
+                    <CacheManager />
                   </TabsContent>
                 </Tabs>
               </CardContent>

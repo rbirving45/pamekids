@@ -304,7 +304,7 @@ const LocationEditor: React.FC<LocationEditorProps> = ({ locationId, onClose, on
             value={location.priceRange}
             onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            placeholder="e.g. $, $$, $$$"
+            placeholder="e.g. €, €€, €€€"
           />
         </div>
         

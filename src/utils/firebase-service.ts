@@ -147,6 +147,14 @@ export const getActivitySuggestions = async (): Promise<DocumentData[]> => {
 
 // Location functions
 
+// Cache constants
+const CACHE_KEYS = {
+  LOCATIONS_LIST: 'pamekids_locations_cache',
+  CACHE_VERSION: 'pamekids_cache_version'
+};
+const CACHE_VERSION = '1.0'; // Increment when data structure changes
+const CACHE_EXPIRATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 // In-memory cache for locations
 let locationsCache: {
   data: Location[] | null;
@@ -158,16 +166,89 @@ let locationsCache: {
   pendingPromise: null
 };
 
-  // Get all locations with caching and request deduplication
+// Helper function to get cached locations from localStorage
+const getLocationsFromLocalStorage = (): {data: Location[] | null, timestamp: number} => {
+  try {
+    // Check cache version first
+    const cacheVersion = localStorage.getItem(CACHE_KEYS.CACHE_VERSION);
+    if (cacheVersion !== CACHE_VERSION) {
+      // Clear all caches if version doesn't match
+      localStorage.removeItem(CACHE_KEYS.LOCATIONS_LIST);
+      localStorage.setItem(CACHE_KEYS.CACHE_VERSION, CACHE_VERSION);
+      return { data: null, timestamp: 0 };
+    }
+    
+    const cachedData = localStorage.getItem(CACHE_KEYS.LOCATIONS_LIST);
+    if (!cachedData) return { data: null, timestamp: 0 };
+    
+    const parsed = JSON.parse(cachedData);
+    return {
+      data: parsed.data,
+      timestamp: parsed.timestamp
+    };
+  } catch (error) {
+    console.warn('Error reading from localStorage cache:', error);
+    return { data: null, timestamp: 0 };
+  }
+};
+
+// Helper function to save locations to localStorage
+const saveLocationsToLocalStorage = (locations: Location[]) => {
+  try {
+    const cacheData = {
+      data: locations,
+      timestamp: Date.now()
+    };
+    
+    // Set cache version
+    localStorage.setItem(CACHE_KEYS.CACHE_VERSION, CACHE_VERSION);
+    
+    // Store locations data
+    localStorage.setItem(CACHE_KEYS.LOCATIONS_LIST, JSON.stringify(cacheData));
+    return true;
+  } catch (error) {
+    console.warn('Error saving to localStorage cache:', error);
+    // Likely a quota exceeded error or private browsing mode
+    return false;
+  }
+};
+
+// Get all locations with caching and request deduplication
 export const getLocations = async (): Promise<Location[]> => {
   try {
     const now = Date.now();
-    const cacheAge = now - locationsCache.timestamp;
     
-    // If we have a recent cache (last 1 hour), use it
-    if (locationsCache.data && cacheAge < 3600000) {
-      console.log('Using cached locations data (age: ' + Math.round(cacheAge/1000) + 's)');
+    // Check memory cache first (most efficient)
+    const memCacheAge = now - locationsCache.timestamp;
+    if (locationsCache.data && memCacheAge < CACHE_EXPIRATION_MS) {
+      console.log(`Using in-memory cached locations (age: ${Math.round(memCacheAge/1000)}s)`);
       return locationsCache.data;
+    }
+    
+    // Next, check localStorage cache
+    const { data: localStorageData, timestamp: localStorageTimestamp } = getLocationsFromLocalStorage();
+    const localStorageCacheAge = now - localStorageTimestamp;
+    
+    // If localStorage has valid cache, use it and update memory cache
+    if (localStorageData && localStorageCacheAge < CACHE_EXPIRATION_MS) {
+      console.log(`Using localStorage cached locations (age: ${Math.round(localStorageCacheAge/60000)}m)`);
+      
+      // Update memory cache
+      locationsCache = {
+        data: localStorageData,
+        timestamp: localStorageTimestamp,
+        pendingPromise: null
+      };
+      
+      // Fetch fresh data in background if cache is older than 1 hour
+      if (localStorageCacheAge > 3600000) {
+        console.log('Cache is valid but aging, refreshing in background...');
+        setTimeout(() => {
+          getLocations().catch(err => console.error('Background refresh error:', err));
+        }, 1000);
+      }
+      
+      return localStorageData;
     }
     
     // If there's already a pending request, return that promise instead of starting a new one
@@ -176,8 +257,8 @@ export const getLocations = async (): Promise<Location[]> => {
       return locationsCache.pendingPromise;
     }
     
-    // Start a new fetch operation
-    console.log('Fetching locations from Firebase...');
+    // No valid cache, start a new fetch operation
+    console.log('No valid cache found. Fetching locations from Firebase...');
     
     // Create the promise and store it
     const fetchPromise = (async () => {
@@ -211,12 +292,15 @@ export const getLocations = async (): Promise<Location[]> => {
           return location;
         });
         
-        // Update cache
+        // Update memory cache
         locationsCache = {
           data: locations,
           timestamp: Date.now(),
           pendingPromise: null
         };
+        
+        // Update localStorage cache
+        saveLocationsToLocalStorage(locations);
         
         return locations;
       } catch (error) {
@@ -324,6 +408,65 @@ export const updateLocation = async (id: string, data: Partial<Location>) => {
   } catch (error) {
     console.error(`Error updating location with ID ${id}:`, error);
     throw new Error(formatFirestoreError(error));
+  }
+};
+
+// Function to update a location's Google Places data without requiring admin rights
+// This is used by normal users to keep place data fresh
+export const updateLocationPlaceData = async (id: string, placeData: any): Promise<boolean> => {
+  try {
+    // Don't require admin auth for this public function
+    if (!id || !placeData) {
+      console.error('Missing id or placeData for location update');
+      return false;
+    }
+    
+    // Only update once per day maximum to avoid unnecessary writes
+    const docRef = doc(db, COLLECTIONS.LOCATIONS, id);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      console.error(`Location ${id} not found for place data update`);
+      return false;
+    }
+    
+    const existingData = docSnap.data();
+    const lastUpdated = existingData.placeData_updated_at?.toDate() || new Date(0);
+    const now = new Date();
+    const daysSinceUpdate = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60 * 24);
+    
+    // Skip update if updated within the last 24 hours
+    if (daysSinceUpdate < 1) {
+      console.log(`Skipping place data update for ${id}, last updated ${daysSinceUpdate.toFixed(1)} days ago`);
+      return false;
+    }
+    
+    // Extract only the essential data we want to store (to save storage/bandwidth)
+    const essentialPlaceData = {
+      rating: placeData.rating,
+      userRatingsTotal: placeData.userRatingsTotal,
+      photoUrls: placeData.photoUrls || [],
+      hours: placeData.hours || {},
+      phone: placeData.phone,
+      website: placeData.website,
+      address: placeData.address
+    };
+    
+    // Prepare update data
+    const updateData = {
+      placeData: essentialPlaceData,
+      placeData_updated_at: serverTimestamp()
+    };
+    
+    // Update the document with place data
+    await setDoc(docRef, updateData, { merge: true });
+    console.log(`Updated place data for location ${id}`);
+    
+    return true;
+  } catch (error) {
+    console.error(`Error updating place data for location ${id}:`, error);
+    // Don't throw - just return false to indicate failure
+    return false;
   }
 };
 
