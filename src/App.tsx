@@ -1,6 +1,11 @@
 // App.tsx
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate
+} from 'react-router-dom';
 import { MobileProvider, useMobile } from './contexts/MobileContext';
 import { UIStateProvider } from './contexts/UIStateContext';
 import { TouchProvider } from './contexts/TouchContext';
@@ -87,7 +92,12 @@ function App() {
     <MobileProvider>
       <UIStateProvider>
         <TouchProvider>
-          <Router>
+          <Router
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true
+            }}
+          >
             <Routes>
               <Route path="/" element={<MainApp />} />
               <Route path="/admin" element={<AdminLogin />} />
