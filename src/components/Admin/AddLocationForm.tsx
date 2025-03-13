@@ -221,34 +221,152 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <p className="text-sm font-medium text-gray-600">Name</p>
-              <p className="text-lg font-semibold">{previewData.name}</p>
+              <label className="text-sm font-medium text-gray-600">Name</label>
+              <input
+                type="text"
+                value={previewData.name}
+                onChange={(e) => setPreviewData({...previewData, name: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md mt-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
             </div>
             
             <div>
-              <p className="text-sm font-medium text-gray-600">Primary Type</p>
-              <p>{previewData.primaryType}</p>
+              <label className="text-sm font-medium text-gray-600">Primary Type</label>
+              <select
+                value={previewData.primaryType}
+                onChange={(e) => {
+                  const newPrimaryType = e.target.value;
+                  // Ensure the primary type is included in the types array
+                  const newTypes = previewData.types.includes(newPrimaryType)
+                    ? previewData.types
+                    : [...previewData.types, newPrimaryType];
+                  
+                  setPreviewData({
+                    ...previewData,
+                    primaryType: newPrimaryType,
+                    types: newTypes
+                  });
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md mt-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option value="indoor-play">Indoor Play</option>
+                <option value="outdoor-play">Outdoor Play</option>
+                <option value="sports">Sports</option>
+                <option value="arts">Arts</option>
+                <option value="music">Music</option>
+                <option value="education">Education</option>
+                <option value="entertainment">Entertainment</option>
+              </select>
             </div>
             
             <div>
-              <p className="text-sm font-medium text-gray-600">Address</p>
-              <p>{previewData.address}</p>
+              <label className="text-sm font-medium text-gray-600">Additional Types</label>
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                {['indoor-play', 'outdoor-play', 'sports', 'arts', 'music', 'education', 'entertainment'].map(type => (
+                  <label key={type} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={previewData.types.includes(type)}
+                      onChange={(e) => {
+                        let newTypes = [...previewData.types];
+                        if (e.target.checked) {
+                          if (!newTypes.includes(type)) {
+                            newTypes.push(type);
+                          }
+                        } else {
+                          // Don't allow removing the primary type
+                          if (type !== previewData.primaryType) {
+                            newTypes = newTypes.filter(t => t !== type);
+                          }
+                        }
+                        setPreviewData({...previewData, types: newTypes});
+                      }}
+                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm">{type.replace('-', ' ')}</span>
+                  </label>
+                ))}
+              </div>
             </div>
             
             <div>
-              <p className="text-sm font-medium text-gray-600">Age Range</p>
-              <p>{previewData.ageRange.min} - {previewData.ageRange.max} years</p>
+              <label className="text-sm font-medium text-gray-600">Address</label>
+              <input
+                type="text"
+                value={previewData.address}
+                onChange={(e) => setPreviewData({...previewData, address: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md mt-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
             </div>
             
             <div>
-              <p className="text-sm font-medium text-gray-600">Contact</p>
-              <p>Phone: {previewData.contact.phone || 'N/A'}</p>
-              <p>Website: {previewData.contact.website || 'N/A'}</p>
+              <label className="text-sm font-medium text-gray-600">Age Range</label>
+              <div className="flex items-center space-x-2 mt-1">
+                <select
+                  value={previewData.ageRange.min}
+                  onChange={(e) => {
+                    const min = parseInt(e.target.value);
+                    const max = Math.max(min, previewData.ageRange.max);
+                    setPreviewData({
+                      ...previewData,
+                      ageRange: { min, max }
+                    });
+                  }}
+                  className="w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  {Array.from({ length: 18 }, (_, i) => (
+                    <option key={i} value={i}>{i}</option>
+                  ))}
+                </select>
+                <span>to</span>
+                <select
+                  value={previewData.ageRange.max}
+                  onChange={(e) => {
+                    const max = parseInt(e.target.value);
+                    setPreviewData({
+                      ...previewData,
+                      ageRange: { ...previewData.ageRange, max }
+                    });
+                  }}
+                  className="w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  {Array.from({ length: 18 - previewData.ageRange.min }, (_, i) => i + previewData.ageRange.min).map(age => (
+                    <option key={age} value={age}>{age}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             
             <div>
-              <p className="text-sm font-medium text-gray-600">Coordinates</p>
-              <p>Lat: {previewData.coordinates.lat}, Lng: {previewData.coordinates.lng}</p>
+              <label className="text-sm font-medium text-gray-600">Contact</label>
+              <div className="space-y-2 mt-1">
+                <div>
+                  <label className="text-xs text-gray-500">Phone:</label>
+                  <input
+                    type="text"
+                    value={previewData.contact.phone || ''}
+                    onChange={(e) => setPreviewData({
+                      ...previewData,
+                      contact: {...previewData.contact, phone: e.target.value}
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Phone number"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Website:</label>
+                  <input
+                    type="text"
+                    value={previewData.contact.website || ''}
+                    onChange={(e) => setPreviewData({
+                      ...previewData,
+                      contact: {...previewData.contact, website: e.target.value}
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Website URL"
+                  />
+                </div>
+              </div>
             </div>
           </div>
           
