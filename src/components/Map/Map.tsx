@@ -9,6 +9,7 @@ import { useUIState } from '../../contexts/UIStateContext';
 import { useTouch } from '../../contexts/TouchContext';
 import MapBlockingOverlay from './MapBlockingOverlay';
 import { getLocations } from '../../utils/firebase-service';
+import { performEnhancedSearch, SearchMatch } from '../../utils/search-utils';
 
 // Using MobileContext instead of local mobile detection
 
@@ -20,11 +21,8 @@ interface MapProps {
   // No longer need locations as props, as we'll fetch them from Firebase
 }
 
-interface SearchResult {
-  location: Location;
-  matchField: string;
-  matchText: string;
-}
+// Using our enhanced SearchMatch type from search-utils.ts
+type SearchResult = SearchMatch;
 
 const activityConfig = {
   'indoor-play': { name: 'Indoor Play', color: '#FF4444' },
@@ -420,61 +418,33 @@ const MapComponent: React.FC<MapProps> = () => {
 
     // Debounce search for better performance
     const debounceTimeout = setTimeout(() => {
-      const nameMatches: SearchResult[] = [];
-      const addressMatches: SearchResult[] = [];
-      const descriptionMatches: SearchResult[] = [];
-      const searchLower = searchTerm.toLowerCase();
-      const resultMap = new Map<string, boolean>(); // Track unique locations by ID
-
-      locations.forEach(location => {
-        // Skip if we already added this location
-        if (resultMap.has(location.id)) return;
-        
-        // Check name match first (highest priority)
-        if (location.name.toLowerCase().includes(searchLower)) {
-          nameMatches.push({
-            location,
-            matchField: 'name',
-            matchText: location.name
-          });
-          resultMap.set(location.id, true);
-          return; // Skip checking other fields if name matches
-        }
-        
-        // Check address next (second priority)
-        if (location.address.toLowerCase().includes(searchLower)) {
-          addressMatches.push({
-            location,
-            matchField: 'address',
-            matchText: location.address
-          });
-          resultMap.set(location.id, true);
-          return;
-        }
-        
-        // Check description last (lowest priority)
-        if (location.description.toLowerCase().includes(searchLower)) {
-          descriptionMatches.push({
-            location,
-            matchField: 'description',
-            matchText: location.description
-          });
-          resultMap.set(location.id, true);
-        }
-      });
-
-      // Combine results in priority order: name > address > description
-      const results = [
-        ...nameMatches,
-        ...addressMatches,
-        ...descriptionMatches
-      ];
-
+      // Use our enhanced search function that understands activities and ages
+      const results = performEnhancedSearch(locations, searchTerm, activityConfig);
+      
       // Limit to first 10 results for better performance
       setSearchResults(results.slice(0, 10));
+      
+      // Debug log to verify search is working correctly
+      if (process.env.NODE_ENV === 'development') {
+        console.groupCollapsed(`Enhanced search for: "${searchTerm}"`);
+        console.log(`Found ${results.length} results`);
+        if (results.length > 0) {
+          console.table(results.map(r => ({
+            name: r.location.name,
+            matchField: r.matchField,
+            matchType: r.matchType,
+            priority: r.priority,
+            ageMatch: r.ageMatch,
+            activityMatch: r.activityMatch
+          })));
+        }
+        console.groupEnd();
+      }
     }, 150); // 150ms debounce
     
     return () => clearTimeout(debounceTimeout);
+  // activityConfig is defined at the module level and won't change between renders
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, locations]);
 
   // Get marker icon based on location's primary type or first type in the array
@@ -717,7 +687,12 @@ const MapComponent: React.FC<MapProps> = () => {
                   className="inline-block px-1.5 py-0.5 text-xs font-medium rounded-full"
                   style={{
                     backgroundColor: activityConfig[type].color + '20',
-                    color: activityConfig[type].color
+                    color: activityConfig[type].color,
+                    // Highlight activity types that matched the search query
+                    border: result.activityMatch &&
+                           result.matchField === 'activityType' &&
+                           result.location.types.includes(type) ?
+                           `1px solid ${activityConfig[type].color}` : 'none'
                   }}
                 >
                   {activityConfig[type].name}
@@ -740,12 +715,78 @@ const MapComponent: React.FC<MapProps> = () => {
               {result.location.address}
             </div>
             
-            {/* Show what matched if not the name */}
-            {result.matchField !== 'name' && result.matchField !== 'address' && (
-              <div className="text-xs text-blue-600 mt-1 truncate">
-                <span className="font-medium">Matched:</span> {result.matchText}
-              </div>
-            )}
+            {/* Enhanced match information - show why this result matched */}
+            <div className="flex flex-wrap mt-1 gap-x-2">
+              {/* Show match reason */}
+              {result.matchField === 'name' && (
+                <div className="text-xs text-green-600 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-0.5">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
+                  Name match
+                </div>
+              )}
+              
+              {result.matchField === 'activityType' && (
+                <div className="text-xs text-purple-600 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-0.5">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="22" y1="12" x2="18" y2="12"></line>
+                    <line x1="6" y1="12" x2="2" y2="12"></line>
+                    <line x1="12" y1="6" x2="12" y2="2"></line>
+                    <line x1="12" y1="22" x2="12" y2="18"></line>
+                  </svg>
+                  Activity: {result.matchText}
+                </div>
+              )}
+              
+              {result.matchField === 'ageRange' && (
+                <div className="text-xs text-orange-600 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-0.5">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                  </svg>
+                  {result.matchText}
+                </div>
+              )}
+              
+              {result.matchField === 'description' && (
+                <div className="text-xs text-blue-600 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-0.5">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  Matched description
+                </div>
+              )}
+              
+              {result.matchField === 'address' && (
+                <div className="text-xs text-blue-600 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-0.5">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                  </svg>
+                  Matched address
+                </div>
+              )}
+              
+              {/* Show age match indicator if matched by age and not already showing age match field */}
+              {result.ageMatch && result.matchField !== 'ageRange' && (
+                <div className="text-xs text-orange-600 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-0.5">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                  </svg>
+                  Ages {result.location.ageRange.min}-{result.location.ageRange.max}
+                </div>
+              )}
+            </div>
           </button>
         ))}
       </div>
@@ -794,7 +835,7 @@ const MapComponent: React.FC<MapProps> = () => {
                 <div className="flex-1 ml-2">
                   <input
                     type="text"
-                    placeholder="Search activities..."
+                    placeholder="Search by name, activity, age (e.g. 'swimming for 6 year old')..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
