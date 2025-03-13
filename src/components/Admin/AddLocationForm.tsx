@@ -393,6 +393,20 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
             </p>
           </div>
           
+          <div className="mb-4">
+            <p className="text-sm font-medium text-gray-600">Pro Tips</p>
+            <textarea
+              value={previewData.proTips || ''}
+              onChange={(e) => setPreviewData({...previewData, proTips: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md mt-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              rows={2}
+              placeholder="Add insider tips from people who've visited this location..."
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Provide practical, insider tips that aren't in the main description. Separate multiple tips with bullet points.
+            </p>
+          </div>
+          
           <div className="flex justify-end mt-4">
             <button
               onClick={() => setPreviewData(null)}

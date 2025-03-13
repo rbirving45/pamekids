@@ -269,6 +269,24 @@ const LocationEditor: React.FC<LocationEditorProps> = ({ locationId, onClose, on
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
           />
         </div>
+
+        {/* Pro Tips */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Pro Tips
+          </label>
+          <textarea
+            name="proTips"
+            value={location.proTips || ''}
+            onChange={handleChange}
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            placeholder="Add insider tips from people who've visited this location..."
+          />
+          <p className="mt-1 text-sm text-gray-500">
+            Provide practical, insider tips that aren't in the main description. Separate multiple tips with bullet points.
+          </p>
+        </div>
         
         {/* Price Range */}
         <div>

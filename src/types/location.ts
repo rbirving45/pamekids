@@ -31,6 +31,8 @@ export interface Location {
   };
   images?: string[];
   featured?: boolean;
+  // Pro Tips field - contains insider information for each location
+  proTips?: string;
   // Optional timestamps - these won't interfere with existing location processing
   created_at?: {
     seconds: number;
