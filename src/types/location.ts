@@ -31,12 +31,13 @@ export interface Location {
   };
   images?: string[];
   featured?: boolean;
+  // Optional timestamps - these won't interfere with existing location processing
   created_at?: {
     seconds: number;
     nanoseconds: number;
-  };
+  } | null;
   updated_at?: {
     seconds: number;
     nanoseconds: number;
-  };
+  } | null;
 }

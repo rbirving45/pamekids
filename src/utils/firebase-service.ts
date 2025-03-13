@@ -185,11 +185,30 @@ export const getLocations = async (): Promise<Location[]> => {
         const q = query(collection(db, COLLECTIONS.LOCATIONS));
         const querySnapshot = await getDocs(q);
         
-        // Process results
-        const locations = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Location[];
+        // Process results - ensure clean data for map initialization
+        const locations = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          // Ensure we're returning a valid Location object
+          const location: Location = {
+            id: doc.id,
+            name: data.name || '',
+            coordinates: data.coordinates || { lat: 0, lng: 0 },
+            types: data.types || [],
+            primaryType: data.primaryType || 'entertainment',
+            description: data.description || '',
+            address: data.address || '',
+            ageRange: data.ageRange || { min: 0, max: 16 },
+            priceRange: data.priceRange,
+            openingHours: data.openingHours || {},
+            contact: data.contact || {},
+            placeData: data.placeData,
+            images: data.images,
+            featured: data.featured,
+            created_at: data.created_at || null,
+            updated_at: data.updated_at || null
+          };
+          return location;
+        });
         
         // Update cache
         locationsCache = {
