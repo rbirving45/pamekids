@@ -100,7 +100,6 @@ const Drawer: React.FC<DrawerProps> = memo(({
   }, [drawerState]);
   
   // Determine which view to show on mobile
-  // Determine which view to show on mobile
   useEffect(() => {
     if (isMobile) {
       if (location) {

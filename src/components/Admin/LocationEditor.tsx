@@ -286,6 +286,11 @@ const LocationEditor: React.FC<LocationEditorProps> = ({ locationId, onClose, on
           <p className="mt-1 text-sm text-gray-500">
             Provide practical, insider tips that aren't in the main description. Separate multiple tips with bullet points.
           </p>
+          {process.env.NODE_ENV === 'development' && (
+            <p className="mt-1 text-xs text-blue-500">
+              Current proTips value: {JSON.stringify(location.proTips)}
+            </p>
+          )}
         </div>
         
         {/* Price Range */}

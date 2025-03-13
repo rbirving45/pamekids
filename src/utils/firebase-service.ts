@@ -158,14 +158,14 @@ let locationsCache: {
   pendingPromise: null
 };
 
-// Function to get all locations with caching and request deduplication
+  // Get all locations with caching and request deduplication
 export const getLocations = async (): Promise<Location[]> => {
   try {
     const now = Date.now();
     const cacheAge = now - locationsCache.timestamp;
     
-    // If we have a recent cache (last 30 seconds), use it
-    if (locationsCache.data && cacheAge < 30000) {
+    // If we have a recent cache (last 1 hour), use it
+    if (locationsCache.data && cacheAge < 3600000) {
       console.log('Using cached locations data (age: ' + Math.round(cacheAge/1000) + 's)');
       return locationsCache.data;
     }
@@ -204,6 +204,7 @@ export const getLocations = async (): Promise<Location[]> => {
             placeData: data.placeData,
             images: data.images,
             featured: data.featured,
+            proTips: data.proTips || '', // Add proTips field with empty string default
             created_at: data.created_at || null,
             updated_at: data.updated_at || null
           };
@@ -242,7 +243,28 @@ export const getLocationById = async (id: string): Promise<Location | null> => {
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() } as Location;
+      const data = docSnap.data();
+      // Explicitly ensure all fields are mapped correctly
+      const location: Location = {
+        id: docSnap.id,
+        name: data.name || '',
+        coordinates: data.coordinates || { lat: 0, lng: 0 },
+        types: data.types || [],
+        primaryType: data.primaryType || 'entertainment',
+        description: data.description || '',
+        address: data.address || '',
+        ageRange: data.ageRange || { min: 0, max: 16 },
+        priceRange: data.priceRange,
+        openingHours: data.openingHours || {},
+        contact: data.contact || {},
+        placeData: data.placeData,
+        images: data.images,
+        featured: data.featured,
+        proTips: data.proTips || '', // Add proTips with default
+        created_at: data.created_at || null,
+        updated_at: data.updated_at || null
+      };
+      return location;
     } else {
       return null;
     }
