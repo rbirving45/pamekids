@@ -10,7 +10,8 @@ import {
   deleteDoc,
   query, 
   Timestamp, 
-  DocumentData 
+  DocumentData,
+  serverTimestamp
 } from 'firebase/firestore';
 
 // Collection names
@@ -240,13 +241,20 @@ export const addLocation = async (location: Omit<Location, 'id'> & { id?: string
     
     console.log('Adding location:', location.name);
     
+    // Add timestamps
+    const locationWithTimestamps = {
+      ...location,
+      created_at: serverTimestamp(),
+      updated_at: serverTimestamp()
+    };
+    
     // If an ID is provided, use it, otherwise let Firebase generate one
     if (location.id) {
       const docRef = doc(db, COLLECTIONS.LOCATIONS, location.id);
-      await setDoc(docRef, location);
+      await setDoc(docRef, locationWithTimestamps);
       return { success: true, id: location.id };
     } else {
-      const docRef = await addDoc(collection(db, COLLECTIONS.LOCATIONS), location);
+      const docRef = await addDoc(collection(db, COLLECTIONS.LOCATIONS), locationWithTimestamps);
       return { success: true, id: docRef.id };
     }
   } catch (error) {
@@ -263,7 +271,14 @@ export const updateLocation = async (id: string, data: Partial<Location>) => {
     
     console.log(`Updating location with ID ${id}`);
     const docRef = doc(db, COLLECTIONS.LOCATIONS, id);
-    await setDoc(docRef, data, { merge: true });
+    
+    // Add the updated_at timestamp
+    const dataWithTimestamp = {
+      ...data,
+      updated_at: serverTimestamp()
+    };
+    
+    await setDoc(docRef, dataWithTimestamp, { merge: true });
     return { success: true, id };
   } catch (error) {
     console.error(`Error updating location with ID ${id}:`, error);

@@ -31,4 +31,12 @@ export interface Location {
   };
   images?: string[];
   featured?: boolean;
+  created_at?: {
+    seconds: number;
+    nanoseconds: number;
+  };
+  updated_at?: {
+    seconds: number;
+    nanoseconds: number;
+  };
 }

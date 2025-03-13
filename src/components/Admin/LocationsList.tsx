@@ -3,6 +3,10 @@ import { getLocations, deleteLocation } from '../../utils/firebase-service';
 import { Location } from '../../types/location';
 import LocationEditor from './LocationEditor';
 
+// Define supported sort options
+type SortField = 'name' | 'created_at' | 'updated_at';
+type SortDirection = 'asc' | 'desc';
+
 const LocationsList: React.FC = () => {
   const [locations, setLocations] = useState<Location[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -15,6 +19,10 @@ const LocationsList: React.FC = () => {
   const [activityTypeFilter, setActivityTypeFilter] = useState<string>('all');
   const [minAgeFilter, setMinAgeFilter] = useState<number | null>(null);
   const [maxAgeFilter, setMaxAgeFilter] = useState<number | null>(null);
+  
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   useEffect(() => {
     let isMounted = true;
@@ -75,6 +83,36 @@ const LocationsList: React.FC = () => {
     }
   };
 
+  // Helper function to format timestamp for display
+  const formatTimestamp = (timestamp: any): string => {
+    if (!timestamp) return 'N/A';
+    
+    // Handle Firestore timestamp objects
+    if (typeof timestamp === 'object' && timestamp.seconds) {
+      return new Date(timestamp.seconds * 1000).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+    
+    // Handle ISO string dates
+    try {
+      return new Date(timestamp).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      console.error('Error formatting date:', e);
+      return 'Invalid date';
+    }
+  };
+
   // Ensure all locations have a valid ID to use as a key
   // Filter locations based on search query and filters
   const filteredLocations = useMemo(() => {
@@ -103,8 +141,30 @@ const LocationsList: React.FC = () => {
         }
         
         return true;
+      })
+      .sort((a, b) => {
+        // Sort by selected field
+        if (sortField === 'name') {
+          const nameA = a.name.toLowerCase();
+          const nameB = b.name.toLowerCase();
+          return sortDirection === 'asc'
+            ? nameA.localeCompare(nameB)
+            : nameB.localeCompare(nameA);
+        }
+        
+        if (sortField === 'created_at' || sortField === 'updated_at') {
+          // Get timestamp values, defaulting to 0 if not available
+          const timeA = a[sortField]?.seconds || 0;
+          const timeB = b[sortField]?.seconds || 0;
+          
+          return sortDirection === 'asc'
+            ? timeA - timeB  // Oldest to newest
+            : timeB - timeA; // Newest to oldest
+        }
+        
+        return 0;
       });
-  }, [locations, searchQuery, activityTypeFilter, minAgeFilter, maxAgeFilter]);
+  }, [locations, searchQuery, activityTypeFilter, minAgeFilter, maxAgeFilter, sortField, sortDirection]);
 
   // Ensure all locations have a valid ID to use as a key
   const locationsWithValidKeys = filteredLocations.map((location, index) => {
@@ -244,19 +304,72 @@ const LocationsList: React.FC = () => {
           </div>
         </div>
         
-        {/* Filter Reset Button */}
-        <div className="mt-4 flex justify-end">
-          <button
-            onClick={() => {
-              setSearchQuery('');
-              setActivityTypeFilter('all');
-              setMinAgeFilter(null);
-              setMaxAgeFilter(null);
-            }}
-            className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-100"
-          >
-            Reset Filters
-          </button>
+        {/* Sort Controls */}
+        <div className="mt-4 border-t pt-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <label className="text-sm font-medium text-gray-700">Sort by:</label>
+            
+            <div className="flex">
+              <button
+                onClick={() => {
+                  setSortField('name');
+                  setSortDirection(sortField === 'name' && sortDirection === 'asc' ? 'desc' : 'asc');
+                }}
+                className={`px-3 py-1 text-sm rounded-l ${
+                  sortField === 'name'
+                    ? 'bg-blue-100 text-blue-800 font-medium'
+                    : 'bg-gray-100 text-gray-800'
+                }`}
+              >
+                Name {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </button>
+              
+              <button
+                onClick={() => {
+                  setSortField('created_at');
+                  setSortDirection(sortField === 'created_at' && sortDirection === 'desc' ? 'asc' : 'desc');
+                }}
+                className={`px-3 py-1 text-sm ${
+                  sortField === 'created_at'
+                    ? 'bg-blue-100 text-blue-800 font-medium'
+                    : 'bg-gray-100 text-gray-800'
+                }`}
+              >
+                Date Added {sortField === 'created_at' && (sortDirection === 'desc' ? '↓' : '↑')}
+              </button>
+              
+              <button
+                onClick={() => {
+                  setSortField('updated_at');
+                  setSortDirection(sortField === 'updated_at' && sortDirection === 'desc' ? 'asc' : 'desc');
+                }}
+                className={`px-3 py-1 text-sm rounded-r ${
+                  sortField === 'updated_at'
+                    ? 'bg-blue-100 text-blue-800 font-medium'
+                    : 'bg-gray-100 text-gray-800'
+                }`}
+              >
+                Last Updated {sortField === 'updated_at' && (sortDirection === 'desc' ? '↓' : '↑')}
+              </button>
+            </div>
+            
+            {/* Filter Reset Button */}
+            <div className="ml-auto">
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setActivityTypeFilter('all');
+                  setMinAgeFilter(null);
+                  setMaxAgeFilter(null);
+                  setSortField('name');
+                  setSortDirection('asc');
+                }}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-100"
+              >
+                Reset All
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -276,13 +389,14 @@ const LocationsList: React.FC = () => {
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age Range</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Added / Updated</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {locationsWithValidKeys.length === 0 ? (
               <tr key="empty-row">
-                <td colSpan={5} className="px-4 py-4 text-center text-gray-500">
+                <td colSpan={6} className="px-4 py-4 text-center text-gray-500">
                   {locations.length === 0 ?
                     "No locations found. Add a location to get started." :
                     "No locations match your search criteria. Try adjusting your filters."}
@@ -312,6 +426,10 @@ const LocationsList: React.FC = () => {
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-500 max-w-xs truncate">
                     {location.address}
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <div>Added: {formatTimestamp(location.created_at)}</div>
+                    <div>Updated: {formatTimestamp(location.updated_at)}</div>
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                     <button
