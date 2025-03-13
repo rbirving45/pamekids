@@ -165,11 +165,13 @@ export const getLocations = async (): Promise<Location[]> => {
     
     // If we have a recent cache (last 30 seconds), use it
     if (locationsCache.data && cacheAge < 30000) {
+      console.log('Using cached locations data (age: ' + Math.round(cacheAge/1000) + 's)');
       return locationsCache.data;
     }
     
     // If there's already a pending request, return that promise instead of starting a new one
     if (locationsCache.pendingPromise) {
+      console.log('Reusing in-flight locations request');
       return locationsCache.pendingPromise;
     }
     
