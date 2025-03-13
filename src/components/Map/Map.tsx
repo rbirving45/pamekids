@@ -950,7 +950,8 @@ const MapComponent: React.FC<MapProps> = () => {
 
               return filteredLocations.map(location => (
                 <Marker
-                  key={location.id}
+                  // Ensure we always have a valid, unique key - never empty string
+                  key={`location-marker-${location.id || Math.random().toString(36).substring(2, 9)}`}
                   position={location.coordinates}
                   onClick={() => {
                     // Add a slight delay on mobile to allow map panning to complete first
@@ -997,6 +998,7 @@ const MapComponent: React.FC<MapProps> = () => {
             {/* User location marker */}
             {maps && (
               <Marker
+                key="user-location-marker" // Add a unique key for user location marker
                 position={userLocation}
                 icon={getUserLocationIcon()}
                 options={{

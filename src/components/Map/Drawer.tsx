@@ -52,8 +52,12 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // Use TouchContext hook with all needed properties - moved before any conditional returns
   const { drawerState, setDrawerState, handleTouchStart, handleTouchMove, handleTouchEnd, isPartialDrawer, setContentScrollPosition } = useTouch();
   
-  // Debug log to verify TouchContext is available
-  console.log('TouchContext drawer state:', drawerState);
+  // Debug log to verify TouchContext is available (only in development)
+  if (process.env.NODE_ENV === 'development') {
+    console.groupCollapsed('TouchContext initialization');
+    console.log('Initial drawer state:', drawerState);
+    console.groupEnd();
+  }
   
   const [placeData, setPlaceData] = useState<Location['placeData']>();
   const [isLoading, setIsLoading] = useState(false);
@@ -85,7 +89,10 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // This effect is now only for logging purposes in development
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
-      console.log('Drawer state changed:', drawerState);
+      // Using console.groupCollapsed to minimize console clutter
+      console.groupCollapsed(`Drawer state changed: ${drawerState}`);
+      console.log('Drawer state updated at:', new Date().toISOString());
+      console.groupEnd();
     }
   }, [drawerState]);
   
