@@ -6,6 +6,7 @@ import {
   getCacheInfo,
   estimateCacheSize
 } from '../../utils/cache-manager';
+import { forcePhotoUpdatesForAllLocations } from '../../utils/firebase-service';
 
 const CacheManager: React.FC = () => {
   const [cacheInfo, setCacheInfo] = useState({
@@ -16,6 +17,7 @@ const CacheManager: React.FC = () => {
   });
   const [cacheSize, setCacheSize] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdatingPhotos, setIsUpdatingPhotos] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   // Load cache information
@@ -98,6 +100,34 @@ const CacheManager: React.FC = () => {
           text: 'Failed to clear all caches',
           type: 'error'
         });
+      }
+    }
+  };
+  
+  // Handle force photo updates for all locations
+  const handleForcePhotoUpdates = async () => {
+    if (window.confirm('This will fetch fresh photos for ALL locations from Google Places API. This may take several minutes and could incur API costs. Continue?')) {
+      try {
+        setIsUpdatingPhotos(true);
+        setMessage({
+          text: 'Photo update started. This may take several minutes...',
+          type: 'info'
+        });
+        
+        const result = await forcePhotoUpdatesForAllLocations();
+        
+        setMessage({
+          text: `Photos updated successfully! ${result.success} locations updated, ${result.failed} failed.`,
+          type: 'success'
+        });
+      } catch (error) {
+        console.error('Error updating photos:', error);
+        setMessage({
+          text: error instanceof Error ? error.message : 'Failed to update photos',
+          type: 'error'
+        });
+      } finally {
+        setIsUpdatingPhotos(false);
       }
     }
   };
@@ -245,6 +275,20 @@ const CacheManager: React.FC = () => {
                   className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                 >
                   Refresh Cache Statistics
+                </button>
+              </div>
+              
+              <div className="p-3 bg-white border border-indigo-200 rounded-md">
+                <h4 className="font-medium text-indigo-700 mb-2">Force Update Location Photos</h4>
+                <p className="text-sm text-gray-600 mb-3">
+                  Fetch fresh photos for all locations from Google Places API. Use this to fix missing photos.
+                </p>
+                <button
+                  onClick={handleForcePhotoUpdates}
+                  disabled={isUpdatingPhotos}
+                  className="w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed"
+                >
+                  {isUpdatingPhotos ? 'Updating Photos...' : 'Update All Location Photos'}
                 </button>
               </div>
             </div>

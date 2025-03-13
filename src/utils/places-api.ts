@@ -118,8 +118,10 @@ export async function fetchPlaceDetails(
   // No valid cache or force refresh, fetch from API
   return new Promise((resolve, reject) => {
     try {
-      // Create a Places service instance
+    // Create a Places service instance
       const service = new maps.places.PlacesService(document.createElement('div'));
+      
+      console.log(`Fetching place details for ${placeId} from Google Places API...`);
       
       // Request place details
       service.getDetails(
@@ -143,18 +145,32 @@ export async function fetchPlaceDetails(
             let photoUrls: string[] = [];
             
             if (result.photos && result.photos.length > 0) {
-              // Get up to 5 photo URLs
-              photoUrls = result.photos
-                .slice(0, 5)
-                .map(photo => {
-                  try {
-                    return photo.getUrl({ maxHeight: 500, maxWidth: 800 });
-                  } catch (e) {
-                    console.warn('Error fetching photo URL', e);
-                    return null;
-                  }
-                })
-                .filter(Boolean) as string[];
+              try {
+                // Get up to 10 photo URLs (increased from 5)
+                photoUrls = result.photos
+                  .slice(0, 10)
+                  .map(photo => {
+                    try {
+                      const url = photo.getUrl({ maxHeight: 500, maxWidth: 800 });
+                      return url;
+                    } catch (e) {
+                      console.warn('Error fetching photo URL for place ' + placeId, e);
+                      return null;
+                    }
+                  })
+                  .filter(Boolean) as string[];
+                
+                // Log photo extraction results
+                if (photoUrls.length > 0) {
+                  console.log(`Successfully extracted ${photoUrls.length} photos for place ${placeId}`);
+                } else {
+                  console.warn(`Failed to extract any photo URLs for place ${placeId} despite having ${result.photos.length} photos`);
+                }
+              } catch (photoError) {
+                console.error(`Error processing photos for place ${placeId}:`, photoError);
+              }
+            } else {
+              console.log(`No photos available for place ${placeId}`);
             }
             
             // Format opening hours
@@ -187,6 +203,27 @@ export async function fetchPlaceDetails(
             
             // Cache the response
             savePlaceDetailsToCache(placeId, placeData, photoUrls);
+            
+            // If we have photo URLs, update Firebase data in the background
+            if (photoUrls.length > 0) {
+              // Import and use updateLocationPlaceData without blocking main flow
+              import('./firebase-service').then(service => {
+                if (typeof service.updateLocationPlaceData === 'function') {
+                  // Update in the background, but don't wait for result
+                  service.updateLocationPlaceData(placeId, placeData)
+                    .then(updated => {
+                      if (updated) {
+                        console.log(`Successfully saved ${photoUrls.length} photos to Firebase for place ${placeId}`);
+                      }
+                    })
+                    .catch(err => {
+                      console.warn(`Background Firebase photo update failed for ${placeId}`, err);
+                    });
+                }
+              }).catch(err => {
+                console.warn('Failed to import firebase-service module:', err);
+              });
+            }
             
             resolve(placeData);
           } else {

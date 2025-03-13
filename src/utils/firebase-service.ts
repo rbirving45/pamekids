@@ -147,6 +147,128 @@ export const getActivitySuggestions = async (): Promise<DocumentData[]> => {
 
 // Location functions
 
+// Function to force photo updates for all locations (admin only)
+export const forcePhotoUpdatesForAllLocations = async (): Promise<{success: number, failed: number}> => {
+  try {
+    // Verify admin authentication
+    verifyAdminAuth();
+    
+    console.log('Starting force photo updates for all locations...');
+    const locations = await getLocations(true); // Get fresh data
+    
+    let successCount = 0;
+    let failedCount = 0;
+    
+    // Process in batches to avoid overwhelming the API
+    const batchSize = 5;
+    for (let i = 0; i < locations.length; i += batchSize) {
+      const batch = locations.slice(i, i + batchSize);
+      
+      console.log(`Processing batch ${i/batchSize + 1}/${Math.ceil(locations.length/batchSize)} (${batch.length} locations)`);
+      
+      // Process batch in parallel
+      const results = await Promise.allSettled(batch.map(async (location) => {
+        try {
+          // Skip if no valid Google Places ID
+          if (!location.id) {
+            console.warn(`Location has no valid ID: ${location.name}`);
+            return false;
+          }
+          
+          // Ensure Google Maps API is loaded
+          if (!window.google || !window.google.maps) {
+            throw new Error('Google Maps API not loaded');
+          }
+          
+          // Import places-api module dynamically
+          const placesApi = await import('./places-api');
+          
+          // Fetch fresh place details with force refresh
+          const placeData = await placesApi.fetchPlaceDetails(
+            location.id,
+            window.google.maps,
+            true // Force refresh
+          );
+          
+          // If we have photos, update the location
+          if (placeData && placeData.photoUrls && placeData.photoUrls.length > 0) {
+            // Force update regardless of last update time
+            await updatePhotoUrlsForLocation(location.id, placeData.photoUrls);
+            return true;
+          } else {
+            console.warn(`No photos found for location: ${location.name} (${location.id})`);
+            return false;
+          }
+        } catch (error) {
+          console.error(`Failed to update photos for ${location.name}:`, error);
+          return false;
+        }
+      }));
+      
+      // Create local counters to avoid the loop-func issue
+      let batchSuccessCount = 0;
+      let batchFailedCount = 0;
+      
+      // Count successes and failures
+      results.forEach(result => {
+        if (result.status === 'fulfilled' && result.value === true) {
+          batchSuccessCount++;
+        } else {
+          batchFailedCount++;
+        }
+      });
+      
+      // Update our overall counters
+      successCount += batchSuccessCount;
+      failedCount += batchFailedCount;
+      
+      // Wait a bit between batches to avoid rate limits
+      if (i + batchSize < locations.length) {
+        console.log(`Waiting before processing next batch...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+    
+    console.log(`Completed force photo updates: ${successCount} succeeded, ${failedCount} failed`);
+    return { success: successCount, failed: failedCount };
+  } catch (error) {
+    console.error('Error in force photo updates:', error);
+    throw new Error(formatFirestoreError(error));
+  }
+};
+
+// Function to update only photo URLs for a location
+const updatePhotoUrlsForLocation = async (id: string, photoUrls: string[]): Promise<boolean> => {
+  try {
+    if (!id || !photoUrls || photoUrls.length === 0) {
+      return false;
+    }
+    
+    const docRef = doc(db, COLLECTIONS.LOCATIONS, id);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      return false;
+    }
+    
+    // Update only the photoUrls field in placeData
+    const updateData = {
+      placeData: {
+        photoUrls: photoUrls
+      },
+      placeData_updated_at: serverTimestamp()
+    };
+    
+    await setDoc(docRef, updateData, { merge: true });
+    console.log(`Updated ${photoUrls.length} photo URLs for location ${id}`);
+    
+    return true;
+  } catch (error) {
+    console.error(`Error updating photo URLs for location ${id}:`, error);
+    return false;
+  }
+};
+
 // Cache constants
 const CACHE_KEYS = {
   LOCATIONS_LIST: 'pamekids_locations_cache',
@@ -524,16 +646,49 @@ export const updateLocationPlaceData = async (id: string, placeData: any): Promi
       return false;
     }
     
+    // Get existing photo URLs if available and non-empty
+    const existingPhotoUrls = existingData.placeData?.photoUrls || [];
+    
+    // Get the new photo URLs
+    const newPhotoUrls = placeData.photoUrls || [];
+    
+    // If we have new photos, use them. Otherwise, keep the existing ones
+    const photoUrlsToUse = newPhotoUrls.length > 0 ? newPhotoUrls : existingPhotoUrls;
+    
+    // Log photo status for debugging
+    if (newPhotoUrls.length === 0) {
+      console.warn(`No new photos for location ${id}, using ${existingPhotoUrls.length} existing photos`);
+    } else {
+      console.log(`Updating location ${id} with ${newPhotoUrls.length} new photos`);
+    }
+    
     // Extract only the essential data we want to store (to save storage/bandwidth)
-    const essentialPlaceData = {
+    const essentialPlaceData: {
+      rating: any;
+      userRatingsTotal: any;
+      photoUrls: any[];
+      hours: Record<string, string>;
+      phone: any;
+      website: any;
+      address: any;
+      photoUrlsStatus?: string;
+    } = {
       rating: placeData.rating,
       userRatingsTotal: placeData.userRatingsTotal,
-      photoUrls: placeData.photoUrls || [],
+      photoUrls: photoUrlsToUse,
       hours: placeData.hours || {},
       phone: placeData.phone,
       website: placeData.website,
       address: placeData.address
     };
+    
+    // Ensure we always store some photo data for troubleshooting
+    if (photoUrlsToUse.length === 0) {
+      essentialPlaceData.photoUrlsStatus = 'No photos available';
+      if (placeData.photos && placeData.photos.length > 0) {
+        essentialPlaceData.photoUrlsStatus = 'Photos object exists but URL extraction failed';
+      }
+    }
     
     // Prepare update data
     const updateData = {
@@ -543,7 +698,7 @@ export const updateLocationPlaceData = async (id: string, placeData: any): Promi
     
     // Update the document with place data
     await setDoc(docRef, updateData, { merge: true });
-    console.log(`Updated place data for location ${id}`);
+    console.log(`Updated place data for location ${id} with ${photoUrlsToUse.length} photos`);
     
     return true;
   } catch (error) {
