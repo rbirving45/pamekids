@@ -420,7 +420,9 @@ const MapComponent: React.FC<MapProps> = () => {
 
     // Debounce search for better performance
     const debounceTimeout = setTimeout(() => {
-      const results: SearchResult[] = [];
+      const nameMatches: SearchResult[] = [];
+      const addressMatches: SearchResult[] = [];
+      const descriptionMatches: SearchResult[] = [];
       const searchLower = searchTerm.toLowerCase();
       const resultMap = new Map<string, boolean>(); // Track unique locations by ID
 
@@ -428,8 +430,9 @@ const MapComponent: React.FC<MapProps> = () => {
         // Skip if we already added this location
         if (resultMap.has(location.id)) return;
         
+        // Check name match first (highest priority)
         if (location.name.toLowerCase().includes(searchLower)) {
-          results.push({
+          nameMatches.push({
             location,
             matchField: 'name',
             matchText: location.name
@@ -438,27 +441,37 @@ const MapComponent: React.FC<MapProps> = () => {
           return; // Skip checking other fields if name matches
         }
         
-        if (location.description.toLowerCase().includes(searchLower)) {
-          results.push({
-            location,
-            matchField: 'description',
-            matchText: location.description
-          });
-          resultMap.set(location.id, true);
-          return;
-        }
-        
+        // Check address next (second priority)
         if (location.address.toLowerCase().includes(searchLower)) {
-          results.push({
+          addressMatches.push({
             location,
             matchField: 'address',
             matchText: location.address
           });
           resultMap.set(location.id, true);
+          return;
+        }
+        
+        // Check description last (lowest priority)
+        if (location.description.toLowerCase().includes(searchLower)) {
+          descriptionMatches.push({
+            location,
+            matchField: 'description',
+            matchText: location.description
+          });
+          resultMap.set(location.id, true);
         }
       });
 
-      setSearchResults(results);
+      // Combine results in priority order: name > address > description
+      const results = [
+        ...nameMatches,
+        ...addressMatches,
+        ...descriptionMatches
+      ];
+
+      // Limit to first 10 results for better performance
+      setSearchResults(results.slice(0, 10));
     }, 150); // 150ms debounce
     
     return () => clearTimeout(debounceTimeout);
@@ -690,12 +703,49 @@ const MapComponent: React.FC<MapProps> = () => {
             key={`${result.location.id}-${result.matchField}-${index}`}
             onClick={() => handleSearchSelect(result.location)}
             data-search-result="true"
-            className="w-full p-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-0"
+            className="w-full py-2 px-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-0 flex flex-col"
           >
-            <p className="font-medium">{result.location.name}</p>
-            <p className="text-sm text-gray-600 truncate">
-              {result.matchText}
-            </p>
+            {/* Location name is always shown as the primary text */}
+            <div className="font-medium text-gray-900 mb-1">{result.location.name}</div>
+            
+            {/* Activity type badges */}
+            <div className="flex flex-wrap gap-1 mb-1">
+              {/* Show only first 3 types on mobile to save space */}
+              {result.location.types.slice(0, isMobile ? 2 : 3).map(type => (
+                <span
+                  key={type}
+                  className="inline-block px-1.5 py-0.5 text-xs font-medium rounded-full"
+                  style={{
+                    backgroundColor: activityConfig[type].color + '20',
+                    color: activityConfig[type].color
+                  }}
+                >
+                  {activityConfig[type].name}
+                </span>
+              ))}
+              {/* Show indicator for additional types if there are more than shown */}
+              {result.location.types.length > (isMobile ? 2 : 3) && (
+                <span className="inline-block px-1.5 py-0.5 text-xs font-medium text-gray-500">
+                  +{result.location.types.length - (isMobile ? 2 : 3)} more
+                </span>
+              )}
+            </div>
+            
+            {/* Location address */}
+            <div className="text-xs text-gray-600 truncate flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1 flex-shrink-0">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+              {result.location.address}
+            </div>
+            
+            {/* Show what matched if not the name */}
+            {result.matchField !== 'name' && result.matchField !== 'address' && (
+              <div className="text-xs text-blue-600 mt-1 truncate">
+                <span className="font-medium">Matched:</span> {result.matchText}
+              </div>
+            )}
           </button>
         ))}
       </div>
