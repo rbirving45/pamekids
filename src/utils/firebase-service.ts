@@ -146,16 +146,67 @@ export const getActivitySuggestions = async (): Promise<DocumentData[]> => {
 
 // Location functions
 
-// Function to get all locations
+// In-memory cache for locations
+let locationsCache: {
+  data: Location[] | null;
+  timestamp: number;
+  pendingPromise: Promise<Location[]> | null;
+} = {
+  data: null,
+  timestamp: 0,
+  pendingPromise: null
+};
+
+// Function to get all locations with caching and request deduplication
 export const getLocations = async (): Promise<Location[]> => {
   try {
+    const now = Date.now();
+    const cacheAge = now - locationsCache.timestamp;
+    
+    // If we have a recent cache (last 30 seconds), use it
+    if (locationsCache.data && cacheAge < 30000) {
+      return locationsCache.data;
+    }
+    
+    // If there's already a pending request, return that promise instead of starting a new one
+    if (locationsCache.pendingPromise) {
+      return locationsCache.pendingPromise;
+    }
+    
+    // Start a new fetch operation
     console.log('Fetching locations from Firebase...');
-    const q = query(collection(db, COLLECTIONS.LOCATIONS));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Location[];
+    
+    // Create the promise and store it
+    const fetchPromise = (async () => {
+      try {
+        const q = query(collection(db, COLLECTIONS.LOCATIONS));
+        const querySnapshot = await getDocs(q);
+        
+        // Process results
+        const locations = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Location[];
+        
+        // Update cache
+        locationsCache = {
+          data: locations,
+          timestamp: Date.now(),
+          pendingPromise: null
+        };
+        
+        return locations;
+      } catch (error) {
+        // Clean up the pending promise on error
+        locationsCache.pendingPromise = null;
+        throw error;
+      }
+    })();
+    
+    // Store the promise in the cache
+    locationsCache.pendingPromise = fetchPromise;
+    
+    return fetchPromise;
   } catch (error) {
     console.error('Error getting locations:', error);
     throw new Error(formatFirestoreError(error));

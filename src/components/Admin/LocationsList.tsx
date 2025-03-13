@@ -11,21 +11,45 @@ const LocationsList: React.FC = () => {
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
+    let isMounted = true;
+    
+    // Use a more discreet console group for debugging
+    const fetchId = Math.random().toString(36).substring(2, 8);
+    
     const fetchLocations = async () => {
       try {
-        setIsLoading(true);
+        if (isMounted) setIsLoading(true);
+        
+        // More discreet log that won't clutter the console as much
+        if (process.env.NODE_ENV === 'development') {
+          console.groupCollapsed(`Locations fetch [${fetchId}]`);
+          console.log('Starting location fetch operation...');
+          console.groupEnd();
+        }
+        
         const locationData = await getLocations();
-        setLocations(locationData);
-        setError(null);
+        
+        // Only update state if component is still mounted
+        if (isMounted) {
+          setLocations(locationData);
+          setError(null);
+          setIsLoading(false);
+        }
       } catch (err) {
-        console.error('Error fetching locations:', err);
-        setError('Failed to load locations. Please try again.');
-      } finally {
-        setIsLoading(false);
+        console.error(`Error fetching locations [${fetchId}]:`, err);
+        if (isMounted) {
+          setError('Failed to load locations. Please try again.');
+          setIsLoading(false);
+        }
       }
     };
 
     fetchLocations();
+    
+    // Cleanup function to prevent state updates after unmounting
+    return () => {
+      isMounted = false;
+    };
   }, [refreshKey]);
 
   const handleEdit = (locationId: string) => {
