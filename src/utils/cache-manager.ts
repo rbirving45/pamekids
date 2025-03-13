@@ -15,7 +15,20 @@ const CACHE_KEYS = {
  */
 export const clearLocationsCache = (): boolean => {
   try {
+    // Remove from localStorage
     localStorage.removeItem(CACHE_KEYS.LOCATIONS_LIST);
+    
+    // Also clear firebase-service cache by importing and calling its clearLocationsCache
+    // This ensures complete cache clearing
+    import('./firebase-service').then(module => {
+      // Clear internal cache in firebase-service too
+      if (typeof module.clearLocationsCache === 'function') {
+        module.clearLocationsCache();
+      }
+    }).catch(err => {
+      console.warn('Could not clear firebase-service cache:', err);
+    });
+    
     console.log('Locations cache cleared successfully');
     return true;
   } catch (error) {

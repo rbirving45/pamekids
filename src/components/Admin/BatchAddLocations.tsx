@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { addLocation } from '../../utils/firebase-service';
+import { addLocation, getLocations } from '../../utils/firebase-service';
 import { fetchPlaceDetails } from '../../utils/places-api';
 import { generatePlaceDescription } from '../../utils/description-generator';
 import { ActivityType } from '../../types/location';
@@ -197,6 +197,11 @@ const BatchAddLocations: React.FC<BatchAddLocationsProps> = ({ onComplete }) => 
     }
 
     setIsProcessing(false);
+    
+    // Force a refresh of the locations data
+    await getLocations(true);
+    
+    // Notify the parent component to refresh its view
     if (onComplete) onComplete();
   };
 

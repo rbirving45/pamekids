@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { addLocation } from '../../utils/firebase-service';
+import { addLocation, getLocations } from '../../utils/firebase-service';
 import { fetchPlaceDetails } from '../../utils/places-api';
 import { generatePlaceDescription } from '../../utils/description-generator';
 import PlaceSearch from './PlaceSearch';
@@ -186,6 +186,10 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
       
       console.log('Saving location with ID:', locationData.id);
       await addLocation(locationData);
+      
+      // Force a refresh of the locations data to update the admin UI
+      await getLocations(true);
+      
       setPlaceId('');
       setPreviewData(null);
       if (onLocationAdded) {

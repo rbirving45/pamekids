@@ -202,27 +202,54 @@ const saveLocationsToLocalStorage = (locations: Location[]) => {
     
     // Set cache version
     localStorage.setItem(CACHE_KEYS.CACHE_VERSION, CACHE_VERSION);
-    
-    // Store locations data
     localStorage.setItem(CACHE_KEYS.LOCATIONS_LIST, JSON.stringify(cacheData));
-    return true;
   } catch (error) {
     console.warn('Error saving to localStorage cache:', error);
-    // Likely a quota exceeded error or private browsing mode
+  }
+};
+
+// Function to clear the cache - called after admin operations
+export const clearLocationsCache = () => {
+  try {
+    // Reset the memory cache
+    locationsCache = {
+      data: null,
+      timestamp: 0,
+      pendingPromise: null
+    };
+    
+    // Clear localStorage cache
+    localStorage.removeItem(CACHE_KEYS.LOCATIONS_LIST);
+    console.log('Locations cache cleared successfully');
+    return true;
+  } catch (error) {
+    console.error('Error clearing locations cache:', error);
     return false;
   }
 };
 
 // Get all locations with caching and request deduplication
-export const getLocations = async (): Promise<Location[]> => {
+export const getLocations = async (forceRefresh = false): Promise<Location[]> => {
   try {
     const now = Date.now();
     
-    // Check memory cache first (most efficient)
-    const memCacheAge = now - locationsCache.timestamp;
-    if (locationsCache.data && memCacheAge < CACHE_EXPIRATION_MS) {
-      console.log(`Using in-memory cached locations (age: ${Math.round(memCacheAge/1000)}s)`);
-      return locationsCache.data;
+    // If forceRefresh is set, skip all caches
+    if (forceRefresh) {
+      console.log('Force refreshing locations from Firebase...');
+      // Reset cache state to ensure we do a fresh fetch
+      locationsCache.data = null;
+      locationsCache.timestamp = 0;
+      locationsCache.pendingPromise = null;
+      
+      // Also clear localStorage cache when force refreshing
+      localStorage.removeItem(CACHE_KEYS.LOCATIONS_LIST);
+    } else {
+      // Check memory cache first (most efficient)
+      const memCacheAge = now - locationsCache.timestamp;
+      if (locationsCache.data && memCacheAge < CACHE_EXPIRATION_MS) {
+        console.log(`Using in-memory cached locations (age: ${Math.round(memCacheAge/1000)}s)`);
+        return locationsCache.data;
+      }
     }
     
     // Next, check localStorage cache
@@ -230,7 +257,7 @@ export const getLocations = async (): Promise<Location[]> => {
     const localStorageCacheAge = now - localStorageTimestamp;
     
     // If localStorage has valid cache, use it and update memory cache
-    if (localStorageData && localStorageCacheAge < CACHE_EXPIRATION_MS) {
+    if (localStorageData && localStorageCacheAge < CACHE_EXPIRATION_MS && !forceRefresh) {
       console.log(`Using localStorage cached locations (age: ${Math.round(localStorageCacheAge/60000)}m)`);
       
       // Update memory cache
@@ -359,7 +386,7 @@ export const getLocationById = async (id: string): Promise<Location | null> => {
 };
 
 // Function to add a new location (for admin use)
-export const addLocation = async (location: Omit<Location, 'id'> & { id?: string }) => {
+export const addLocation = async (location: Location) => {
   try {
     // Verify admin authentication
     verifyAdminAuth();
@@ -387,11 +414,19 @@ export const addLocation = async (location: Omit<Location, 'id'> & { id?: string
       const { id: _, ...locationData } = locationWithTimestamps;
       
       await setDoc(docRef, locationData);
+      
+      // Clear cache to ensure admin UI is updated immediately
+      clearLocationsCache();
+      
       return { success: true, id };
     } else {
       // Fallback only if no ID is provided (should be rare)
       console.warn('No ID provided for location - using Firebase generated ID instead');
       const docRef = await addDoc(collection(db, COLLECTIONS.LOCATIONS), locationWithTimestamps);
+      
+      // Clear cache to ensure admin UI is updated immediately
+      clearLocationsCache();
+      
       return { success: true, id: docRef.id };
     }
   } catch (error) {
@@ -448,6 +483,10 @@ export const updateLocation = async (id: string, data: Partial<Location>) => {
     };
     
     await setDoc(docRef, dataWithTimestamp, { merge: true });
+    
+    // Clear locations cache to ensure immediate refresh in admin UI
+    clearLocationsCache();
+    
     return { success: true, id };
   } catch (error) {
     console.error(`Error updating location with ID ${id}:`, error);
@@ -523,6 +562,10 @@ export const deleteLocation = async (id: string) => {
     console.log(`Deleting location with ID ${id}`);
     const docRef = doc(db, COLLECTIONS.LOCATIONS, id);
     await deleteDoc(docRef);
+    
+    // Clear locations cache to ensure immediate refresh in admin UI
+    clearLocationsCache();
+    
     return { success: true, id };
   } catch (error) {
     console.error(`Error deleting location with ID ${id}:`, error);

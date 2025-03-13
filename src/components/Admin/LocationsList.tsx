@@ -41,7 +41,8 @@ const LocationsList: React.FC = () => {
           console.groupEnd();
         }
         
-        const locationData = await getLocations();
+        // Force refresh from Firebase when the admin component loads
+        const locationData = await getLocations(true);
         
         // Only update state if component is still mounted
         if (isMounted) {
@@ -74,7 +75,11 @@ const LocationsList: React.FC = () => {
     if (window.confirm(`Are you sure you want to delete "${locationName}"? This action cannot be undone.`)) {
       try {
         await deleteLocation(locationId);
-        setRefreshKey(prev => prev + 1); // Refresh the list
+        
+        // Force a refresh immediately after deletion
+        await getLocations(true);
+        setRefreshKey(prev => prev + 1); // Refresh the list component
+        
         alert(`"${locationName}" has been deleted successfully.`);
       } catch (err) {
         console.error('Error deleting location:', err);

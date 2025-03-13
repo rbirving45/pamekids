@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getLocationById, updateLocation } from '../../utils/firebase-service';
+import { getLocationById, updateLocation, getLocations } from '../../utils/firebase-service';
 import { Location, ActivityType } from '../../types/location';
 
 interface LocationEditorProps {
@@ -141,6 +141,9 @@ const LocationEditor: React.FC<LocationEditorProps> = ({ locationId, onClose, on
       }
       
       await updateLocation(location.id, locationToSave);
+      
+      // Force a refresh to ensure we get updated data
+      await getLocations(true);
       
       onSaved();
       onClose();
