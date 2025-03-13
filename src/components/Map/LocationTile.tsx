@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Location, ActivityType } from '../../data/locations';
+import { Location, ActivityType } from '../../types/location';
 import { fetchPlaceDetails } from '../../utils/places-api';
 import { Star } from 'lucide-react';
 

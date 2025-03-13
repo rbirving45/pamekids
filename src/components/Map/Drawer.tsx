@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, memo, useMemo, useRef } from 'react';
 import ImageCarousel from './ImageCarousel';
-import { Location, ActivityType } from '../../data/locations';
+import { Location, ActivityType } from '../../types/location';
 import { addUtmParams, trackExternalLink } from '../../utils/analytics';
 import { X, Phone, Globe, MapPin, ChevronLeft } from 'lucide-react';
 import { fetchPlaceDetails } from '../../utils/places-api';
@@ -842,6 +842,21 @@ const Drawer: React.FC<DrawerProps> = memo(({
                 <div className="drawer-content-section">
                   <p className="text-lg text-gray-600 touchable-text">{location.description}</p>
                 </div>
+
+                {/* Pro Tips - Only show if available */}
+                {location.proTips && (
+                  <div className="drawer-content-section bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2 flex items-center touchable-text">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-yellow-600">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                      </svg>
+                      Pro Tips
+                    </h3>
+                    <div className="text-gray-700 touchable-text whitespace-pre-line">
+                      {location.proTips}
+                    </div>
+                  </div>
+                )}
 
                 {/* Action Buttons - Show in content on desktop */}
                 <div className="hidden md:block">
