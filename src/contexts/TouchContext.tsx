@@ -65,7 +65,7 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // On desktop, we don't need to block the map
     if (!isMobile) return false;
     
-    // Always block when a modal is open
+    // Always block when a modal is open - highest priority condition
     if (isModalOpen) return true;
     
     // Block when drawer is in any state other than closed
@@ -81,6 +81,14 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Touch event handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (!isMobile) return;
+    
+    // If a modal is open, don't process drawer touch events at all
+    // This prevents the drawer from responding to touches when a modal is on top
+    if (isModalOpen && !(e.target as HTMLElement).closest('.z-modal-container')) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     
     const touch = e.touches[0];
     const target = e.target as HTMLElement;
@@ -149,10 +157,20 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         touchState.current.isDragging = false;
       }
     }
-  }, [isMobile, drawerState, isContentAtTop]);
+  }, [isMobile, isModalOpen, drawerState, isContentAtTop]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isMobile || isModalOpen) return;
+    if (!isMobile) return;
+    
+    // If modal is open, block all drawer touch moves
+    if (isModalOpen) {
+      // Only let modal content scroll
+      if (!(e.target as HTMLElement).closest('.z-modal-container')) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      return;
+    }
     
     const touch = e.touches[0];
     const target = e.target as HTMLElement;

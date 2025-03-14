@@ -43,12 +43,6 @@ const MainApp = () => {
     defaultIssueType: 'pro-tips'
   });
 
-  // Global handler for opening the report issue modal
-  const handleOpenReportIssueModal = (data: ReportIssueData) => {
-    setReportIssueData(data);
-    setIsReportIssueModalOpen(true);
-  };
-
   // Sync modal states with TouchContext
   React.useEffect(() => {
     const isAnyModalOpen = isSuggestModalOpen || isNewsletterModalOpen || isReportIssueModalOpen;
@@ -57,6 +51,14 @@ const MainApp = () => {
   
   // Register global function to open report issue modal
   React.useEffect(() => {
+    // Define the handler inside the effect to avoid dependency issues
+    const handleOpenReportIssueModal = (data: ReportIssueData) => {
+      setReportIssueData(data);
+      setIsReportIssueModalOpen(true);
+      // Explicitly update TouchContext immediately
+      setModalOpen(true);
+    };
+    
     if (typeof window !== 'undefined') {
       (window as any).openReportIssueModal = (locationId: string, locationName: string, defaultIssueType: string) => {
         const issueType = defaultIssueType as 'pro-tips' | 'incorrect-info' | 'closed-location' | 'inappropriate-content' | 'other';
@@ -74,7 +76,7 @@ const MainApp = () => {
         delete (window as any).openReportIssueModal;
       }
     };
-  }, []);
+  }, [setReportIssueData, setIsReportIssueModalOpen, setModalOpen]);
   
   return (
     <div className="h-screen w-full flex flex-col">

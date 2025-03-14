@@ -39,19 +39,27 @@ const ModalWrapper: React.FC<ModalWrapperProps> = ({
     <div
       className="fixed inset-0 z-modal-backdrop flex items-center justify-center p-4 bg-black bg-opacity-50"
       onClick={handleBackdropClick}
-      onTouchStart={(e) => e.stopPropagation()}
+      onTouchStart={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}
       onTouchMove={(e) => {
         e.stopPropagation();
-        // Only prevent default on the backdrop, not on the modal content
-        if (!(e.target as Element).closest('.z-modal-container')) {
-          e.preventDefault();
-        }
+        e.preventDefault();
       }}
-      onTouchEnd={(e) => e.stopPropagation()}
+      onTouchEnd={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}
       onWheel={(e) => e.stopPropagation()}
+      style={{ touchAction: 'none' }}
     >
       <div
         className={`relative w-full max-w-md p-6 bg-white rounded-lg shadow-xl max-h-[90vh] overflow-y-auto z-modal-container ${className}`}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+        style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}
       >
         {/* Close button */}
         <button
