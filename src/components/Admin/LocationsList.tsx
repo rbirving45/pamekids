@@ -390,12 +390,12 @@ const LocationsList: React.FC = () => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age Range</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Added / Updated</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -410,6 +410,20 @@ const LocationsList: React.FC = () => {
             ) : (
               locationsWithValidKeys.map(location => (
                 <tr key={location.id || `fallback-${Math.random()}`}>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                    <button
+                      className="text-indigo-600 hover:text-indigo-900 mr-3"
+                      onClick={() => handleEdit(location.id)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="text-red-600 hover:text-red-900"
+                      onClick={() => handleDelete(location.id, location.name)}
+                    >
+                      Delete
+                    </button>
+                  </td>
                   <td className="px-4 py-4 whitespace-nowrap">
                     <div className="font-medium text-gray-900">{location.name}</div>
                   </td>
@@ -435,20 +449,6 @@ const LocationsList: React.FC = () => {
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div>Added: {formatTimestamp(location.created_at)}</div>
                     <div>Updated: {formatTimestamp(location.updated_at)}</div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                    <button
-                      className="text-indigo-600 hover:text-indigo-900 mr-3"
-                      onClick={() => handleEdit(location.id)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="text-red-600 hover:text-red-900"
-                      onClick={() => handleDelete(location.id, location.name)}
-                    >
-                      Delete
-                    </button>
                   </td>
                 </tr>
               ))
