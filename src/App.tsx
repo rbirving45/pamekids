@@ -9,6 +9,7 @@ import {
 import { MobileProvider, useMobile } from './contexts/MobileContext';
 import { UIStateProvider } from './contexts/UIStateContext';
 import { TouchProvider } from './contexts/TouchContext';
+import SEO from './components/SEO';
 
 import MapComponent from './components/Map/Map';
 import MapBlockingOverlay from './components/Map/MapBlockingOverlay';
@@ -18,15 +19,8 @@ import { NewsletterButton, NewsletterModal } from './components/Newsletter';
 import AdminLogin from './components/Admin/AdminLogin';
 import Dashboard from './components/Admin/Dashboard';
 
-const activityConfig = {
-  'indoor-play': { name: 'Indoor Play', color: '#FF4444' },
-  'outdoor-play': { name: 'Outdoor Play', color: '#33B679' },
-  'sports': { name: 'Sports', color: '#FF8C00' },
-  'arts': { name: 'Arts', color: '#9C27B0' },
-  'music': { name: 'Music', color: '#3F51B5' },
-  'education': { name: 'Education', color: '#4285F4' },
-  'entertainment': { name: 'Entertainment', color: '#FFB300' }
-};
+// Import activity categories from centralized metadata
+import { ACTIVITY_CATEGORIES as activityConfig } from './utils/metadata';
 
 // Main application layout
 const MainApp = () => {
@@ -36,6 +30,10 @@ const MainApp = () => {
   
   return (
     <div className="h-screen w-full flex flex-col">
+      <SEO
+        title="Children's Activities in Athens"
+        description="Discover the best indoor and outdoor children's activities in Athens, Greece. Find play areas, sports, arts, music, education and entertainment for kids."
+      />
       <MapBlockingOverlay />
       <header className={`bg-white shadow-md z-header ${isMobile ? 'fixed top-0 left-0 right-0' : 'relative'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -100,8 +98,32 @@ function App() {
           >
             <Routes>
               <Route path="/" element={<MainApp />} />
-              <Route path="/admin" element={<AdminLogin />} />
-              <Route path="/admin/dashboard" element={<Dashboard />} />
+              <Route
+                path="/admin"
+                element={
+                  <>
+                    <SEO
+                      title="Admin Login"
+                      description="PameKids admin login"
+                      noIndex={true}
+                    />
+                    <AdminLogin />
+                  </>
+                }
+              />
+              <Route
+                path="/admin/dashboard"
+                element={
+                  <>
+                    <SEO
+                      title="Admin Dashboard"
+                      description="PameKids admin dashboard"
+                      noIndex={true}
+                    />
+                    <Dashboard />
+                  </>
+                }
+              />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Router>
