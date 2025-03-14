@@ -49,7 +49,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
   } = useUIState();
   
   // Use TouchContext hook with all needed properties - moved before any conditional returns
-  const { drawerState, setDrawerState, handleTouchStart, handleTouchMove, handleTouchEnd, isPartialDrawer, setContentScrollPosition } = useTouch();
+  const { drawerState, setDrawerState, handleTouchStart, handleTouchMove, handleTouchEnd, isPartialDrawer, setContentScrollPosition, isModalOpen } = useTouch();
   
   // Debug log to verify TouchContext is available (only in development)
   // Use a static check to ensure we only log once per component instance
@@ -681,12 +681,39 @@ const Drawer: React.FC<DrawerProps> = memo(({
           flex flex-col
         `}
         style={{
-          pointerEvents: drawerState !== 'closed' ? 'auto' : (isMobile ? 'none' : 'auto'),
+          // Disable all pointer events when a modal is open
+          pointerEvents: isModalOpen ? 'none' : (drawerState !== 'closed' ? 'auto' : (isMobile ? 'none' : 'auto')),
           willChange: 'transform',
+          // Add a CSS variable to control opacity when modal is open
+          opacity: isModalOpen ? 0.5 : 1,
         }}
-        onTouchStartCapture={handleTouchStart}
-        onTouchMoveCapture={handleTouchMove}
-        onTouchEndCapture={handleTouchEnd}
+        onTouchStartCapture={(e) => {
+          // When a modal is open, completely prevent drawer interaction
+          if (isModalOpen) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+          }
+          handleTouchStart(e);
+        }}
+        onTouchMoveCapture={(e) => {
+          // When a modal is open, completely prevent drawer interaction
+          if (isModalOpen) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+          }
+          handleTouchMove(e);
+        }}
+        onTouchEndCapture={(e) => {
+          // When a modal is open, completely prevent drawer interaction
+          if (isModalOpen) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+          }
+          handleTouchEnd(e);
+        }}
       >
         {/* Pull Handle with improved styles and visual indication when in partial state */}
         <div 
@@ -697,6 +724,13 @@ const Drawer: React.FC<DrawerProps> = memo(({
             setDrawerState(drawerState === 'partial' ? 'full' : 'partial');
           }}
           onTouchStart={(e) => {
+            // When a modal is open, block all drawer interactions
+            if (isModalOpen) {
+              e.preventDefault();
+              e.stopPropagation();
+              return;
+            }
+            
             // Mark this touch event for the pull handle
             // to differentiate it from drawer dragging
             e.currentTarget.setAttribute('data-touch-active', 'true');
@@ -706,6 +740,13 @@ const Drawer: React.FC<DrawerProps> = memo(({
             e.preventDefault();
           }}
           onTouchEnd={(e) => {
+            // When a modal is open, block all drawer interactions
+            if (isModalOpen) {
+              e.preventDefault();
+              e.stopPropagation();
+              return;
+            }
+            
             // Handle tap on pull handle to toggle expansion
             // only if this was a genuine tap (not part of a drag)
             if (e.currentTarget.getAttribute('data-touch-active') === 'true') {
