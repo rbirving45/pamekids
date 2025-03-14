@@ -7,10 +7,11 @@ interface ReportIssueModalProps {
   onClose: () => void;
   locationId: string;
   locationName: string;
+  defaultIssueType?: 'pro-tips' | 'incorrect-info' | 'closed-location' | 'inappropriate-content' | 'other';
 }
 
 interface FormData {
-  issueType: 'incorrect-info' | 'closed-location' | 'inappropriate-content' | 'other';
+  issueType: 'pro-tips' | 'incorrect-info' | 'closed-location' | 'inappropriate-content' | 'other';
   description: string;
   email: string;
 }
@@ -19,10 +20,11 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
   isOpen,
   onClose,
   locationId,
-  locationName
+  locationName,
+  defaultIssueType = 'pro-tips'
 }) => {
   const [formData, setFormData] = useState<FormData>({
-    issueType: 'incorrect-info',
+    issueType: defaultIssueType,
     description: '',
     email: ''
   });
@@ -35,7 +37,7 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
   useEffect(() => {
     if (!isOpen) {
       setFormData({
-        issueType: 'incorrect-info',
+        issueType: defaultIssueType,
         description: '',
         email: ''
       });
@@ -43,7 +45,7 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
       setSubmitStatus('idle');
       setSubmitMessage('');
     }
-  }, [isOpen]);
+  }, [isOpen, defaultIssueType]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;

@@ -71,6 +71,9 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_fetchTimestamp, setFetchTimestamp] = useState(0);
   const [showReportIssueModal, setShowReportIssueModal] = useState(false);
+  const [formData, setFormData] = useState<{ issueType: 'pro-tips' | 'incorrect-info' | 'closed-location' | 'inappropriate-content' | 'other' }>({
+    issueType: 'pro-tips'
+  });
   
   // Mobile drawer state - list or detail view
   const [mobileMode, setMobileMode] = useState<'list' | 'detail'>('list');
@@ -949,15 +952,31 @@ const Drawer: React.FC<DrawerProps> = memo(({
 
                 {/* Pro Tips - Only show if available */}
                 {location.proTips && (
-                  <div className="drawer-content-section bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+                  <div className="drawer-content-section bg-blue-50/50 p-4 rounded-lg border border-blue-100">
                     <h3 className="text-lg font-medium text-gray-900 mb-2 flex items-center touchable-text">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-yellow-600">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-blue-600">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                       </svg>
                       Pro Tips
                     </h3>
                     <div className="text-gray-700 touchable-text whitespace-pre-line">
                       {location.proTips}
+                    </div>
+                    <div className="mt-3 flex justify-center">
+                      <button
+                        onClick={() => {
+                          setShowReportIssueModal(true);
+                          // Pre-select the pro-tips option in the modal
+                          setFormData(prev => ({ ...prev, issueType: 'pro-tips' }));
+                        }}
+                        className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus">
+                          <path d="M5 12h14"></path>
+                          <path d="M12 5v14"></path>
+                        </svg>
+                        Submit a Pro Tip
+                      </button>
                     </div>
                   </div>
                 )}
@@ -1043,7 +1062,10 @@ const Drawer: React.FC<DrawerProps> = memo(({
                 {/* Report Issue Link */}
                 <div className="mt-4 flex justify-center pb-6">
                   <button
-                    onClick={() => setShowReportIssueModal(true)}
+                    onClick={() => {
+                      setFormData({ issueType: 'incorrect-info' });
+                      setShowReportIssueModal(true);
+                    }}
                     className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-flag">
@@ -1130,6 +1152,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
           onClose={() => setShowReportIssueModal(false)}
           locationId={location.id}
           locationName={location.name}
+          defaultIssueType={formData.issueType}
         />
       )}
     </>
