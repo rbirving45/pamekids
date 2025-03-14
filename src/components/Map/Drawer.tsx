@@ -950,36 +950,42 @@ const Drawer: React.FC<DrawerProps> = memo(({
                   <p className="text-lg text-gray-600 touchable-text">{location.description}</p>
                 </div>
 
-                {/* Pro Tips - Only show if available */}
-                {location.proTips && (
-                  <div className="drawer-content-section bg-blue-50/50 p-4 rounded-lg border border-blue-100">
-                    <h3 className="text-lg font-medium text-gray-900 mb-2 flex items-center touchable-text">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-blue-600">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                      </svg>
-                      Pro Tips
-                    </h3>
+                {/* Pro Tips - Always shown to encourage submissions */}
+                <div className="drawer-content-section bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2 flex items-center touchable-text">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-blue-600">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                    Pro Tips
+                  </h3>
+                  
+                  {location.proTips ? (
                     <div className="text-gray-700 touchable-text whitespace-pre-line">
                       {location.proTips}
                     </div>
-                    <div className="mt-3 flex justify-center">
-                      <button
-                        onClick={() => {
-                          setShowReportIssueModal(true);
-                          // Pre-select the pro-tips option in the modal
-                          setFormData(prev => ({ ...prev, issueType: 'pro-tips' }));
-                        }}
-                        className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus">
-                          <path d="M5 12h14"></path>
-                          <path d="M12 5v14"></path>
-                        </svg>
-                        Submit a Pro Tip
-                      </button>
+                  ) : (
+                    <div className="text-gray-700 touchable-text">
+                      <p className="italic">No pro tips yet for this location. Be the first to share your insider knowledge!</p>
                     </div>
+                  )}
+                  
+                  <div className="mt-3 flex justify-center">
+                    <button
+                      onClick={() => {
+                        setShowReportIssueModal(true);
+                        // Pre-select the pro-tips option in the modal
+                        setFormData(prev => ({ ...prev, issueType: 'pro-tips' }));
+                      }}
+                      className={`text-sm ${location.proTips ? 'text-blue-600 hover:text-blue-800' : 'bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-lg'} flex items-center gap-1`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus">
+                        <path d="M5 12h14"></path>
+                        <path d="M12 5v14"></path>
+                      </svg>
+                      {location.proTips ? 'Submit a Pro Tip' : 'Be the first to share a Pro Tip!'}
+                    </button>
                   </div>
-                )}
+                </div>
 
                 {/* Action Buttons - Show in content on desktop */}
                 <div className="hidden md:block">
