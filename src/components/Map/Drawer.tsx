@@ -57,9 +57,17 @@ const Drawer: React.FC<DrawerProps> = memo(({
   if (process.env.NODE_ENV === 'development' && !hasLoggedRef.current) {
     console.groupCollapsed('TouchContext initialization');
     console.log('Initial drawer state:', drawerState);
+    console.log('Modal open:', isModalOpen);
     console.groupEnd();
     hasLoggedRef.current = true;
   }
+
+  // Add effect to log when modal state changes (dev only)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Drawer] Modal state changed: ${isModalOpen ? 'OPEN' : 'CLOSED'}`);
+    }
+  }, [isModalOpen]);
   
   const [placeData, setPlaceData] = useState<Location['placeData']>();
   const [isLoading, setIsLoading] = useState(false);
@@ -686,6 +694,11 @@ const Drawer: React.FC<DrawerProps> = memo(({
           willChange: 'transform',
           // Add a CSS variable to control opacity when modal is open
           opacity: isModalOpen ? 0.5 : 1,
+          // Completely disable touch events when modal is open
+          touchAction: isModalOpen ? 'none' : (isPartialDrawer ? 'none' : 'pan-y'),
+          // Prevent any touch events from being captured when modal is open
+          WebkitUserSelect: isModalOpen ? 'none' : 'auto',
+          userSelect: isModalOpen ? 'none' : 'auto',
         }}
         onTouchStartCapture={(e) => {
           // When a modal is open, completely prevent drawer interaction

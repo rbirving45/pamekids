@@ -147,17 +147,27 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
       </p>
 
       {submitStatus === 'success' ? (
-        <div className="p-4 bg-green-50 text-green-800 rounded-lg mb-4 flex items-center z-modal-success-message">
+        <div className="p-4 bg-green-50 text-green-800 rounded-lg mb-4 flex items-center z-modal-success-message" style={{ position: 'relative', zIndex: 'var(--z-modal-success-message)' }}>
           <CheckCircle className="mr-2 flex-shrink-0" size={20} />
           <p>{submitMessage}</p>
         </div>
       ) : submitStatus === 'error' ? (
-        <div className="p-4 bg-red-50 text-red-800 rounded-lg mb-4 z-modal-success-message">
+        <div className="p-4 bg-red-50 text-red-800 rounded-lg mb-4 z-modal-success-message" style={{ position: 'relative', zIndex: 'var(--z-modal-success-message)' }}>
           <p>{submitMessage}</p>
         </div>
       ) : null}
 
-      <form onSubmit={handleSubmit}>
+      <form
+        onSubmit={handleSubmit}
+        onTouchStart={(e) => {
+          // Explicitly stop propagation to prevent drawer interaction
+          e.stopPropagation();
+        }}
+        onTouchMove={(e) => {
+          // Stop propagation but allow scrolling within the form
+          e.stopPropagation();
+        }}
+      >
         <div className="space-y-4">
           <div>
             <label htmlFor="issueType" className="block text-sm font-medium text-gray-700 mb-1">

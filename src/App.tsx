@@ -53,10 +53,16 @@ const MainApp = () => {
   React.useEffect(() => {
     // Define the handler inside the effect to avoid dependency issues
     const handleOpenReportIssueModal = (data: ReportIssueData) => {
+      // Set data first
       setReportIssueData(data);
-      setIsReportIssueModalOpen(true);
-      // Explicitly update TouchContext immediately
+      
+      // Explicitly update TouchContext before opening modal
       setModalOpen(true);
+      
+      // Small delay to ensure TouchContext is updated before modal opens
+      setTimeout(() => {
+        setIsReportIssueModalOpen(true);
+      }, 10);
     };
     
     if (typeof window !== 'undefined') {
@@ -116,7 +122,13 @@ const MainApp = () => {
       
       <ReportIssueModal
         isOpen={isReportIssueModalOpen}
-        onClose={() => setIsReportIssueModalOpen(false)}
+        onClose={() => {
+          setIsReportIssueModalOpen(false);
+          // Add a small delay to ensure TouchContext is updated properly
+          setTimeout(() => {
+            setModalOpen(false);
+          }, 50);
+        }}
         locationId={reportIssueData.locationId}
         locationName={reportIssueData.locationName}
         defaultIssueType={reportIssueData.defaultIssueType}

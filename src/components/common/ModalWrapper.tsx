@@ -22,7 +22,35 @@ const ModalWrapper: React.FC<ModalWrapperProps> = ({
   // Update TouchContext when modal opens/closes
   useEffect(() => {
     setModalOpen(isOpen);
-    return () => setModalOpen(false);
+    
+    // Prevent body scrolling when modal is open
+    if (isOpen) {
+      // Save current scroll position
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflowY = 'hidden';
+    } else {
+      // Restore scroll position when modal closes
+      const scrollY = document.body.style.top;
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.style.overflowY = '';
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || '0', 10) * -1);
+      }
+    }
+    
+    return () => {
+      // Clean up body styles and notify TouchContext
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.style.overflowY = '';
+      setModalOpen(false);
+    };
   }, [isOpen, setModalOpen]);
 
   if (!isOpen) return null;
@@ -61,7 +89,13 @@ const ModalWrapper: React.FC<ModalWrapperProps> = ({
         pointerEvents: 'auto',
         WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',
-        userSelect: 'none'
+        userSelect: 'none',
+        // Add explicit z-index to ensure it's above all other elements
+        zIndex: 'var(--z-modal-backdrop)',
+        // Ensure it sits in its own stacking context
+        isolation: 'isolate',
+        // Prevent any interaction with elements behind
+        position: 'fixed'
       }}
     >
       <div
@@ -69,17 +103,29 @@ const ModalWrapper: React.FC<ModalWrapperProps> = ({
         onTouchStart={(e) => {
           // Stop propagation to prevent interaction with background elements
           e.stopPropagation();
+          // Explicitly mark this event as handled to prevent it from reaching other elements
+          e.currentTarget.setAttribute('data-touch-handled', 'true');
           // Don't prevent default here to allow scrolling/interaction within modal
         }}
         onTouchMove={(e) => {
           // Always stop propagation
           e.stopPropagation();
+          // Explicitly mark this event as handled
+          e.currentTarget.setAttribute('data-touch-handled', 'true');
           // Allow natural scrolling within modal content
         }}
         onTouchEnd={(e) => {
           e.stopPropagation();
+          // Clean up the touch handled attribute
+          e.currentTarget.removeAttribute('data-touch-handled');
         }}
         onTouchCancel={(e) => {
+          e.stopPropagation();
+          // Clean up the touch handled attribute
+          e.currentTarget.removeAttribute('data-touch-handled');
+        }}
+        onClick={(e) => {
+          // Ensure clicks don't propagate to elements behind the modal
           e.stopPropagation();
         }}
         style={{
@@ -87,7 +133,11 @@ const ModalWrapper: React.FC<ModalWrapperProps> = ({
           WebkitOverflowScrolling: 'touch',
           pointerEvents: 'auto',
           // Ensure modal content has its own stacking context
-          isolation: 'isolate'
+          isolation: 'isolate',
+          // Enforce higher z-index with inline style as well
+          zIndex: 'var(--z-modal-container)',
+          // Add a slight transform to ensure a new stacking context
+          transform: 'translateZ(0)'
         }}
       >
         {/* Close button */}

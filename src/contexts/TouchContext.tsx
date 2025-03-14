@@ -14,6 +14,7 @@ interface TouchContextType {
   isModalOpen: boolean;
   setModalOpen: (open: boolean) => void;
   isPartialDrawer: boolean; // Helper to check if drawer is in partial state
+  isAllInteractionsBlocked: boolean; // Helper to check if all interactions should be blocked
   
   // Scroll position tracking
   isContentAtTop: boolean;
@@ -78,11 +79,14 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return false;
   }, [isMobile, isModalOpen, drawerState]);
 
-  // Add a derived state to indicate if ALL interactions (including drawer) should be blocked
-  const isAllInteractionBlocked = useMemo(() => {
-    // When modal is open, block ALL interactions (including drawer)
+  // Add a more specific check for completely blocking all interactions
+  const isAllInteractionsBlocked = useMemo(() => {
+    // When a modal is open, block ALL interactions
     return isModalOpen;
   }, [isModalOpen]);
+
+  // This block is now redundant since we have isAllInteractionsBlocked defined below
+  // (This block will be removed, as it's causing the duplicate variable)
 
   // Touch event handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -404,7 +408,7 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     handleTouchMove,
     handleTouchEnd,
     setLocationClearCallback,
-    isAllInteractionBlocked
+    isAllInteractionsBlocked
   }), [
     drawerState,
     setDrawerStateWrapper,
@@ -418,7 +422,7 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     handleTouchMove,
     handleTouchEnd,
     setLocationClearCallback,
-    isAllInteractionBlocked
+    isAllInteractionsBlocked
   ]);
 
   return (
