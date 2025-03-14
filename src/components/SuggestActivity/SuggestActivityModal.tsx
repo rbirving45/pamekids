@@ -130,7 +130,7 @@ const SuggestActivityModal: React.FC<SuggestActivityModalProps> = ({
   
       // Success - this should work the same with Firebase
       setSubmitStatus('success');
-      setSubmitMessage('Thank you! Your activity suggestion has been submitted successfully.');
+      setSubmitMessage('Thank you! Our team will review your submission soon!');
       
       // Reset form after submission
       setFormData({
@@ -162,7 +162,7 @@ const SuggestActivityModal: React.FC<SuggestActivityModalProps> = ({
       onClose={onClose}
       title="Suggest an Activity"
     >
-      <p className="text-gray-600 mb-6">Add your favorite places and activities to PameKids!</p>
+      <p className="text-gray-600 mb-6">We want to learn about and add your favorite places and activities to PameKids!</p>
 
       {submitStatus === 'success' ? (
         <div className="p-4 bg-green-50 text-green-800 rounded-lg mb-4 flex items-center z-modal-success-message">
@@ -237,7 +237,7 @@ const SuggestActivityModal: React.FC<SuggestActivityModalProps> = ({
 
           <div>
             <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-              Description (optional)
+              Tell us what you love about it (optional)
             </label>
             <textarea
               id="description"
@@ -245,14 +245,14 @@ const SuggestActivityModal: React.FC<SuggestActivityModalProps> = ({
               value={formData.description}
               onChange={handleChange}
               rows={3}
-              maxLength={200}
+              maxLength={2000}
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                 errors.description ? 'border-red-500 focus:ring-red-200' : 'border-gray-300 focus:ring-blue-200'
               }`}
-              placeholder="Brief description of the activity (max 200 characters)"
+              placeholder="Brief description of the activity (max 2000 characters)"
             ></textarea>
             <p className="mt-1 text-xs text-gray-500">
-              {formData.description.length}/200 characters
+              {formData.description.length}/2,000 characters
             </p>
             {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
           </div>

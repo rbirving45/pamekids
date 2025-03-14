@@ -1050,7 +1050,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
                       <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
                       <line x1="4" x2="4" y1="22" y2="15"></line>
                     </svg>
-                    Report an issue with this listing
+                    Submit an Update or Report an Issue
                   </button>
                 </div>
               </div>

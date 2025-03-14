@@ -59,9 +59,9 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
     const newErrors: Partial<Record<keyof FormData, string>> = {};
     
     if (!formData.description.trim()) {
-      newErrors.description = 'Please describe the issue';
-    } else if (formData.description.length > 500) {
-      newErrors.description = 'Description must be 500 characters or less';
+      newErrors.description = 'Please describe the update or issue';
+    } else if (formData.description.length > 2000) {
+      newErrors.description = 'Description must be 2,000 characters or less';
     }
 
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
@@ -110,7 +110,7 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
   
       // Success - this should work the same with Firebase
       setSubmitStatus('success');
-      setSubmitMessage('Thank you! Your report has been submitted successfully. We will look into this issue.');
+      setSubmitMessage('Thank you! Our team will review your submission soon!');
       
       // Reset form after submission
       setFormData({
@@ -138,10 +138,10 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
     <ModalWrapper
       isOpen={isOpen}
       onClose={onClose}
-      title="Report an Issue"
+      title="Submit Update / Report Issue"
     >
       <p className="text-gray-600 mb-4">
-        Help us improve the information for <strong>{locationName}</strong> by reporting any issues you've found.
+        Help us improve the information for <strong>{locationName}</strong> by providing your feedback.
       </p>
 
       {submitStatus === 'success' ? (
@@ -159,7 +159,7 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
         <div className="space-y-4">
           <div>
             <label htmlFor="issueType" className="block text-sm font-medium text-gray-700 mb-1">
-              Type of Issue *
+              Submission Type *
             </label>
             <select
               id="issueType"
@@ -168,7 +168,8 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200"
             >
-              <option value="incorrect-info">Incorrect Information</option>
+              <option value="pro-tips">Submit Pro Tip</option>
+              <option value="incorrect-info">Update Location Details</option>
               <option value="closed-location">Location Closed/Moved</option>
               <option value="inappropriate-content">Inappropriate Content</option>
               <option value="other">Other</option>
@@ -185,14 +186,14 @@ const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
               value={formData.description}
               onChange={handleChange}
               rows={4}
-              maxLength={500}
+              maxLength={2000}
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                 errors.description ? 'border-red-500 focus:ring-red-200' : 'border-gray-300 focus:ring-blue-200'
               }`}
-              placeholder="Please describe the issue in detail"
+              placeholder="Please describe the update or issue in detail"
             ></textarea>
             <p className="mt-1 text-xs text-gray-500">
-              {formData.description.length}/500 characters
+              {formData.description.length}/2,000 characters
             </p>
             {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
           </div>
