@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getLocationById, updateLocation, getLocations } from '../../utils/firebase-service';
-import { Location, ActivityType } from '../../types/location';
+import LocationForm, { LocationFormData } from './LocationForm';
 
 interface LocationEditorProps {
   locationId: string;
@@ -8,18 +8,8 @@ interface LocationEditorProps {
   onSaved: () => void;
 }
 
-const activityTypes: { value: ActivityType; label: string }[] = [
-  { value: 'indoor-play', label: 'Indoor Play' },
-  { value: 'outdoor-play', label: 'Outdoor Play' },
-  { value: 'sports', label: 'Sports' },
-  { value: 'arts', label: 'Arts' },
-  { value: 'music', label: 'Music' },
-  { value: 'education', label: 'Education' },
-  { value: 'entertainment', label: 'Entertainment' }
-];
-
 const LocationEditor: React.FC<LocationEditorProps> = ({ locationId, onClose, onSaved }) => {
-  const [location, setLocation] = useState<Location | null>(null);
+  const [location, setLocation] = useState<LocationFormData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +30,27 @@ const LocationEditor: React.FC<LocationEditorProps> = ({ locationId, onClose, on
           throw new Error(`Location with ID ${locationId} not found`);
         }
         
-        setLocation(locationData);
+        // Convert the fetched location into form-friendly format
+        const formData: LocationFormData = {
+          id: locationData.id,
+          name: locationData.name,
+          coordinates: locationData.coordinates,
+          types: locationData.types || [],
+          primaryType: locationData.primaryType || 'entertainment',
+          description: locationData.description,
+          address: locationData.address,
+          ageRange: locationData.ageRange,
+          priceRange: locationData.priceRange || '',
+          openingHours: locationData.openingHours || {},
+          contact: {
+            phone: locationData.contact?.phone || '',
+            email: locationData.contact?.email || '',
+            website: locationData.contact?.website || ''
+          },
+          proTips: locationData.proTips || ''
+        };
+        
+        setLocation(formData);
         setError(null);
       } catch (err) {
         console.error('Error fetching location:', err);
@@ -53,64 +63,8 @@ const LocationEditor: React.FC<LocationEditorProps> = ({ locationId, onClose, on
     fetchLocation();
   }, [locationId]);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    if (!location) return;
-
-    const { name, value } = e.target;
-    
-    // Handle nested properties
-    if (name.includes('.')) {
-      const [parent, child] = name.split('.');
-      
-      // Type-safe approach to handle nested properties
-      const parentKey = parent as keyof Location;
-      const parentValue = location[parentKey];
-      
-      // Ensure the parent property exists and is an object before spreading
-      if (parentValue && typeof parentValue === 'object' && !Array.isArray(parentValue)) {
-        setLocation({
-          ...location,
-          [parent]: {
-            ...parentValue,
-            [child]: value
-          }
-        });
-      }
-    } else {
-      setLocation({
-        ...location,
-        [name]: value
-      });
-    }
-  };
-
-  const handleAgeRangeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!location) return;
-    
-    const { name, value } = e.target;
-    const ageValue = parseInt(value, 10) || 0;
-    
-    setLocation({
-      ...location,
-      ageRange: {
-        ...location.ageRange,
-        [name === 'minAge' ? 'min' : 'max']: ageValue
-      }
-    });
-  };
-
-  const handlePrimaryTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    if (!location) return;
-    
-    const newPrimaryType = e.target.value as ActivityType;
-    
-    setLocation({
-      ...location,
-      primaryType: newPrimaryType,
-      types: [newPrimaryType]
-    });
+  const handleFormChange = (updatedData: LocationFormData) => {
+    setLocation(updatedData);
   };
 
   const handleSave = async () => {
@@ -120,25 +74,37 @@ const LocationEditor: React.FC<LocationEditorProps> = ({ locationId, onClose, on
       setIsSaving(true);
       setError(null);
       
-      // Create a cleaned version of the location for saving
-      // This ensures we don't send any undefined fields to Firestore
-      const locationToSave = { ...location };
-      
-      // If placeData exists but has undefined values, clean them up
-      if (locationToSave.placeData) {
-        // Keep only defined properties in placeData
-        locationToSave.placeData = Object.entries(locationToSave.placeData)
-          .reduce((acc, [key, value]) => {
-            if (value !== undefined) {
-              acc[key] = value;
-            }
-            return acc;
-          }, {} as Record<string, any>);
+      // Deep clean function to handle complex nested objects
+      const deepCleanUndefined = (obj: any): any => {
+        // Return non-objects as is (includes null, which is valid for Firestore)
+        if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
+          return obj;
+        }
         
-        // If placeData is now empty, we'll just keep the empty object
-        // This is safer for TypeScript than using null
-        // The empty object is still valid for the placeData type
-      }
+        // Clean each property in the object
+        const result: Record<string, any> = {};
+        Object.entries(obj).forEach(([key, value]) => {
+          // Skip undefined values completely
+          if (value === undefined) return;
+          
+          // Recursively clean objects
+          if (value !== null && typeof value === 'object') {
+            const cleanedValue = deepCleanUndefined(value);
+            // Only add non-empty objects
+            if (Array.isArray(cleanedValue) || Object.keys(cleanedValue).length > 0) {
+              result[key] = cleanedValue;
+            }
+          } else {
+            // Add primitive values directly
+            result[key] = value;
+          }
+        });
+        
+        return result;
+      };
+      
+      // Create a cleaned version of the location for saving
+      const locationToSave = deepCleanUndefined(location);
       
       await updateLocation(location.id, locationToSave);
       
@@ -198,181 +164,11 @@ const LocationEditor: React.FC<LocationEditorProps> = ({ locationId, onClose, on
     <div className="p-4 max-h-[80vh] overflow-y-auto">
       <h2 className="text-xl font-bold mb-4">Edit Location: {location.name}</h2>
       
-      <div className="space-y-4">
-        {/* Basic Information */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Name
-            </label>
-            <input
-              type="text"
-              name="name"
-              value={location.name}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Primary Activity Type
-            </label>
-            <select
-              value={location.primaryType}
-              onChange={handlePrimaryTypeChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              {activityTypes.map(type => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        
-        {/* Address */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Address
-          </label>
-          <input
-            type="text"
-            name="address"
-            value={location.address}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-          />
-        </div>
-        
-        {/* Age Range */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Minimum Age
-            </label>
-            <input
-              type="number"
-              name="minAge"
-              value={location.ageRange.min}
-              onChange={handleAgeRangeChange}
-              min="0"
-              max="18"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Maximum Age
-            </label>
-            <input
-              type="number"
-              name="maxAge"
-              value={location.ageRange.max}
-              onChange={handleAgeRangeChange}
-              min="0"
-              max="18"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
-        </div>
-        
-        {/* Description */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Description
-          </label>
-          <textarea
-            name="description"
-            value={location.description}
-            onChange={handleChange}
-            rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-          />
-        </div>
-
-        {/* Pro Tips */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Pro Tips
-          </label>
-          <textarea
-            name="proTips"
-            value={location.proTips || ''}
-            onChange={handleChange}
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            placeholder="Add insider tips from people who've visited this location..."
-          />
-          <p className="mt-1 text-sm text-gray-500">
-            Provide practical, insider tips that aren't in the main description. Separate multiple tips with bullet points.
-          </p>
-          {process.env.NODE_ENV === 'development' && (
-            <p className="mt-1 text-xs text-blue-500">
-              Current proTips value: {JSON.stringify(location.proTips)}
-            </p>
-          )}
-        </div>
-        
-        {/* Price Range */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Price Range
-          </label>
-          <input
-            type="text"
-            name="priceRange"
-            value={location.priceRange}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            placeholder="e.g. €, €€, €€€"
-          />
-        </div>
-        
-        {/* Contact Information */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone
-            </label>
-            <input
-              type="text"
-              name="contact.phone"
-              value={location.contact.phone}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              name="contact.email"
-              value={location.contact.email}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Website
-            </label>
-            <input
-              type="url"
-              name="contact.website"
-              value={location.contact.website || ''}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
-        </div>
-      </div>
+      <LocationForm
+        formData={location}
+        onChange={handleFormChange}
+        isProcessing={isSaving}
+      />
       
       <div className="flex justify-end mt-6 space-x-3">
         <button

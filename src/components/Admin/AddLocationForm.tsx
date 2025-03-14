@@ -3,8 +3,10 @@ import { addLocation, getLocations } from '../../utils/firebase-service';
 import { fetchPlaceDetails } from '../../utils/places-api';
 import { generatePlaceDescription } from '../../utils/description-generator';
 import PlaceSearch from './PlaceSearch';
+import LocationForm, { LocationFormData } from './LocationForm';
+import { ActivityType } from '../../types/location';
 
-const activityTypeMapping: Record<string, string> = {
+const activityTypeMapping: Record<string, ActivityType> = {
   'amusement_park': 'entertainment',
   'aquarium': 'education',
   'art_gallery': 'arts',
@@ -28,7 +30,7 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
   const [placeId, setPlaceId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [previewData, setPreviewData] = useState<any | null>(null);
+  const [formData, setFormData] = useState<LocationFormData | null>(null);
   const [generatingDescription, setGeneratingDescription] = useState(false);
 
   const fetchPlace = async (id?: string) => {
@@ -62,7 +64,7 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
       }
 
       // Determine the primary activity type
-      let primaryType = 'entertainment'; // Default
+      let primaryType: ActivityType = 'entertainment'; // Default
       
       if (placeData.types && placeData.types.length > 0) {
         for (const type of placeData.types) {
@@ -73,7 +75,6 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
         }
       }
       
-      // Format the place data for preview with a default description initially
       // Handle both function and direct property patterns for coordinates
       const getLocationCoordinates = () => {
         const location = placeData.geometry?.location;
@@ -110,17 +111,14 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
 
       const coordinates = getLocationCoordinates();
       
-      const formattedData = {
-        id: placeIdToFetch, // Use the placeIdToFetch which is guaranteed to be defined
+      // Prepare the initial form data
+      const initialFormData: LocationFormData = {
+        id: placeIdToFetch,
         name: placeData.name,
         coordinates: coordinates,
-        placeData: {
-          rating: placeData.rating,
-          userRatingsTotal: placeData.userRatingsTotal
-        },
-        address: placeData.address || placeData.formatted_address,
         types: [primaryType],
         primaryType: primaryType,
+        address: placeData.address || placeData.formatted_address,
         ageRange: {
           min: primaryType === 'education' ? 3 : 0,
           max: 16
@@ -136,19 +134,22 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
         proTips: '' // Initialize with empty string for proTips
       };
 
-      // Set preview data with default description first
-      setPreviewData(formattedData);
+      // Set form data
+      setFormData(initialFormData);
       
       // Generate AI description
       try {
         setGeneratingDescription(true);
         const aiDescription = await generatePlaceDescription(placeData);
         
-        // Update the formattedData with the AI-generated description
-        setPreviewData((prevData: any) => ({
-          ...prevData,
-          description: aiDescription
-        }));
+        // Update the form data with the AI-generated description
+        setFormData(prevData => {
+          if (!prevData) return null;
+          return {
+            ...prevData,
+            description: aiDescription
+          };
+        });
       } catch (descError) {
         console.error('Error generating AI description:', descError);
         // Keep the default description - no need to show error to user
@@ -163,8 +164,12 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
     }
   };
 
+  const handleFormChange = (updatedData: LocationFormData) => {
+    setFormData(updatedData);
+  };
+
   const saveLocation = async () => {
-    if (!previewData) {
+    if (!formData) {
       setError('Please fetch location data first');
       return;
     }
@@ -174,28 +179,21 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
 
     try {
       // Ensure we're using the Google Place ID as our internal ID
-      // First check previewData.id, then fall back to placeId state if needed
-      const locationId = previewData.id || placeId;
+      const locationId = formData.id;
       
       // Validate that we have a non-empty ID
       if (!locationId || locationId.trim() === '') {
         throw new Error('Missing Place ID. Please try fetching the location details again.');
       }
       
-      // Create a copy of the location data with the confirmed ID
-      const locationData = {
-        ...previewData,
-        id: locationId.trim() // Ensure ID is trimmed
-      };
-      
-      console.log('Saving location with ID:', locationData.id);
-      await addLocation(locationData);
+      console.log('Saving location with ID:', locationId);
+      await addLocation(formData);
       
       // Force a refresh of the locations data to update the admin UI
       await getLocations(true);
       
       setPlaceId('');
-      setPreviewData(null);
+      setFormData(null);
       if (onLocationAdded) {
         onLocationAdded();
       }
@@ -271,201 +269,27 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
         )}
       </div>
 
-      {previewData && (
+      {formData && (
         <div className="mt-6 border rounded-md p-4 bg-gray-50">
           <h3 className="text-lg font-medium mb-4">Location Preview</h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="text-sm font-medium text-gray-600">Name</label>
-              <input
-                type="text"
-                value={previewData.name}
-                onChange={(e) => setPreviewData({...previewData, name: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md mt-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
+          {/* Display AI description generation status */}
+          {generatingDescription && (
+            <div className="mb-4 px-3 py-2 bg-blue-50 text-blue-600 rounded">
+              <span className="animate-pulse">Generating AI description...</span>
+              <p className="text-xs mt-1">This may take a few moments as we create a custom description.</p>
             </div>
-            
-            <div>
-              <label className="text-sm font-medium text-gray-600">Primary Type</label>
-              <select
-                value={previewData.primaryType}
-                onChange={(e) => {
-                  const newPrimaryType = e.target.value;
-                  // Ensure the primary type is included in the types array
-                  const newTypes = previewData.types.includes(newPrimaryType)
-                    ? previewData.types
-                    : [...previewData.types, newPrimaryType];
-                  
-                  setPreviewData({
-                    ...previewData,
-                    primaryType: newPrimaryType,
-                    types: newTypes
-                  });
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md mt-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="indoor-play">Indoor Play</option>
-                <option value="outdoor-play">Outdoor Play</option>
-                <option value="sports">Sports</option>
-                <option value="arts">Arts</option>
-                <option value="music">Music</option>
-                <option value="education">Education</option>
-                <option value="entertainment">Entertainment</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium text-gray-600">Additional Types</label>
-              <div className="mt-1 grid grid-cols-2 gap-2">
-                {['indoor-play', 'outdoor-play', 'sports', 'arts', 'music', 'education', 'entertainment'].map(type => (
-                  <label key={type} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={previewData.types.includes(type)}
-                      onChange={(e) => {
-                        let newTypes = [...previewData.types];
-                        if (e.target.checked) {
-                          if (!newTypes.includes(type)) {
-                            newTypes.push(type);
-                          }
-                        } else {
-                          // Don't allow removing the primary type
-                          if (type !== previewData.primaryType) {
-                            newTypes = newTypes.filter(t => t !== type);
-                          }
-                        }
-                        setPreviewData({...previewData, types: newTypes});
-                      }}
-                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span className="text-sm">{type.replace('-', ' ')}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium text-gray-600">Address</label>
-              <input
-                type="text"
-                value={previewData.address}
-                onChange={(e) => setPreviewData({...previewData, address: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md mt-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium text-gray-600">Age Range</label>
-              <div className="flex items-center space-x-2 mt-1">
-                <select
-                  value={previewData.ageRange.min}
-                  onChange={(e) => {
-                    const min = parseInt(e.target.value);
-                    const max = Math.max(min, previewData.ageRange.max);
-                    setPreviewData({
-                      ...previewData,
-                      ageRange: { min, max }
-                    });
-                  }}
-                  className="w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  {Array.from({ length: 18 }, (_, i) => (
-                    <option key={i} value={i}>{i}</option>
-                  ))}
-                </select>
-                <span>to</span>
-                <select
-                  value={previewData.ageRange.max}
-                  onChange={(e) => {
-                    const max = parseInt(e.target.value);
-                    setPreviewData({
-                      ...previewData,
-                      ageRange: { ...previewData.ageRange, max }
-                    });
-                  }}
-                  className="w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  {Array.from({ length: 18 - previewData.ageRange.min }, (_, i) => i + previewData.ageRange.min).map(age => (
-                    <option key={age} value={age}>{age}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium text-gray-600">Contact</label>
-              <div className="space-y-2 mt-1">
-                <div>
-                  <label className="text-xs text-gray-500">Phone:</label>
-                  <input
-                    type="text"
-                    value={previewData.contact.phone || ''}
-                    onChange={(e) => setPreviewData({
-                      ...previewData,
-                      contact: {...previewData.contact, phone: e.target.value}
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Phone number"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">Website:</label>
-                  <input
-                    type="text"
-                    value={previewData.contact.website || ''}
-                    onChange={(e) => setPreviewData({
-                      ...previewData,
-                      contact: {...previewData.contact, website: e.target.value}
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Website URL"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
           
-          <div className="mb-4">
-            <div className="flex justify-between">
-              <p className="text-sm font-medium text-gray-600">Description</p>
-              {generatingDescription && (
-                <span className="text-xs text-blue-600 animate-pulse">
-                  Generating AI description...
-                </span>
-              )}
-            </div>
-            <textarea
-              value={previewData.description}
-              onChange={(e) => setPreviewData({...previewData, description: e.target.value})}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md mt-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${generatingDescription ? 'bg-gray-50' : ''}`}
-              rows={3}
-              disabled={generatingDescription}
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              {generatingDescription
-                ? "AI is creating a custom description based on location data..."
-                : "You can edit this description if needed."}
-            </p>
-          </div>
-          
-          <div className="mb-4">
-            <p className="text-sm font-medium text-gray-600">Pro Tips</p>
-            <textarea
-              value={previewData.proTips || ''}
-              onChange={(e) => setPreviewData({...previewData, proTips: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md mt-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              rows={2}
-              placeholder="Add insider tips from people who've visited this location..."
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Provide practical, insider tips that aren't in the main description. Separate multiple tips with bullet points.
-            </p>
-          </div>
+          <LocationForm
+            formData={formData}
+            onChange={handleFormChange}
+            isProcessing={isLoading || generatingDescription}
+          />
           
           <div className="flex justify-end mt-4">
             <button
-              onClick={() => setPreviewData(null)}
+              onClick={() => setFormData(null)}
               className="mr-3 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
               disabled={isLoading}
             >
@@ -473,7 +297,7 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
             </button>
             <button
               onClick={saveLocation}
-              disabled={isLoading}
+              disabled={isLoading || generatingDescription}
               className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-green-300"
             >
               {isLoading ? 'Saving...' : 'Save Location'}
