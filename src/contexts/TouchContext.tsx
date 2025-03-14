@@ -78,14 +78,28 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return false;
   }, [isMobile, isModalOpen, drawerState]);
 
+  // Add a derived state to indicate if ALL interactions (including drawer) should be blocked
+  const isAllInteractionBlocked = useMemo(() => {
+    // When modal is open, block ALL interactions (including drawer)
+    return isModalOpen;
+  }, [isModalOpen]);
+
   // Touch event handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (!isMobile) return;
     
-    // If a modal is open, don't process drawer touch events at all
-    // This prevents the drawer from responding to touches when a modal is on top
-    if (isModalOpen && !(e.target as HTMLElement).closest('.z-modal-container')) {
-      e.preventDefault();
+    // If a modal is open, block ALL non-modal touch events immediately
+    // This is the most critical part for preventing background interaction
+    if (isModalOpen) {
+      // Only allow interaction with modal container elements
+      if (!(e.target as HTMLElement).closest('.z-modal-container')) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      
+      // Even for modal container elements, stop propagation to prevent
+      // touch events from reaching underlying elements
       e.stopPropagation();
       return;
     }
@@ -162,13 +176,19 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isMobile) return;
     
-    // If modal is open, block all drawer touch moves
+    // If modal is open, aggressively block all non-modal touch moves
     if (isModalOpen) {
       // Only let modal content scroll
       if (!(e.target as HTMLElement).closest('.z-modal-container')) {
         e.preventDefault();
         e.stopPropagation();
+        return;
       }
+      
+      // Even for modal content, stop propagation to prevent events from reaching background
+      e.stopPropagation();
+      
+      // For modal content, still allow natural scrolling - don't preventDefault here
       return;
     }
     
@@ -383,7 +403,8 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd,
-    setLocationClearCallback
+    setLocationClearCallback,
+    isAllInteractionBlocked
   }), [
     drawerState,
     setDrawerStateWrapper,
@@ -396,7 +417,8 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd,
-    setLocationClearCallback
+    setLocationClearCallback,
+    isAllInteractionBlocked
   ]);
 
   return (

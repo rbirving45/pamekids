@@ -51,15 +51,44 @@ const ModalWrapper: React.FC<ModalWrapperProps> = ({
         e.stopPropagation();
         e.preventDefault();
       }}
+      onTouchCancel={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}
       onWheel={(e) => e.stopPropagation()}
-      style={{ touchAction: 'none' }}
+      style={{
+        touchAction: 'none',
+        pointerEvents: 'auto',
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none'
+      }}
     >
       <div
         className={`relative w-full max-w-md p-6 bg-white rounded-lg shadow-xl max-h-[90vh] overflow-y-auto z-modal-container ${className}`}
-        onTouchStart={(e) => e.stopPropagation()}
-        onTouchMove={(e) => e.stopPropagation()}
-        onTouchEnd={(e) => e.stopPropagation()}
-        style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}
+        onTouchStart={(e) => {
+          // Stop propagation to prevent interaction with background elements
+          e.stopPropagation();
+          // Don't prevent default here to allow scrolling/interaction within modal
+        }}
+        onTouchMove={(e) => {
+          // Always stop propagation
+          e.stopPropagation();
+          // Allow natural scrolling within modal content
+        }}
+        onTouchEnd={(e) => {
+          e.stopPropagation();
+        }}
+        onTouchCancel={(e) => {
+          e.stopPropagation();
+        }}
+        style={{
+          touchAction: 'pan-y',
+          WebkitOverflowScrolling: 'touch',
+          pointerEvents: 'auto',
+          // Ensure modal content has its own stacking context
+          isolation: 'isolate'
+        }}
       >
         {/* Close button */}
         <button
