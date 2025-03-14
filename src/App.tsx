@@ -30,10 +30,7 @@ const MainApp = () => {
   
   return (
     <div className="h-screen w-full flex flex-col">
-      <SEO
-        title="Children's Activities in Athens"
-        description="Discover the best indoor and outdoor children's activities in Athens, Greece. Find play areas, sports, arts, music, education and entertainment for kids."
-      />
+      <SEO /> {/* Use default SEO values from metadata.ts */}
       <MapBlockingOverlay />
       <header className={`bg-white shadow-md z-header ${isMobile ? 'fixed top-0 left-0 right-0' : 'relative'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -84,6 +81,33 @@ function App() {
         }
       };
     }
+
+    // Inject schema.org structured data for rich search results
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.text = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "PameKids",
+      "url": "https://www.pamekids.com",
+      "description": "Find the best children's activities in Athens, Greece. Indoor play, outdoor activities, sports, arts, music, education and entertainment for kids.",
+      "applicationCategory": "Maps & Kids Activities",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "EUR"
+      },
+      "areaServed": {
+        "@type": "City",
+        "name": "Athens",
+        "containedInPlace": {
+          "@type": "Country",
+          "name": "Greece"
+        }
+      }
+    });
+    document.head.appendChild(script);
   }, []);
 
   return (

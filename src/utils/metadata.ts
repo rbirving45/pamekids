@@ -5,14 +5,14 @@
 
 // App identity
 export const APP_NAME = "PameKids";
-export const APP_DESCRIPTION = "Find the best children's activities in Athens, Greece.";
+export const APP_DESCRIPTION = "Find the best children's activities in Athens, Greece. Indoor play, outdoor activities, sports, arts, music, education and entertainment for kids.";
 export const APP_URL = "https://www.pamekids.com";
 
 // SEO metadata
 export const SEO = {
   title: `${APP_NAME} - Children's Activities in Athens`,
   description: APP_DESCRIPTION,
-  keywords: "children activities, park, playground, party, playspace, kids, indoor play, outdoor activities, sports, arts, music, education, entertainment",
+  keywords: "children activities, Athens, Greece, kids, indoor play, outdoor activities, sports, arts, music, education, entertainment, playgrounds, parks",
   author: "PameKids",
   language: "en",
 };

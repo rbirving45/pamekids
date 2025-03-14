@@ -27,7 +27,7 @@ const SEO: React.FC<SEOProps> = ({
   // Use provided values or fallback to defaults
   const metaTitle = title ? `${title} | ${APP_NAME}` : SEO_CONFIG.title;
   const metaDescription = description || SEO_CONFIG.description;
-  const metaImage = image || `${APP_URL}/${OPEN_GRAPH.image}`;
+  const metaImage = image ? `${APP_URL}/${image}` : `${APP_URL}/${OPEN_GRAPH.image}`;
   const metaImageAlt = imageAlt || OPEN_GRAPH.imageAlt;
   const metaUrl = canonicalUrl || APP_URL;
 
@@ -49,10 +49,12 @@ const SEO: React.FC<SEOProps> = ({
 
       {/* Twitter */}
       <meta name="twitter:card" content={TWITTER.card} />
+      <meta name="twitter:url" content={metaUrl} />
       <meta name="twitter:title" content={metaTitle} />
       <meta name="twitter:description" content={metaDescription} />
       <meta name="twitter:image" content={metaImage} />
-      <meta name="twitter:image:alt" content={metaImageAlt} />    </Helmet>
+      <meta name="twitter:image:alt" content={metaImageAlt} />
+    </Helmet>
   );
 };
 
