@@ -8,7 +8,7 @@ import {
 } from 'react-router-dom';
 import { MobileProvider, useMobile } from './contexts/MobileContext';
 import { UIStateProvider } from './contexts/UIStateContext';
-import { TouchProvider } from './contexts/TouchContext';
+import { TouchProvider, useTouch } from './contexts/TouchContext';
 import SEO from './components/SEO';
 
 import MapComponent from './components/Map/Map';
@@ -16,17 +16,65 @@ import MapBlockingOverlay from './components/Map/MapBlockingOverlay';
 import SuggestActivityButton from './components/SuggestActivity/SuggestActivityButton';
 import SuggestActivityModal from './components/SuggestActivity/SuggestActivityModal';
 import { NewsletterButton, NewsletterModal } from './components/Newsletter';
+import ReportIssueModal from './components/ReportIssue/ReportIssueModal';
 import AdminLogin from './components/Admin/AdminLogin';
 import Dashboard from './components/Admin/Dashboard';
 
 // Import activity categories from centralized metadata
 import { ACTIVITY_CATEGORIES as activityConfig } from './utils/metadata';
 
+// Interface for Report Issue Modal data
+interface ReportIssueData {
+  locationId: string;
+  locationName: string;
+  defaultIssueType: 'pro-tips' | 'incorrect-info' | 'closed-location' | 'inappropriate-content' | 'other';
+}
+
 // Main application layout
 const MainApp = () => {
   const { isMobile } = useMobile();
+  const { setModalOpen } = useTouch();
   const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
   const [isNewsletterModalOpen, setIsNewsletterModalOpen] = useState(false);
+  const [isReportIssueModalOpen, setIsReportIssueModalOpen] = useState(false);
+  const [reportIssueData, setReportIssueData] = useState<ReportIssueData>({
+    locationId: '',
+    locationName: '',
+    defaultIssueType: 'pro-tips'
+  });
+
+  // Global handler for opening the report issue modal
+  const handleOpenReportIssueModal = (data: ReportIssueData) => {
+    setReportIssueData(data);
+    setIsReportIssueModalOpen(true);
+  };
+
+  // Sync modal states with TouchContext
+  React.useEffect(() => {
+    const isAnyModalOpen = isSuggestModalOpen || isNewsletterModalOpen || isReportIssueModalOpen;
+    setModalOpen(isAnyModalOpen);
+  }, [isSuggestModalOpen, isNewsletterModalOpen, isReportIssueModalOpen, setModalOpen]);
+  
+  // Register global function to open report issue modal
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).openReportIssueModal = (locationId: string, locationName: string, defaultIssueType: string) => {
+        const issueType = defaultIssueType as 'pro-tips' | 'incorrect-info' | 'closed-location' | 'inappropriate-content' | 'other';
+        handleOpenReportIssueModal({
+          locationId,
+          locationName,
+          defaultIssueType: issueType
+        });
+      };
+    }
+    
+    // Clean up on unmount
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete (window as any).openReportIssueModal;
+      }
+    };
+  }, []);
   
   return (
     <div className="h-screen w-full flex flex-col">
@@ -62,6 +110,14 @@ const MainApp = () => {
       <NewsletterModal
         isOpen={isNewsletterModalOpen}
         onClose={() => setIsNewsletterModalOpen(false)}
+      />
+      
+      <ReportIssueModal
+        isOpen={isReportIssueModalOpen}
+        onClose={() => setIsReportIssueModalOpen(false)}
+        locationId={reportIssueData.locationId}
+        locationName={reportIssueData.locationName}
+        defaultIssueType={reportIssueData.defaultIssueType}
       />
     </div>
   );

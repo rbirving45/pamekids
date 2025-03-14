@@ -5,7 +5,6 @@ import { addUtmParams, trackExternalLink } from '../../utils/analytics';
 import { X, Phone, Globe, MapPin, ChevronLeft } from 'lucide-react';
 import { fetchPlaceDetails } from '../../utils/places-api';
 import RatingDisplay from './RatingDisplay';
-import ReportIssueModal from '../ReportIssue/ReportIssueModal';
 import LocationTile from './LocationTile';
 import { useMobile } from '../../contexts/MobileContext';
 import { useUIState } from '../../contexts/UIStateContext';
@@ -70,10 +69,6 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // Used for forcing photo refresh - intentionally not used directly
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_fetchTimestamp, setFetchTimestamp] = useState(0);
-  const [showReportIssueModal, setShowReportIssueModal] = useState(false);
-  const [formData, setFormData] = useState<{ issueType: 'pro-tips' | 'incorrect-info' | 'closed-location' | 'inappropriate-content' | 'other' }>({
-    issueType: 'pro-tips'
-  });
   
   // Mobile drawer state - list or detail view
   const [mobileMode, setMobileMode] = useState<'list' | 'detail'>('list');
@@ -972,9 +967,8 @@ const Drawer: React.FC<DrawerProps> = memo(({
                   <div className="mt-3 flex justify-center">
                     <button
                       onClick={() => {
-                        setShowReportIssueModal(true);
-                        // Pre-select the pro-tips option in the modal
-                        setFormData(prev => ({ ...prev, issueType: 'pro-tips' }));
+                        // Use the global function to open the modal with pro-tips
+                        (window as any).openReportIssueModal(location.id, location.name, 'pro-tips');
                       }}
                       className={`text-sm ${location.proTips ? 'text-blue-600 hover:text-blue-800' : 'bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-lg'} flex items-center gap-1`}
                     >
@@ -1069,8 +1063,8 @@ const Drawer: React.FC<DrawerProps> = memo(({
                 <div className="mt-4 flex justify-center pb-6">
                   <button
                     onClick={() => {
-                      setFormData({ issueType: 'incorrect-info' });
-                      setShowReportIssueModal(true);
+                      // Use the global function to open the modal with incorrect-info
+                      (window as any).openReportIssueModal(location.id, location.name, 'incorrect-info');
                     }}
                     className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
                   >
@@ -1150,17 +1144,6 @@ const Drawer: React.FC<DrawerProps> = memo(({
           </>
         )}
       </div>
-      
-      {/* Report Issue Modal */}
-      {location && (
-        <ReportIssueModal
-          isOpen={showReportIssueModal}
-          onClose={() => setShowReportIssueModal(false)}
-          locationId={location.id}
-          locationName={location.name}
-          defaultIssueType={formData.issueType}
-        />
-      )}
     </>
   );
 });
