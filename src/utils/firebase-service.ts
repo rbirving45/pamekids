@@ -646,8 +646,8 @@ export const updateLocationPlaceData = async (id: string, placeData: any): Promi
     const now = new Date();
     const daysSinceUpdate = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60 * 24);
     
-    // Skip update if updated within the last 24 hours
-    if (daysSinceUpdate < 1) {
+    // Skip update if updated within the last week
+    if (daysSinceUpdate < 7) {
       console.log(`Skipping place data update for ${id}, last updated ${daysSinceUpdate.toFixed(1)} days ago`);
       return false;
     }
