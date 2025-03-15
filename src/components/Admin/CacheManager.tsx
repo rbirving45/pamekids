@@ -104,26 +104,26 @@ const CacheManager: React.FC = () => {
     }
   };
   
-  // Handle force photo updates for all locations
+  // Handle force photo and rating updates for all locations
   const handleForcePhotoUpdates = async () => {
-    if (window.confirm('This will fetch fresh photos for ALL locations from Google Places API. This may take several minutes and could incur API costs. Continue?')) {
+    if (window.confirm('This will fetch fresh photos and ratings for ALL locations from Google Places API. Only photos and ratings will be updated; all other manually entered data will be preserved. This may take several minutes and could incur API costs. Continue?')) {
       try {
         setIsUpdatingPhotos(true);
         setMessage({
-          text: 'Photo update started. This may take several minutes...',
+          text: 'Photo and rating update started. This may take several minutes...',
           type: 'info'
         });
         
         const result = await forcePhotoUpdatesForAllLocations();
         
         setMessage({
-          text: `Photos updated successfully! ${result.success} locations updated, ${result.failed} failed.`,
+          text: `Photos and ratings updated successfully! ${result.success} locations updated, ${result.failed} failed.`,
           type: 'success'
         });
       } catch (error) {
-        console.error('Error updating photos:', error);
+        console.error('Error updating photos and ratings:', error);
         setMessage({
-          text: error instanceof Error ? error.message : 'Failed to update photos',
+          text: error instanceof Error ? error.message : 'Failed to update photos and ratings',
           type: 'error'
         });
       } finally {
@@ -279,16 +279,16 @@ const CacheManager: React.FC = () => {
               </div>
               
               <div className="p-3 bg-white border border-indigo-200 rounded-md">
-                <h4 className="font-medium text-indigo-700 mb-2">Force Update Location Photos</h4>
+                <h4 className="font-medium text-indigo-700 mb-2">Force Update Location Photos & Ratings</h4>
                 <p className="text-sm text-gray-600 mb-3">
-                  Fetch fresh photos for all locations from Google Places API. Use this to fix missing photos.
+                  Fetch fresh photos and ratings for all locations from Google Places API. Only photos and ratings will be updated; all other manually entered data will be preserved.
                 </p>
                 <button
                   onClick={handleForcePhotoUpdates}
                   disabled={isUpdatingPhotos}
                   className="w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed"
                 >
-                  {isUpdatingPhotos ? 'Updating Photos...' : 'Update All Location Photos'}
+                  {isUpdatingPhotos ? 'Updating Photos & Ratings...' : 'Update Photos & Ratings'}
                 </button>
               </div>
             </div>

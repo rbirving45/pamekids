@@ -147,13 +147,13 @@ export const getActivitySuggestions = async (): Promise<DocumentData[]> => {
 
 // Location functions
 
-// Function to force photo updates for all locations (admin only)
+// Function to force photo and rating updates for all locations (admin only)
 export const forcePhotoUpdatesForAllLocations = async (): Promise<{success: number, failed: number}> => {
   try {
     // Verify admin authentication
     verifyAdminAuth();
     
-    console.log('Starting force photo updates for all locations...');
+    console.log('Starting force photo and rating updates for all locations...');
     const locations = await getLocations(true); // Get fresh data
     
     let successCount = 0;
@@ -190,17 +190,23 @@ export const forcePhotoUpdatesForAllLocations = async (): Promise<{success: numb
             true // Force refresh
           );
           
-          // If we have photos, update the location
-          if (placeData && placeData.photoUrls && placeData.photoUrls.length > 0) {
-            // Force update regardless of last update time
-            await updatePhotoUrlsForLocation(location.id, placeData.photoUrls);
+          // Create or update the location's placeData
+          if (placeData) {
+            // Even if no photos, we still update ratings
+            if (!placeData.photoUrls || placeData.photoUrls.length === 0) {
+              console.warn(`No photos found for location: ${location.name} (${location.id}), but updating ratings if available`);
+            }
+            
+            // Use the updateLocationPlaceData function which now preserves other fields
+            // This will update only photos and ratings while keeping other manually entered data
+            await updateLocationPlaceData(location.id, placeData);
             return true;
           } else {
-            console.warn(`No photos found for location: ${location.name} (${location.id})`);
+            console.warn(`No place data found for location: ${location.name} (${location.id})`);
             return false;
           }
         } catch (error) {
-          console.error(`Failed to update photos for ${location.name}:`, error);
+          console.error(`Failed to update photos and ratings for ${location.name}:`, error);
           return false;
         }
       }));
@@ -229,16 +235,16 @@ export const forcePhotoUpdatesForAllLocations = async (): Promise<{success: numb
       }
     }
     
-    console.log(`Completed force photo updates: ${successCount} succeeded, ${failedCount} failed`);
+    console.log(`Completed force photo and rating updates: ${successCount} succeeded, ${failedCount} failed`);
     return { success: successCount, failed: failedCount };
   } catch (error) {
-    console.error('Error in force photo updates:', error);
+    console.error('Error in force photo and rating updates:', error);
     throw new Error(formatFirestoreError(error));
   }
 };
 
 // Function to update only photo URLs for a location
-const updatePhotoUrlsForLocation = async (id: string, photoUrls: string[]): Promise<boolean> => {
+export const updatePhotoUrlsForLocation = async (id: string, photoUrls: string[]): Promise<boolean> => {
   try {
     if (!id || !photoUrls || photoUrls.length === 0) {
       return false;
@@ -251,10 +257,15 @@ const updatePhotoUrlsForLocation = async (id: string, photoUrls: string[]): Prom
       return false;
     }
     
-    // Update only the photoUrls field in placeData
+    // Get existing placeData to preserve other fields
+    const existingData = docSnap.data();
+    const existingPlaceData = existingData.placeData || {};
+    
+    // Update only the photoUrls field in placeData while preserving all other fields
     const updateData = {
       placeData: {
-        photoUrls: photoUrls
+        ...existingPlaceData,  // Keep all existing place data
+        photoUrls: photoUrls   // Only update the photos
       },
       placeData_updated_at: serverTimestamp()
     };
@@ -612,6 +623,7 @@ export const updateLocation = async (id: string, data: Partial<Location>) => {
 
 // Function to update a location's Google Places data without requiring admin rights
 // This is used by normal users to keep place data fresh
+// ONLY updates photos and ratings to preserve manually curated data
 export const updateLocationPlaceData = async (id: string, placeData: any): Promise<boolean> => {
   try {
     // Don't require admin auth for this public function
@@ -640,8 +652,11 @@ export const updateLocationPlaceData = async (id: string, placeData: any): Promi
       return false;
     }
     
+    // Get existing place data (or initialize if it doesn't exist)
+    const existingPlaceData = existingData.placeData || {};
+    
     // Get existing photo URLs if available and non-empty
-    const existingPhotoUrls = existingData.placeData?.photoUrls || [];
+    const existingPhotoUrls = existingPlaceData.photoUrls || [];
     
     // Get the new photo URLs
     const newPhotoUrls = placeData.photoUrls || [];
@@ -656,43 +671,32 @@ export const updateLocationPlaceData = async (id: string, placeData: any): Promi
       console.log(`Updating location ${id} with ${newPhotoUrls.length} new photos`);
     }
     
-    // Extract only the essential data we want to store (to save storage/bandwidth)
-    const essentialPlaceData: {
-      rating: any;
-      userRatingsTotal: any;
-      photoUrls: any[];
-      hours: Record<string, string>;
-      phone: any;
-      website: any;
-      address: any;
-      photoUrlsStatus?: string;
-    } = {
+    // MODIFIED: Only extract photos and ratings data to preserve manually curated info
+    const updatedPlaceData = {
+      ...existingPlaceData,  // Keep all existing place data
+      // Only update these specific fields:
       rating: placeData.rating,
       userRatingsTotal: placeData.userRatingsTotal,
-      photoUrls: photoUrlsToUse,
-      hours: placeData.hours || {},
-      phone: placeData.phone,
-      website: placeData.website,
-      address: placeData.address
+      photoUrls: photoUrlsToUse
     };
     
     // Ensure we always store some photo data for troubleshooting
     if (photoUrlsToUse.length === 0) {
-      essentialPlaceData.photoUrlsStatus = 'No photos available';
+      updatedPlaceData.photoUrlsStatus = 'No photos available';
       if (placeData.photos && placeData.photos.length > 0) {
-        essentialPlaceData.photoUrlsStatus = 'Photos object exists but URL extraction failed';
+        updatedPlaceData.photoUrlsStatus = 'Photos object exists but URL extraction failed';
       }
     }
     
     // Prepare update data
     const updateData = {
-      placeData: essentialPlaceData,
+      placeData: updatedPlaceData,
       placeData_updated_at: serverTimestamp()
     };
     
     // Update the document with place data
     await setDoc(docRef, updateData, { merge: true });
-    console.log(`Updated place data for location ${id} with ${photoUrlsToUse.length} photos`);
+    console.log(`Updated photos and ratings for location ${id} with ${photoUrlsToUse.length} photos`);
     
     return true;
   } catch (error) {
