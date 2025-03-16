@@ -76,6 +76,12 @@ async function callClaudeAPI(prompt) {
 // Function to generate AI summary from place data
 async function generateAISummary(place) {
   try {
+    // Log reviews for debugging
+    console.log(`[ServerlessFunction] Place ${place.name} has ${place.reviews ? place.reviews.length : 0} reviews`);
+    if (place.reviews && place.reviews.length > 0) {
+      console.log(`[ServerlessFunction] First review: ${place.reviews[0].text.substring(0, 100)}...`);
+    }
+    
     // Extract the most relevant information for the prompt
     const placeName = place.name || 'Unknown venue';
     const rating = place.rating || 'No rating available';

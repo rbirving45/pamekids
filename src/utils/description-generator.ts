@@ -9,6 +9,14 @@ export async function generatePlaceDescription(placeData: any): Promise<string> 
   try {
     console.log('Generating description for:', placeData.name);
     
+    // Log reviews for debugging
+    if (placeData.reviews && placeData.reviews.length > 0) {
+      console.log(`Sending ${placeData.reviews.length} reviews to description generator`);
+      console.log('First review sample:', placeData.reviews[0].text.substring(0, 100) + '...');
+    } else {
+      console.log('No reviews available for description generation');
+    }
+    
     // Call the Netlify function
     const response = await fetch('/api/generate-description', {
       method: 'POST',

@@ -136,11 +136,20 @@ export async function fetchPlaceDetails(
             'website',
             'opening_hours',
             'photos',
-            'geometry'
+            'geometry',
+            'reviews'
           ]
         },
         (result, status) => {
           if (status === maps.places.PlacesServiceStatus.OK && result) {
+            // Log reviews if available
+            if (result.reviews && result.reviews.length > 0) {
+              console.log(`Found ${result.reviews.length} reviews for place ${placeId}`);
+              console.log('First review sample:', result.reviews[0].text.substring(0, 100) + '...');
+            } else {
+              console.log(`No reviews found for place ${placeId}`);
+            }
+            
             // Process photos if available
             let photoUrls: string[] = [];
             
@@ -198,8 +207,12 @@ export async function fetchPlaceDetails(
               photos: result.photos || [],
               photoUrls,
               geometry: result.geometry,
+              reviews: result.reviews || [], // Explicitly include reviews
               last_fetched: new Date().toISOString() // Add timestamp
             };
+            
+            // Debug log to verify reviews are in the placeData object
+            console.log(`Reviews in placeData object: ${placeData.reviews ? placeData.reviews.length : 0}`);
             
             // Cache the response
             savePlaceDetailsToCache(placeId, placeData, photoUrls);
