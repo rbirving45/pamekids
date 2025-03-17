@@ -37,8 +37,9 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
   // Limit to MAX_PHOTOS
   const photoCount = Math.min(actualImageCount, MAX_PHOTOS);
   
-  // Add +1 for "View more" slide if we have the maximum photos and a place ID
-  const hasViewMoreSlide = photoCount >= MAX_PHOTOS && actualImageCount > MAX_PHOTOS && placeId;
+  // Always add a "View more" slide if we have any photos and a place ID
+  // This ensures users can always click through to Google Maps for more photos
+  const hasViewMoreSlide = photoCount > 0 && placeId;
   
   // Total number of slides including the "View more" slide
   const totalSlides = hasViewMoreSlide ? photoCount + 1 : photoCount;
@@ -248,7 +249,7 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
   const handleViewMoreClick = () => {
     if (!placeId) return;
     
-    const baseUrl = `https://www.google.com/maps/place/?q=place_id:${placeId}`;
+    const baseUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(businessName)}&query_place_id=${placeId}`;
     const url = addUtmParams(baseUrl);
     trackExternalLink('photos', businessName, url);
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -321,14 +322,11 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
             <div className="bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
               <ExternalLink size={32} className="text-white" />
             </div>
-            <h3 className="text-xl font-bold mb-2">View more photos</h3>
-            <p className="opacity-90 mb-4">
-              See all photos on Google Maps
-            </p>
+            <h3 className="text-xl font-bold mb-2">More photos...</h3>
             <button
               className="px-6 py-3 bg-white text-blue-700 rounded-lg font-medium hover:bg-blue-50 flex items-center gap-2 mx-auto"
             >
-              View photos <ExternalLink size={16} />
+              View on Google Maps <ExternalLink size={16} />
             </button>
           </div>
         </div>
