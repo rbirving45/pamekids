@@ -28,6 +28,12 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
   const [useFallback, setUseFallback] = useState(false);
   const unmountedRef = useRef(false);
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Touch gesture handling refs
+  const touchStartXRef = useRef<number | null>(null);
+  const touchEndXRef = useRef<number | null>(null);
+  const minSwipeDistance = 50; // Minimum distance required for a swipe
+  const isTouchActiveRef = useRef(false); // Track if we're in an active touch sequence
 
   // Get actual image count (photos or fallbacks)
   const actualImageCount = useFallback
@@ -254,6 +260,69 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
     trackExternalLink('photos', businessName, url);
     window.open(url, '_blank', 'noopener,noreferrer');
   };
+  
+  // Touch event handlers for swipe gestures
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    // Only handle single-finger touches
+    if (e.touches.length !== 1) return;
+    
+    // Don't start new touch sequence if we're on the "View more" slide
+    // We'll check this condition dynamically inside the handler instead of using a dependency
+    if (hasViewMoreSlide && currentIndex === photoCount) return;
+    
+    // Store the initial touch position
+    touchStartXRef.current = e.touches[0].clientX;
+    touchEndXRef.current = e.touches[0].clientX;
+    isTouchActiveRef.current = true;
+    
+    // Don't stop propagation - allow event bubbling to parent components
+  }, [hasViewMoreSlide, currentIndex, photoCount]);
+  
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    // Skip if we're not in an active touch sequence
+    if (!isTouchActiveRef.current) return;
+    
+    // Update current touch position
+    touchEndXRef.current = e.touches[0].clientX;
+    
+    // Calculate difference
+    const deltaX = touchEndXRef.current - (touchStartXRef.current || 0);
+    
+    // If horizontal movement is significant (> 10px), prevent page scrolling
+    // This ensures users can swipe the carousel without scrolling the page
+    if (Math.abs(deltaX) > 10) {
+      e.preventDefault();
+    }
+  }, []);
+  
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    // Skip if we're not in an active touch sequence
+    if (!isTouchActiveRef.current) return;
+    
+    // Reset touch active state
+    isTouchActiveRef.current = false;
+    
+    // Skip if we don't have start and end positions
+    if (touchStartXRef.current === null || touchEndXRef.current === null) return;
+    
+    // Calculate swipe distance
+    const deltaX = touchEndXRef.current - touchStartXRef.current;
+    
+    // If the swipe distance exceeds our minimum threshold, change the photo
+    if (Math.abs(deltaX) > minSwipeDistance) {
+      if (deltaX > 0) {
+        // Swiped right (previous photo)
+        prevPhoto();
+      } else {
+        // Swiped left (next photo)
+        nextPhoto();
+      }
+    }
+    
+    // Reset touch positions
+    touchStartXRef.current = null;
+    touchEndXRef.current = null;
+  }, [nextPhoto, prevPhoto]);
 
   // No images available
   if ((totalSlides === 0 || (!displayedUrls.length && !isLoading)) && !useFallback) {
@@ -278,7 +347,11 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
   );
 
   return (
-    <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-gray-100 group">
+    <div
+      className="relative aspect-video w-full rounded-lg overflow-hidden bg-gray-100 group"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}>
       {/* Loading state */}
       {isLoading && !isViewMoreSlide && (
         <div className="absolute inset-0 flex items-center justify-center z-carousel-loading bg-black/10">
