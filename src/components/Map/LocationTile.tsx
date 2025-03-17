@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Location, ActivityType } from '../../types/location';
-import { fetchPlaceDetails } from '../../utils/places-api';
+import { fetchPlaceDetails, shouldRefreshPhotos } from '../../utils/places-api';
 import { Star } from 'lucide-react';
 
 interface LocationTileProps {
@@ -20,15 +20,21 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
     setImageError(false);
   }, [location.id]);
 
-  // Fetch place data when component mounts
+  // Fetch place data when component mounts or when needed
   useEffect(() => {
     // Track if component is mounted
     let isMounted = true;
     
     const fetchData = async () => {
-      // Check if we have cached data in location object
-      if (location.placeData && location.placeData?.photoUrls && location.placeData?.photoUrls.length > 0) {
-        // Use cached data immediately
+      // First check: Do we have placeData with valid photoUrls?
+      const hasValidPhotos = location.placeData?.photoUrls &&
+                             location.placeData.photoUrls.length > 0;
+      
+      // Second check: Are the photos likely expired?
+      const shouldRefresh = shouldRefreshPhotos(location.id, location.placeData);
+      
+      // Use cached data immediately if we have valid photos and they're not expired
+      if (hasValidPhotos && !shouldRefresh) {
         setPlaceData(location.placeData);
         setIsLoading(false);
         return;
@@ -40,10 +46,13 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
         return;
       }
       
+      // At this point, we either don't have photos or they're expired, so fetch fresh data
       setIsLoading(true);
       
       try {
-        const data = await fetchPlaceDetails(location.id, window.google.maps);
+        // Set forceRefresh to true if existing photos are likely expired
+        const forceRefresh = shouldRefresh;
+        const data = await fetchPlaceDetails(location.id, window.google.maps, forceRefresh);
         
         // Only update state if the component is still mounted
         if (isMounted && data) {
@@ -61,6 +70,11 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
       } catch (error) {
         if (isMounted) {
           console.error('Error fetching place details for tile:', error);
+          
+          // Even if there's an error, use any existing data if available
+          if (location.placeData) {
+            setPlaceData(location.placeData);
+          }
         }
       } finally {
         if (isMounted) {
@@ -86,8 +100,23 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
     // If image already errored, don't try to show it
     if (imageError) return null;
     
+    // Check if photos might be expired
+    const photosMightBeExpired = shouldRefreshPhotos(location.id, mergedPlaceData);
+    
     // Check for photoUrls first (pre-processed URLs)
     if (mergedPlaceData?.photoUrls && mergedPlaceData.photoUrls.length > 0) {
+      // If photos might be expired, flag for background refresh but still use them
+      if (photosMightBeExpired) {
+        // Schedule a background refresh without blocking UI
+        setTimeout(() => {
+          if (window.google?.maps) {
+            fetchPlaceDetails(location.id, window.google.maps, true)
+              .catch(err => console.warn(`Background refresh failed for tile: ${location.name}`, err));
+          }
+        }, 2000); // Delay to avoid competing with critical resources
+      }
+      
+      // Use the first photo URL even if it might be expired (better than nothing)
       return mergedPlaceData.photoUrls[0];
     }
     
@@ -105,7 +134,7 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
     }
     
     return null;
-  }, [mergedPlaceData, imageError]);
+  }, [mergedPlaceData, imageError, location.id, location.name]);
 
   // Fallback image based on the primary activity type
   const primaryType = location.primaryType || location.types[0];
@@ -188,10 +217,24 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
             <img
               src={featuredImageUrl}
               alt={location.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-opacity duration-300"
+              onLoad={() => {
+                // Clear loading state when image loads successfully
+                setIsLoading(false);
+              }}
               onError={() => {
                 console.warn(`Image loading error for: ${location.name}`);
                 setImageError(true);
+                // Clear loading state on error
+                setIsLoading(false);
+                
+                // If this is the first error, try a background refresh
+                if (!imageError && window.google?.maps) {
+                  setTimeout(() => {
+                    fetchPlaceDetails(location.id, window.google.maps, true)
+                      .catch(err => console.warn('Background refresh after error failed:', err));
+                  }, 500);
+                }
               }}
               referrerPolicy="no-referrer"
               loading="lazy"
@@ -202,7 +245,14 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
               style={{ backgroundColor: fallbackImageColor + '20' }}
             >
               {isLoading ? (
-                <div className="animate-pulse w-full h-full bg-gray-200"></div>
+                <div className="animate-pulse w-full h-full bg-gray-200 flex items-center justify-center">
+                  <span
+                    className="text-3xl font-bold opacity-30"
+                    style={{ color: fallbackImageColor }}
+                  >
+                    {initialLetter}
+                  </span>
+                </div>
               ) : (
                 <span
                   className="text-3xl font-bold"

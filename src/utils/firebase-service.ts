@@ -646,9 +646,17 @@ export const updateLocationPlaceData = async (id: string, placeData: any): Promi
     const now = new Date();
     const daysSinceUpdate = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60 * 24);
     
-    // Skip update if updated within the last week
-    if (daysSinceUpdate < 7) {
-      console.log(`Skipping place data update for ${id}, last updated ${daysSinceUpdate.toFixed(1)} days ago`);
+    // Check if we have new photo URLs
+    const hasNewPhotos = placeData.photoUrls && placeData.photoUrls.length > 0;
+    
+    // Update frequency logic:
+    // - If we have new photos, allow updates after 1 day to ensure fresh images
+    // - Otherwise, keep the 7-day interval to avoid unnecessary writes
+    const minDaysBetweenUpdates = hasNewPhotos ? 1 : 7;
+    
+    // Skip update if updated too recently
+    if (daysSinceUpdate < minDaysBetweenUpdates) {
+      console.log(`Skipping place data update for ${id}, last updated ${daysSinceUpdate.toFixed(1)} days ago (minimum: ${minDaysBetweenUpdates} days)`);
       return false;
     }
     

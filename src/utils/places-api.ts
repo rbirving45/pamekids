@@ -8,6 +8,7 @@ const CACHE_KEYS = {
 };
 const CACHE_VERSION = '1.0'; // Increment when data structure changes
 const CACHE_EXPIRATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+const PHOTO_URL_EXPIRATION_MS = 3 * 24 * 60 * 60 * 1000; // 3 days - Google photo URLs typically expire in 3-7 days
 
 // Type for the cached place data
 interface CachedPlaceData {
@@ -88,8 +89,11 @@ export async function fetchPlaceDetails(
     if (cachedData) {
       const cacheAge = Date.now() - cachedData.timestamp;
       
-      // If cache is fresh (less than 24 hours), use it
-      if (cacheAge < CACHE_EXPIRATION_MS) {
+      // Check if photo URLs might be expired
+      const photoUrlsExpired = shouldRefreshPhotos(placeId, cachedData.data);
+      
+      // If cache is fresh and photos aren't expired, use it
+      if (cacheAge < CACHE_EXPIRATION_MS && !photoUrlsExpired) {
         console.log(`Using cached place details for ${placeId} (age: ${Math.round(cacheAge/60000)}m)`);
         
         // Create a response with photos property that has getUrl method
@@ -101,12 +105,27 @@ export async function fetchPlaceDetails(
         
         // Fetch fresh data in background if older than 6 hours but still valid
         if (cacheAge > 6 * 60 * 60 * 1000) {
-          console.log('Place cache is valid but aging, refreshing in background...');
+          console.log('Place cache is aging, refreshing in background...');
           setTimeout(() => {
             fetchPlaceDetails(placeId, maps, true)
               .catch(err => console.error('Background place refresh error:', err));
           }, 2000); // Delay to avoid competing with critical resources
         }
+        
+        return Promise.resolve(response);
+      } else if (photoUrlsExpired && !forceRefresh) {
+        // If only the photo URLs are expired but other data is fine, use a targeted approach
+        console.log(`Photo URLs likely expired for ${placeId}, fetching fresh photo data...`);
+        
+        // Return cached data for immediate display, but trigger background refresh
+        const response = {...cachedData.data};
+        response.photoUrls = cachedData.photoUrls;
+        
+        // Trigger immediate background refresh
+        setTimeout(() => {
+          fetchPlaceDetails(placeId, maps, true)
+            .catch(err => console.error('Background photo refresh error:', err));
+        }, 100);
         
         return Promise.resolve(response);
       } else {
@@ -155,16 +174,25 @@ export async function fetchPlaceDetails(
             
             if (result.photos && result.photos.length > 0) {
               try {
-                // Get up to 10 photo URLs (increased from 5)
+                // Try different size options to maximize success rate
+                // Get up to 10 photo URLs with multiple sizing attempts
                 photoUrls = result.photos
                   .slice(0, 10)
                   .map(photo => {
                     try {
+                      // First try with maxHeight and maxWidth
                       const url = photo.getUrl({ maxHeight: 500, maxWidth: 800 });
                       return url;
                     } catch (e) {
-                      console.warn('Error fetching photo URL for place ' + placeId, e);
-                      return null;
+                      // If that fails, try with just maxWidth
+                      console.warn('First attempt failed for photo URL, trying alternate method');
+                      try {
+                        const url = photo.getUrl({ maxWidth: 600 });
+                        return url;
+                      } catch (e2) {
+                        console.warn('Error fetching photo URL for place ' + placeId, e2);
+                        return null;
+                      }
                     }
                   })
                   .filter(Boolean) as string[];
@@ -236,6 +264,19 @@ export async function fetchPlaceDetails(
               }).catch(err => {
                 console.warn('Failed to import firebase-service module:', err);
               });
+            } else {
+              // Even with no photos, we might want to update other data like ratings
+              import('./firebase-service').then(service => {
+                if (typeof service.updateLocationPlaceData === 'function') {
+                  // Still update ratings and other data even without photos
+                  service.updateLocationPlaceData(placeId, placeData)
+                    .catch(err => {
+                      console.warn(`Background Firebase data update failed for ${placeId}`, err);
+                    });
+                }
+              }).catch(err => {
+                console.warn('Failed to import firebase-service module:', err);
+              });
             }
             
             resolve(placeData);
@@ -251,6 +292,34 @@ export async function fetchPlaceDetails(
       reject(error);
     }
   });
+}
+
+/**
+ * Checks if the photo URLs for a place might be expired and need refreshing
+ * @param placeId - The Google Maps Place ID
+ * @param placeData - Optional place data object to check
+ * @returns Boolean indicating if photos should be refreshed
+ */
+export function shouldRefreshPhotos(placeId: string, placeData?: any): boolean {
+  // If no place data or no last_fetched timestamp, we should refresh
+  if (!placeData || !placeData.last_fetched) {
+    return true;
+  }
+
+  try {
+    // Parse the last_fetched timestamp
+    const lastFetchedTime = new Date(placeData.last_fetched).getTime();
+    
+    // Check if it's been more than PHOTO_URL_EXPIRATION_MS since the last fetch
+    const photoAge = Date.now() - lastFetchedTime;
+    
+    // Return true if photos are older than expiration time
+    return photoAge > PHOTO_URL_EXPIRATION_MS;
+  } catch (error) {
+    console.warn(`Error checking photo expiration for ${placeId}:`, error);
+    // If there's any error parsing the timestamp, assume we should refresh
+    return true;
+  }
 }
 
 /**
@@ -285,7 +354,8 @@ export function extractPlaceIdFromUrl(url: string): string | null {
 // Exported interface for the API
 const placesApi = {
   fetchPlaceDetails,
-  extractPlaceIdFromUrl
+  extractPlaceIdFromUrl,
+  shouldRefreshPhotos
 };
 
 export default placesApi;

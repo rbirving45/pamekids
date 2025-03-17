@@ -259,7 +259,41 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
     const url = addUtmParams(baseUrl);
     trackExternalLink('photos', businessName, url);
     window.open(url, '_blank', 'noopener,noreferrer');
+    
+    // Try to refresh photos in the background after clicking through
+    if (window.google?.maps) {
+      setTimeout(() => {
+        import('../../utils/places-api').then(({ fetchPlaceDetails }) => {
+          fetchPlaceDetails(placeId, window.google.maps, true)
+            .catch(err => console.warn('Background refresh after view more click failed:', err));
+        }).catch(err => console.warn('Failed to import places-api module:', err));
+      }, 1000);
+    }
   };
+  
+  // Check if it's been a few days since images were likely fetched
+  // Using a simpler approach that doesn't depend on properties not available on PlacePhoto
+  const maybeRefreshPhotosInBackground = useCallback(() => {
+    // Only proceed if we have a placeId and no recent refresh
+    if (!placeId || !window.google?.maps) return;
+    
+    // Import utilities dynamically
+    setTimeout(() => {
+      import('../../utils/places-api').then(({ fetchPlaceDetails }) => {
+        console.log('Attempting background refresh for carousel photos');
+        fetchPlaceDetails(placeId, window.google.maps, true)
+          .catch(err => console.warn('Background carousel refresh failed:', err));
+      }).catch(err => console.warn('Failed to import places-api module:', err));
+    }, 5000); // Delay background refresh
+  }, [placeId]);
+  
+  // Call the background refresh when component mounts if we have a place ID
+  useEffect(() => {
+    // If we have photos but they might be a few days old, try refreshing in background
+    if (placeId && (photos?.length || photoUrls?.length)) {
+      maybeRefreshPhotosInBackground();
+    }
+  }, [placeId, photos, photoUrls, maybeRefreshPhotosInBackground]);
   
   // Touch event handlers for swipe gestures
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -413,7 +447,20 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
               isLoading ? 'opacity-20' : 'opacity-100'
             }`}
             onLoad={handleImageLoad}
-            onError={handleImageError}
+            onError={(e) => {
+              console.warn(`Image loading error for carousel: ${businessName}`, e);
+              handleImageError();
+              
+              // Try to refresh in background if placeId is available
+              if (placeId && window.google?.maps) {
+                setTimeout(() => {
+                  import('../../utils/places-api').then(({ fetchPlaceDetails }) => {
+                    fetchPlaceDetails(placeId, window.google.maps, true)
+                      .catch(err => console.warn('Background refresh after carousel error failed:', err));
+                  }).catch(err => console.warn('Failed to import places-api module:', err));
+                }, 1000);
+              }
+            }}
             referrerPolicy="no-referrer"
             loading="eager"
           />
