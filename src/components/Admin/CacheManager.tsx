@@ -6,7 +6,7 @@ import {
   getCacheInfo,
   estimateCacheSize
 } from '../../utils/cache-manager';
-import { forcePhotoUpdatesForAllLocations } from '../../utils/firebase-service';
+import { forcePhotoUpdatesForAllLocations, getUpdateStatus } from '../../utils/firebase-service';
 
 const CacheManager: React.FC = () => {
   const [cacheInfo, setCacheInfo] = useState({
@@ -19,6 +19,20 @@ const CacheManager: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatingPhotos, setIsUpdatingPhotos] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<{
+    lastUpdate: Date | null;
+    nextScheduledUpdate: Date | null;
+    successCount: number;
+    failedCount: number;
+    lastRunType: string | null;
+  }>({
+    lastUpdate: null,
+    nextScheduledUpdate: null,
+    successCount: 0,
+    failedCount: 0,
+    lastRunType: null
+  });
+  const [isLoadingStatus, setIsLoadingStatus] = useState(false);
 
   // Load cache information
   const loadCacheInfo = () => {
@@ -38,10 +52,31 @@ const CacheManager: React.FC = () => {
       setIsLoading(false);
     }
   };
+  
+  // Load scheduled update status
+  const loadUpdateStatus = async () => {
+    setIsLoadingStatus(true);
+    try {
+      const status = await getUpdateStatus();
+      setUpdateStatus({
+        lastUpdate: status.last_update ? new Date(status.last_update) : null,
+        nextScheduledUpdate: status.next_scheduled_update ? new Date(status.next_scheduled_update) : null,
+        successCount: status.success_count || 0,
+        failedCount: status.failed_count || 0,
+        lastRunType: status.last_run_type || null
+      });
+    } catch (error) {
+      console.error('Error loading update status:', error);
+      // Don't show an error message to avoid cluttering the UI
+    } finally {
+      setIsLoadingStatus(false);
+    }
+  };
 
-  // Load cache info on mount
+  // Load cache info and update status on mount
   useEffect(() => {
     loadCacheInfo();
+    loadUpdateStatus();
   }, []);
 
   // Handle clearing locations cache
@@ -363,6 +398,94 @@ const CacheManager: React.FC = () => {
             </div>
           </div>
           
+          {/* Automated Update Status */}
+          <div className="border-t pt-4 mt-4">
+            <h3 className="text-lg font-medium mb-3">Scheduled Updates Status</h3>
+            
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-medium text-indigo-700">Automated Photo & Rating Updates</h4>
+                {isLoadingStatus ? (
+                  <div className="animate-pulse h-5 w-24 bg-gray-200 rounded"></div>
+                ) : (
+                  <button
+                    onClick={loadUpdateStatus}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                      <path d="M21 2v6h-6"></path>
+                      <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                      <path d="M3 22v-6h6"></path>
+                      <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                    </svg>
+                    Refresh
+                  </button>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Last Update:</p>
+                  <p className="font-medium">
+                    {updateStatus.lastUpdate ? (
+                      <span className="text-green-600">
+                        {updateStatus.lastUpdate.toLocaleString()}
+                        {updateStatus.lastRunType && ` (${updateStatus.lastRunType})`}
+                      </span>
+                    ) : (
+                      <span className="text-gray-500">No updates yet</span>
+                    )}
+                  </p>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Next Scheduled Update:</p>
+                  <p className="font-medium">
+                    {updateStatus.nextScheduledUpdate ? (
+                      <span className="text-blue-600">
+                        {updateStatus.nextScheduledUpdate.toLocaleString()}
+                      </span>
+                    ) : (
+                      <span className="text-gray-500">Unknown</span>
+                    )}
+                  </p>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Success Rate:</p>
+                  <p className="font-medium">
+                    {updateStatus.successCount || updateStatus.failedCount ? (
+                      <span className={updateStatus.successCount > updateStatus.failedCount ? "text-green-600" : "text-orange-600"}>
+                        {updateStatus.successCount} successes / {updateStatus.failedCount} failures
+                        {" "}
+                        ({updateStatus.successCount + updateStatus.failedCount > 0
+                          ? Math.round((updateStatus.successCount / (updateStatus.successCount + updateStatus.failedCount)) * 100)
+                          : 0}%)
+                      </span>
+                    ) : (
+                      <span className="text-gray-500">No data available</span>
+                    )}
+                  </p>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Update Frequency:</p>
+                  <p className="font-medium text-gray-900">Every 72 hours (3 days)</p>
+                </div>
+              </div>
+              
+              <div className="mt-4 p-3 bg-blue-50 rounded-md text-sm text-blue-800">
+                <p className="font-medium">Fields Updated Automatically:</p>
+                <ul className="mt-1 ml-5 list-disc text-blue-700">
+                  <li>Photo URLs</li>
+                  <li>Rating scores</li>
+                  <li>Number of ratings</li>
+                </ul>
+                <p className="mt-2 italic text-blue-600">All other fields are preserved and must be updated manually.</p>
+              </div>
+            </div>
+          </div>
+
           {/* Technical details */}
           <div className="p-4 bg-gray-50 rounded-lg mt-4 border-t pt-4">
             <h4 className="font-medium mb-2">Technical Notes</h4>
@@ -371,6 +494,9 @@ const CacheManager: React.FC = () => {
             </p>
             <p className="text-sm mt-2">
               <strong>Server Syncing:</strong> When a user views location details, fresh data from Google is stored both in browser cache and sent to Firestore (maximum once per day) to help other users get fresh data too.
+            </p>
+            <p className="text-sm mt-2">
+              <strong>Scheduled Updates:</strong> Every 72 hours, an automated process updates photos, ratings, and review counts for all locations without modifying any other data.
             </p>
             <p className="text-sm mt-2">
               <strong>Cache Version:</strong> Currently {cacheInfo.cacheVersion || 'Not set'} - This automatically manages compatibility when the app is updated with new features.

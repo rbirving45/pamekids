@@ -171,22 +171,30 @@ exports.handler = async (event, context) => {
   // Check if this is a scheduled event
   const isScheduledEvent = event.headers && event.headers['x-netlify-scheduled'];
   console.log(`Starting places update... (Triggered by: ${isScheduledEvent ? 'schedule' : 'manual request'})`);
-  
+  // Store status information for monitoring in the admin dashboard
   try {
-    // Initialize Firebase
-    const db = getFirestore();
-    
-    // Fetch all locations from Firestore
-    const locations = await fetchAllLocations(db);
-    
-    if (locations.length === 0) {
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
-          message: 'No locations to update',
-          timestamp: new Date().toISOString()
-        })
+    const statusRef = db.collection('system').doc('update_status');
+    await statusRef.set({
+      last_update: admin.firestore.FieldValue.serverTimestamp(),
+      next_scheduled_update: new Date(Date.now() + (72 * 60 * 60 * 1000)), // 72 hours from now
+      success_count: admin.firestore.FieldValue.increment(results.success),
+      failed_count: admin.firestore.FieldValue.increment(results.failed),
+      skipped_count: admin.firestore.FieldValue.increment(results.skipped),
+      last_run_type: 'scheduled',
+      info: {
+        total_locations: locations.length,
+        timestamp: new Date().toISOString(),
+        duration_minutes: ((Date.now() - startTime) / 60000).toFixed(2)
+      }
+    }, { merge: true });
       };
+      
+      // Export helper functions so they can be reused by other functions
+      exports.initializeFirebaseAdmin = initializeFirebaseAdmin;
+      exports.getFirestore = getFirestore;
+      exports.fetchAllLocations = fetchAllLocations;
+      exports.fetchPlaceDetails = fetchPlaceDetails;
+      exports.updateLocationPlaceData = updateLocationPlaceData;
     }
     
     console.log(`Processing ${locations.length} locations...`);

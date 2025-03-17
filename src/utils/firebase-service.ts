@@ -180,6 +180,36 @@ export const forcePhotoUpdatesForAllLocations = async (): Promise<{success: numb
   }
 };
 
+/**
+ * Get status information about scheduled updates
+ * @returns Promise with update status information
+ */
+export const getUpdateStatus = async (): Promise<any> => {
+  try {
+    // Verify admin authentication
+    verifyAdminAuth();
+    
+    // Get the update status document from Firestore
+    const statusRef = doc(db, 'system', 'update_status');
+    const statusDoc = await getDoc(statusRef);
+    
+    if (!statusDoc.exists()) {
+      return {
+        last_update: null,
+        next_scheduled_update: null,
+        success_count: 0,
+        failed_count: 0,
+        last_run_type: null
+      };
+    }
+    
+    return statusDoc.data();
+  } catch (error) {
+    console.error('Error getting update status:', error);
+    throw new Error(formatFirestoreError(error));
+  }
+};
+
 // Function to update only photo URLs for a location
 export const updatePhotoUrlsForLocation = async (id: string, photoUrls: string[]): Promise<boolean> => {
   try {
