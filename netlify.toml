@@ -8,6 +8,10 @@
 [build.environment]
   CREATE_DATA_DIR = "true"
 
+# Scheduled function for updating place data every 72 hours
+[functions."scheduled-places-update"]
+  schedule = "0 0 */3 * *"
+
 # Redirects for API endpoints to Netlify Functions
 [[redirects]]
   from = "/api/*"
