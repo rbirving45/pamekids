@@ -16,7 +16,8 @@ const RatingDisplay: React.FC<RatingDisplayProps> = React.memo(({ rating, totalR
   }), [rating]);
 
   const handleReviewClick = () => {
-    const baseUrl = `https://www.google.com/maps/place/?q=place_id:${placeId}`;
+    // This format works better across platforms (desktop and mobile)
+    const baseUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(businessName)}&query_place_id=${placeId}`;
     const reviewsUrl = addUtmParams(baseUrl);
     trackExternalLink('reviews', businessName, reviewsUrl);
     window.open(reviewsUrl, '_blank', 'noopener,noreferrer');
