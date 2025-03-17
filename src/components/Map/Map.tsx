@@ -1335,6 +1335,65 @@ const MapComponent: React.FC<MapProps> = () => {
         </button>
       )}
       
+      {/* Custom My Location Button */}
+      {mapReady && (
+        <div
+          className="absolute z-mobile-button"
+          style={{
+            // Position calculation for mobile and desktop
+            top: isMobile ? '132px' : '76px',  // Fixed positioning below the filter bar
+            right: '15px',
+            pointerEvents: 'auto'
+          }}
+        >
+          <button
+            onClick={() => {
+              if (map && userLocation && userLocation.lat && userLocation.lng) {
+                // Re-center the map on the user's location with appropriate context
+                centerMapOnLocation(userLocation, 'initial-load');
+                
+                // Request fresh location data
+                navigator.geolocation.getCurrentPosition(
+                  (position) => {
+                    const freshLocation = {
+                      lat: position.coords.latitude,
+                      lng: position.coords.longitude
+                    };
+                    setUserLocation(freshLocation);
+                    centerMapOnLocation(freshLocation, 'initial-load');
+                  },
+                  (error) => {
+                    console.log('Geolocation error when refreshing position:', error.message);
+                  },
+                  {
+                    enableHighAccuracy: true,
+                    timeout: 5000,
+                    maximumAge: 0
+                  }
+                );
+              }
+            }}
+            className="bg-white rounded-full shadow-md border border-gray-200 hover:bg-gray-50 transition-all duration-150 flex items-center justify-center"
+            style={{
+              width: '40px',
+              height: '40px',
+            }}
+            aria-label="Center on my location"
+          >
+            {/* Improved Google Maps-style "my location" bullseye icon */}
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600">
+              {/* Bullseye with crosshairs design */}
+              <circle cx="12" cy="12" r="8"></circle>
+              <circle cx="12" cy="12" r="2" fill="currentColor"></circle>
+              <line x1="12" y1="2" x2="12" y2="6"></line>
+              <line x1="12" y1="18" x2="12" y2="22"></line>
+              <line x1="2" y1="12" x2="6" y2="12"></line>
+              <line x1="18" y1="12" x2="22" y2="12"></line>
+            </svg>
+          </button>
+        </div>
+      )}
+      
       {/* Render search dropdown outside map container */}
       {renderSearchDropdown()}
     </div>
