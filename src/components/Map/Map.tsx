@@ -3,7 +3,7 @@ import { GoogleMap, LoadScriptNext, Marker, Libraries } from '@react-google-maps
 import Drawer from './Drawer';
 import { ActivityType, Location } from '../../types/location';
 import { Search, ChevronDown } from 'lucide-react';
-import { trackMarkerClick } from '../../utils/analytics';
+import { trackMarkerClick, trackSearchQuery, trackSearchResultClick } from '../../utils/analytics';
 import { useMobile } from '../../contexts/MobileContext';
 import { useUIState } from '../../contexts/UIStateContext';
 import { useTouch } from '../../contexts/TouchContext';
@@ -424,6 +424,16 @@ const MapComponent: React.FC<MapProps> = () => {
       // Limit to first 10 results for better performance
       setSearchResults(results.slice(0, 10));
       
+      // Track the search query and results (only if search term is valid)
+      if (searchTerm.trim().length > 1) {
+        trackSearchQuery(
+          searchTerm,
+          results.length,
+          activeFilters.length > 0,
+          selectedAge !== null
+        );
+      }
+      
       // Debug logging only when explicitly enabled via localStorage
       if (process.env.NODE_ENV === 'development' && localStorage.getItem('enableSearchDebug') === 'true') {
         console.groupCollapsed(`Enhanced search for: "${searchTerm}"`);
@@ -488,10 +498,17 @@ const MapComponent: React.FC<MapProps> = () => {
     setOpenNowFilter(false);
   };
   // Handle search select
-  const handleSearchSelect = (location: Location) => {
+  const handleSearchSelect = (location: Location, index: number = 0) => {
     console.log('Search item selected:', location.name);
     setSelectedLocation(location);
     setSearchExpanded(false);
+    
+    // Track search result click before clearing the search term
+    if (searchTerm) {
+      trackSearchResultClick(searchTerm, location.name, index);
+    }
+    
+    // Clear search term after tracking
     setSearchTerm('');
     
     // Track the marker click for analytics, same as direct marker clicks
@@ -671,7 +688,7 @@ const MapComponent: React.FC<MapProps> = () => {
         {searchResults.map((result, index) => (
           <button
             key={`${result.location.id}-${result.matchField}-${index}`}
-            onClick={() => handleSearchSelect(result.location)}
+            onClick={() => handleSearchSelect(result.location, index)}
             data-search-result="true"
             className="w-full py-2 px-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-0 flex flex-col"
           >

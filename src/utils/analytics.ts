@@ -154,6 +154,42 @@ export const trackMarkerClick = throttle((businessName: string) => {
   });
 }, 1000); // 1 second throttle
 
+// Track search queries with throttling to avoid excessive events
+export const trackSearchQuery = throttle((
+  query: string,
+  resultCount: number,
+  hasActivityFilter: boolean = false,
+  hasAgeFilter: boolean = false
+) => {
+  // Add to batch queue instead of sending immediately
+  queueAnalyticsEvent('search_query', {
+    event_category: 'Search',
+    event_label: query,
+    search_term: query,
+    result_count: resultCount,
+    has_activity_filter: hasActivityFilter,
+    has_age_filter: hasAgeFilter,
+    non_interaction: false
+  });
+}, 500); // 500ms throttle for searches
+
+// Track search result clicks
+export const trackSearchResultClick = (
+  query: string,
+  resultName: string,
+  resultPosition: number
+) => {
+  // Add to batch queue instead of sending immediately
+  queueAnalyticsEvent('search_result_click', {
+    event_category: 'Search',
+    event_label: resultName,
+    search_term: query,
+    result_name: resultName,
+    result_position: resultPosition,
+    non_interaction: false
+  });
+};
+
 // Add UTM parameters to URLs
 export const addUtmParams = (url: string): string => {
   const utmParams = new URLSearchParams({
