@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle } from 'lucide-react';
-import { ActivityType } from '../../data/locations';
+import { ActivityType } from '../../types/location';
 import ModalWrapper from '../common/ModalWrapper';
 
 interface SuggestActivityModalProps {
