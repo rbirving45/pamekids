@@ -35,7 +35,12 @@ const SEO: React.FC<SEOProps> = ({
   // Use provided values or fallback to defaults
   const metaTitle = title ? `${title} | ${APP_NAME}` : SEO_CONFIG.title;
   const metaDescription = description || SEO_CONFIG.description;
-  const metaImage = image ? `${APP_URL}/${image}` : `${APP_URL}/${OPEN_GRAPH.image}`;
+  
+  // Ensure metaImage is always an absolute URL (handle both relative and absolute paths)
+  const metaImage = image
+    ? (image.startsWith('http') ? image : `${APP_URL}/${image}`)
+    : `${APP_URL}/${OPEN_GRAPH.image}`;
+  
   const metaImageAlt = imageAlt || OPEN_GRAPH.imageAlt;
   const metaUrl = canonicalUrl || APP_URL;
 
@@ -71,6 +76,9 @@ const SEO: React.FC<SEOProps> = ({
       <meta property="og:description" content={metaDescription} />
       <meta property="og:image" content={metaImage} />
       <meta property="og:image:alt" content={metaImageAlt} />
+      <meta property="og:image:width" content={OPEN_GRAPH.imageWidth} />
+      <meta property="og:image:height" content={OPEN_GRAPH.imageHeight} />
+      <meta property="og:image:type" content="image/jpeg" />
       <meta property="og:site_name" content={OPEN_GRAPH.siteName} />
       <meta property="og:locale" content={OPEN_GRAPH.locale} />
 

@@ -60,12 +60,12 @@ export const OPEN_GRAPH = {
 
 // Twitter Card metadata
 export const TWITTER = {
-  // Using summary instead of summary_large_image to work with existing images
-  card: "summary",
+  // Switch to summary_large_image for better visual impact
+  card: "summary_large_image",
   title: OPEN_GRAPH.title,
   description: OPEN_GRAPH.description,
-  // Using logo512.png which is square and works well for Twitter summary cards
-  image: LOGOS.logo512,
+  // Use the same image as Open Graph for consistency across platforms
+  image: LOGOS.ogImage,
   imageAlt: OPEN_GRAPH.imageAlt,
 };
 
