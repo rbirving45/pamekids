@@ -22,6 +22,7 @@ import Dashboard from './components/Admin/Dashboard';
 
 // Import activity categories from centralized metadata
 import { ACTIVITY_CATEGORIES as activityConfig } from './utils/metadata';
+import { injectSchemaOrgData } from './utils/schema';
 
 // Interface for Report Issue Modal data
 interface ReportIssueData {
@@ -153,31 +154,7 @@ function App() {
     }
 
     // Inject schema.org structured data for rich search results
-    const script = document.createElement('script');
-    script.type = 'application/ld+json';
-    script.text = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "WebApplication",
-      "name": "PameKids",
-      "url": "https://www.pamekids.com",
-      "description": "Find the best children's activities in Athens, Greece. Indoor play, outdoor activities, sports, arts, music, education and entertainment for kids.",
-      "applicationCategory": "Maps & Kids Activities",
-      "operatingSystem": "Web",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "EUR"
-      },
-      "areaServed": {
-        "@type": "City",
-        "name": "Athens",
-        "containedInPlace": {
-          "@type": "Country",
-          "name": "Greece"
-        }
-      }
-    });
-    document.head.appendChild(script);
+    injectSchemaOrgData();
   }, []);
 
   return (

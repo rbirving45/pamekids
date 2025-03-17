@@ -1,3 +1,5 @@
+import { ANALYTICS } from './metadata';
+
 declare global {
   interface Window {
     gtag: (...args: any[]) => void;
@@ -5,27 +7,39 @@ declare global {
   }
 }
 
-// Initialize Google Analytics - now working with script already in HTML
+// Initialize Google Analytics - dynamically loading script
 export const initGA = () => {
-  // Check if gtag is already defined (from the script in HTML)
+  // Check if gtag is already defined
   if (typeof window.gtag !== 'function') {
-    console.warn('Google Analytics gtag function not found. Analytics may not be loaded correctly.');
-    
     // Provide fallback implementation to prevent errors
     window.dataLayer = window.dataLayer || [];
     window.gtag = function() {
       window.dataLayer.push(arguments);
     };
+    
+    // Dynamically load the GA script with our measurement ID
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${ANALYTICS.GA_MEASUREMENT_ID}`;
+    document.head.appendChild(script);
   }
 
-  // The measurement ID is now hardcoded in the HTML
-  const measurementId = 'G-0JSE2646NP';
+  // Get measurement ID from centralized metadata
+  const measurementId = ANALYTICS.GA_MEASUREMENT_ID;
   
   // Log successful initialization
   console.log(`Google Analytics initialized with ID: ${measurementId}`);
   
-  // Send a page view to ensure tracking starts correctly
+  // Configure GA with centralized measurement ID
   if (typeof window.gtag === 'function') {
+    // Initialize GA4 with proper configuration
+    window.gtag('config', measurementId, {
+      send_page_view: true,
+      cookie_flags: 'max-age=7200;secure;samesite=none',
+      cookie_domain: 'auto',
+      cookie_update: true
+    });
+    
     // Send initial page view for SPA tracking
     window.gtag('event', 'page_view', {
       page_title: document.title,

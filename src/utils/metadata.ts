@@ -1,12 +1,38 @@
 /**
  * Central configuration for PameKids app metadata
  * This file serves as a single source of truth for all SEO and sharing-related metadata
+ *
+ * IMPORTANT: When updating values in this file, you must also manually update:
+ * 1. /public/site.webmanifest - Update name, short_name, description, theme_color
+ * 2. /public/browserconfig.xml - Update TileColor to match BRAND.primaryColor
+ * 3. /public/index.html - Ensure Google Analytics ID matches ANALYTICS.GA_MEASUREMENT_ID
  */
 
 // App identity
 export const APP_NAME = "PameKids";
 export const APP_DESCRIPTION = "Find the best children's activities in Athens, Greece. Indoor play, outdoor activities, sports, arts, music, education and entertainment for kids.";
 export const APP_URL = "https://www.pamekids.com";
+
+// Brand colors
+export const BRAND = {
+  primaryColor: "#4285F4",
+  secondaryColor: "#ffffff",
+};
+
+// Logo configuration - centralized references to all logo files
+export const LOGOS = {
+  favicon: "favicon.ico",
+  favicon16: "favicon-16x16.png",
+  favicon32: "favicon-32x32.png",
+  logo150: "logo150.png",
+  logo192: "logo192.png",
+  logo512: "logo512.png",
+  maskableIcon: "maskable-icon.png",
+  appleTouchIcon: "apple-touch-icon.png",
+  // Use existing logo for Safari pinned tab
+  safariPinnedTab: "logo150.png",
+  ogImage: "og-image.jpg",
+};
 
 // SEO metadata
 export const SEO = {
@@ -26,7 +52,7 @@ export const OPEN_GRAPH = {
   siteName: APP_NAME,
   locale: "en_US",
   // This path is relative to the public folder
-  image: "og-image.jpg",
+  image: LOGOS.ogImage,
   imageAlt: "PameKids - Find children's activities in Athens",
   imageWidth: "1200",
   imageHeight: "630",
@@ -34,11 +60,12 @@ export const OPEN_GRAPH = {
 
 // Twitter Card metadata
 export const TWITTER = {
-  card: "summary_large_image",
+  // Using summary instead of summary_large_image to work with existing images
+  card: "summary",
   title: OPEN_GRAPH.title,
   description: OPEN_GRAPH.description,
-  // This path is relative to the public folder
-  image: OPEN_GRAPH.image,
+  // Using logo512.png which is square and works well for Twitter summary cards
+  image: LOGOS.logo512,
   imageAlt: OPEN_GRAPH.imageAlt,
 };
 
@@ -59,4 +86,9 @@ export const CITY = {
   country: "Greece",
   lat: 37.9838,
   lng: 23.7275,
+};
+
+// Analytics configuration
+export const ANALYTICS = {
+  GA_MEASUREMENT_ID: 'G-0JSE2646NP',
 };
