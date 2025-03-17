@@ -260,40 +260,19 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
     trackExternalLink('photos', businessName, url);
     window.open(url, '_blank', 'noopener,noreferrer');
     
-    // Try to refresh photos in the background after clicking through
-    if (window.google?.maps) {
-      setTimeout(() => {
-        import('../../utils/places-api').then(({ fetchPlaceDetails }) => {
-          fetchPlaceDetails(placeId, window.google.maps, true)
-            .catch(err => console.warn('Background refresh after view more click failed:', err));
-        }).catch(err => console.warn('Failed to import places-api module:', err));
-      }, 1000);
-    }
+    // Background refreshes are now handled by the scheduled server process
+    // We'll implement a mechanism for reporting broken images in the future
   };
   
-  // Check if it's been a few days since images were likely fetched
-  // Using a simpler approach that doesn't depend on properties not available on PlacePhoto
-  const maybeRefreshPhotosInBackground = useCallback(() => {
-    // Only proceed if we have a placeId and no recent refresh
-    if (!placeId || !window.google?.maps) return;
-    
-    // Import utilities dynamically
-    setTimeout(() => {
-      import('../../utils/places-api').then(({ fetchPlaceDetails }) => {
-        console.log('Attempting background refresh for carousel photos');
-        fetchPlaceDetails(placeId, window.google.maps, true)
-          .catch(err => console.warn('Background carousel refresh failed:', err));
-      }).catch(err => console.warn('Failed to import places-api module:', err));
-    }, 5000); // Delay background refresh
-  }, [placeId]);
-  
-  // Call the background refresh when component mounts if we have a place ID
+  // Keep the effect without using maybeRefreshPhotosInBackground
   useEffect(() => {
-    // If we have photos but they might be a few days old, try refreshing in background
+    // This is now a no-op, but we'll implement image URL refresh logic here later
     if (placeId && (photos?.length || photoUrls?.length)) {
-      maybeRefreshPhotosInBackground();
+      // No automatic refresh for now
+      // We'll implement a proper mechanism for handling expired URLs in the future
+      console.log('Images loaded - background refresh disabled');
     }
-  }, [placeId, photos, photoUrls, maybeRefreshPhotosInBackground]);
+  }, [placeId, photos, photoUrls]);
   
   // Touch event handlers for swipe gestures
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -451,14 +430,27 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
               console.warn(`Image loading error for carousel: ${businessName}`, e);
               handleImageError();
               
-              // Try to refresh in background if placeId is available
-              if (placeId && window.google?.maps) {
-                setTimeout(() => {
-                  import('../../utils/places-api').then(({ fetchPlaceDetails }) => {
-                    fetchPlaceDetails(placeId, window.google.maps, true)
-                      .catch(err => console.warn('Background refresh after carousel error failed:', err));
-                  }).catch(err => console.warn('Failed to import places-api module:', err));
-                }, 1000);
+              // TODO: Future implementation - report broken image URLs to a central system
+              // This will be used to trigger targeted updates for specific locations
+              if (placeId) {
+                // For now, we're just logging the error
+                // In the future, we'll implement a reporting mechanism
+                console.log(`Image URL expired for location: ${placeId}`);
+                
+                // We could store failed image URLs in localStorage to track patterns
+                try {
+                  // Get existing reported URLs
+                  const reportedUrls = JSON.parse(localStorage.getItem('expired_image_urls') || '{}');
+                  // Add this location
+                  reportedUrls[placeId] = {
+                    timestamp: Date.now(),
+                    businessName
+                  };
+                  // Store back to localStorage
+                  localStorage.setItem('expired_image_urls', JSON.stringify(reportedUrls));
+                } catch (err) {
+                  // Ignore errors in localStorage operations
+                }
               }
             }}
             referrerPolicy="no-referrer"

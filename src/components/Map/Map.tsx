@@ -572,11 +572,17 @@ const MapComponent: React.FC<MapProps> = () => {
     if (process.env.NODE_ENV === 'development') {
       console.groupCollapsed('Map initialization');
       console.log('Map loaded successfully');
+      console.log('Direct Google API calls disabled - using cached data only');
       console.groupEnd();
     }
     
     setMap(map);
-    setMaps(window.google.maps);
+    
+    // Store maps reference but with a warning about direct API calls
+    if (window.google?.maps) {
+      console.log('Maps API reference stored, but direct API calls are disabled');
+      setMaps(window.google.maps);
+    }
     
     // Center on user location - this only happens if mapReady is true,
     // which means we've already determined the location

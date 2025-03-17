@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Location, ActivityType } from '../../types/location';
-import { fetchPlaceDetails, shouldRefreshPhotos } from '../../utils/places-api';
+import { fetchPlaceDetails } from '../../utils/places-api';
 import { Star } from 'lucide-react';
 
 interface LocationTileProps {
@@ -20,46 +20,36 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
     setImageError(false);
   }, [location.id]);
 
-  // Fetch place data when component mounts or when needed
+  // Simplified effect - only use placeData from location, no API calls
   useEffect(() => {
     // Track if component is mounted
     let isMounted = true;
     
     const fetchData = async () => {
-      // First check: Do we have placeData with valid photoUrls?
-      const hasValidPhotos = location.placeData?.photoUrls &&
-                             location.placeData.photoUrls.length > 0;
+      // Do we have placeData with valid photoUrls?
+      const hasPlaceData = !!location.placeData;
       
-      // Second check: Are the photos likely expired?
-      const shouldRefresh = shouldRefreshPhotos(location.id, location.placeData);
-      
-      // Use cached data immediately if we have valid photos and they're not expired
-      if (hasValidPhotos && !shouldRefresh) {
-        setPlaceData(location.placeData);
-        setIsLoading(false);
+      // Always use the existing place data without making API calls
+      if (hasPlaceData) {
+        if (isMounted) {
+          setPlaceData(location.placeData);
+          setIsLoading(false);
+        }
         return;
       }
       
-      // Skip if Google Maps isn't loaded yet
-      if (!window.google?.maps) {
-        setIsLoading(false);
-        return;
-      }
-      
-      // At this point, we either don't have photos or they're expired, so fetch fresh data
+      // If we don't have placeData, fetch from Firestore (not Google API)
       setIsLoading(true);
       
       try {
-        // Set forceRefresh to true if existing photos are likely expired
-        const forceRefresh = shouldRefresh;
-        const data = await fetchPlaceDetails(location.id, window.google.maps, forceRefresh);
+        // Our modified fetchPlaceDetails now only gets data from Firestore
+        const data = await fetchPlaceDetails(location.id);
         
         // Only update state if the component is still mounted
         if (isMounted && data) {
-          // Ensure we have a valid photos array and not undefined
+          // Ensure we have valid data
           const validData = {
             ...data,
-            photos: data.photos || [],
             photoUrls: data.photoUrls || []
           };
           
@@ -71,7 +61,7 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
         if (isMounted) {
           console.error('Error fetching place details for tile:', error);
           
-          // Even if there's an error, use any existing data if available
+          // Use any existing data if available, otherwise show empty state
           if (location.placeData) {
             setPlaceData(location.placeData);
           }
@@ -95,28 +85,14 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
   // Combine placeData from state or from location, ensuring we get the most complete data
   const mergedPlaceData = placeData || location.placeData;
 
-  // Get the first available photo URL with more robust error handling
+  // Get the first available photo URL with simplified logic (no background refresh)
   const featuredImageUrl = useMemo(() => {
     // If image already errored, don't try to show it
     if (imageError) return null;
     
-    // Check if photos might be expired
-    const photosMightBeExpired = shouldRefreshPhotos(location.id, mergedPlaceData);
-    
     // Check for photoUrls first (pre-processed URLs)
     if (mergedPlaceData?.photoUrls && mergedPlaceData.photoUrls.length > 0) {
-      // If photos might be expired, flag for background refresh but still use them
-      if (photosMightBeExpired) {
-        // Schedule a background refresh without blocking UI
-        setTimeout(() => {
-          if (window.google?.maps) {
-            fetchPlaceDetails(location.id, window.google.maps, true)
-              .catch(err => console.warn(`Background refresh failed for tile: ${location.name}`, err));
-          }
-        }, 2000); // Delay to avoid competing with critical resources
-      }
-      
-      // Use the first photo URL even if it might be expired (better than nothing)
+      // Use the first photo URL (best we can do without direct Google API access)
       return mergedPlaceData.photoUrls[0];
     }
     
@@ -134,7 +110,7 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
     }
     
     return null;
-  }, [mergedPlaceData, imageError, location.id, location.name]);
+  }, [mergedPlaceData, imageError]);
 
   // Fallback image based on the primary activity type
   const primaryType = location.primaryType || location.types[0];
@@ -228,12 +204,20 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
                 // Clear loading state on error
                 setIsLoading(false);
                 
-                // If this is the first error, try a background refresh
-                if (!imageError && window.google?.maps) {
-                  setTimeout(() => {
-                    fetchPlaceDetails(location.id, window.google.maps, true)
-                      .catch(err => console.warn('Background refresh after error failed:', err));
-                  }, 500);
+                // Track broken image URLs for future handling
+                try {
+                  // Get existing reported URLs
+                  const reportedUrls = JSON.parse(localStorage.getItem('expired_image_urls') || '{}');
+                  // Add this location
+                  reportedUrls[location.id] = {
+                    timestamp: Date.now(),
+                    name: location.name,
+                    context: 'locationTile'
+                  };
+                  // Store back to localStorage
+                  localStorage.setItem('expired_image_urls', JSON.stringify(reportedUrls));
+                } catch (err) {
+                  // Ignore errors in localStorage operations
                 }
               }}
               referrerPolicy="no-referrer"

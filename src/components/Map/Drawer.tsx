@@ -152,35 +152,27 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // Import the updateLocationPlaceData function at the top of the file
   // Add this import statement along with the other imports
   
-  // Enhanced fetchData function with caching and background refreshes
+  // Simplified fetchData function that only uses Firestore data, no background refreshes
   const fetchData = useCallback(async () => {
-    if (!locationId || !window.google?.maps) return;
+    if (!locationId) return;
     
     setIsLoading(true);
     setHasAttemptedFetch(true);
     
     try {
-      // The fetchPlaceDetails function now handles caching internally
-      // It will return cached data if available and refresh in background if needed
-      const data = await fetchPlaceDetails(locationId, window.google.maps);
+      // Call fetchPlaceDetails without Google Maps API, it will fetch from Firestore
+      const data = await fetchPlaceDetails(locationId);
       
       if (data) {
         let finalData;
         
         if (location?.placeData) {
-          // Merge with existing data
+          // Merge with existing data, prioritizing any existing values
           const mergedData = {
-            ...location.placeData,
-            ...data,
-            photos: [...(data.photos || []), ...(location.placeData.photos || [])].filter(
-              (photo, index, self) =>
-                photo &&
-                typeof photo.getUrl === 'function' &&
-                self.findIndex(p => p === photo) === index
-            ),
-            photoUrls: data.photoUrls?.length ? data.photoUrls : location.placeData.photoUrls,
-            rating: data.rating || location.placeData.rating,
-            userRatingsTotal: data.userRatingsTotal || location.placeData.userRatingsTotal
+            ...data,               // Start with Firestore data
+            ...location.placeData, // Prioritize any data already in the location object
+            // Preserve photoUrls from either source
+            photoUrls: location.placeData.photoUrls?.length ? location.placeData.photoUrls : data.photoUrls
           };
           
           finalData = mergedData;
@@ -195,26 +187,9 @@ const Drawer: React.FC<DrawerProps> = memo(({
         if (location) {
           location.placeData = finalData;
         }
-        
-        // If this was fresh data (not from cache), update it in Firestore
-        // This helps build our server-side cache over time from user interactions
-        if (data.last_fetched) {
-          const lastFetchedTime = new Date(data.last_fetched).getTime();
-          const isFreshData = Date.now() - lastFetchedTime < 60000; // Less than a minute old
-          
-          if (isFreshData) {
-            // This is a background operation - don't await it
-            import('../../utils/firebase-service').then(({ updateLocationPlaceData }) => {
-              // Don't block the UI for this background operation
-              updateLocationPlaceData(locationId, data).catch(err => {
-                console.warn('Background Firestore update failed:', err);
-              });
-            });
-          }
-        }
       }
     } catch (error) {
-      console.error('Error fetching place details:', error);
+      console.error('Error fetching place details from Firestore:', error);
       // Fallback to existing place data if available
       if (location?.placeData) {
         setPlaceData(location.placeData);
@@ -235,76 +210,14 @@ const Drawer: React.FC<DrawerProps> = memo(({
     }
   }, [locationId, fetchData]);
 
-  // Use separate effect to check if we already have placeData in the location object
+  // Simplified effect to use existing placeData without background refreshes
   useEffect(() => {
     // If location has placeData already, use it immediately to prevent flickering
     if (location?.placeData && !placeData) {
       setPlaceData(location.placeData);
       setIsLoading(false);
-      
-      // Still fetch fresh data in the background after a small delay
-      const timer = setTimeout(() => {
-        // Skip if location or location ID is no longer available
-        if (!location?.placeData || !locationId) return;
-        
-        // Only fetch if there's no timestamp or it's older than 6 hours
-        const lastFetchedStr = location.placeData.last_fetched;
-        let needsRefresh = true; // Default to refresh if no timestamp
-        
-        if (lastFetchedStr) {
-          try {
-            const lastFetchedTime = new Date(lastFetchedStr).getTime();
-            const sixHoursMs = 6 * 60 * 60 * 1000;
-            // Only consider valid if within the last 6 hours
-            needsRefresh = Date.now() - lastFetchedTime > sixHoursMs;
-          } catch (e) {
-            console.warn('Invalid last_fetched timestamp:', e);
-            // If date parsing fails, default to refresh
-            needsRefresh = true;
-          }
-        }
-        
-        if (needsRefresh && window.google?.maps) {
-          // Force refresh to get latest data
-          fetchPlaceDetails(locationId, window.google.maps, true)
-            .then(freshData => {
-              if (freshData && location?.placeData) {
-                // Update place data with fresh data
-                const updatedData = {
-                  ...location.placeData,
-                  ...freshData,
-                  // Handle possibly undefined photoUrls with optional chaining
-                  photoUrls: freshData.photoUrls?.length ?
-                    freshData.photoUrls :
-                    location.placeData.photoUrls
-                };
-                setPlaceData(updatedData);
-                
-                // Only update location reference if it still exists
-                if (location) {
-                  location.placeData = updatedData;
-                }
-                
-                // Background update to Firestore if locationId is defined
-                if (locationId) {
-                  import('../../utils/firebase-service').then(({ updateLocationPlaceData }) => {
-                    updateLocationPlaceData(locationId, freshData).catch(err => {
-                      console.warn('Failed to update Firestore:', err);
-                    });
-                  });
-                }
-              }
-            })
-            .catch(err => {
-              // Don't show errors for background refreshes
-              console.warn('Background refresh failed:', err);
-            });
-        }
-      }, 3000); // 3 second delay for background refresh
-      
-      return () => clearTimeout(timer);
     }
-  }, [location, locationId, placeData]);
+  }, [location, placeData]);
 
   // Touch handling is now fully managed by TouchContext
   // This comment is kept to document the migration

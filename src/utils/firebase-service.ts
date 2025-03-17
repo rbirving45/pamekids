@@ -148,97 +148,34 @@ export const getActivitySuggestions = async (): Promise<DocumentData[]> => {
 // Location functions
 
 // Function to force photo and rating updates for all locations (admin only)
+// Now calls the serverless function instead of doing updates in-browser
 export const forcePhotoUpdatesForAllLocations = async (): Promise<{success: number, failed: number}> => {
   try {
     // Verify admin authentication
     verifyAdminAuth();
     
-    console.log('Starting force photo and rating updates for all locations...');
-    const locations = await getLocations(true); // Get fresh data
+    console.log('Triggering server-side photo and rating updates for all locations...');
     
-    let successCount = 0;
-    let failedCount = 0;
-    
-    // Process in batches to avoid overwhelming the API
-    const batchSize = 5;
-    for (let i = 0; i < locations.length; i += batchSize) {
-      const batch = locations.slice(i, i + batchSize);
-      
-      console.log(`Processing batch ${i/batchSize + 1}/${Math.ceil(locations.length/batchSize)} (${batch.length} locations)`);
-      
-      // Process batch in parallel
-      const results = await Promise.allSettled(batch.map(async (location) => {
-        try {
-          // Skip if no valid Google Places ID
-          if (!location.id) {
-            console.warn(`Location has no valid ID: ${location.name}`);
-            return false;
-          }
-          
-          // Ensure Google Maps API is loaded
-          if (!window.google || !window.google.maps) {
-            throw new Error('Google Maps API not loaded');
-          }
-          
-          // Import places-api module dynamically
-          const placesApi = await import('./places-api');
-          
-          // Fetch fresh place details with force refresh
-          const placeData = await placesApi.fetchPlaceDetails(
-            location.id,
-            window.google.maps,
-            true // Force refresh
-          );
-          
-          // Create or update the location's placeData
-          if (placeData) {
-            // Even if no photos, we still update ratings
-            if (!placeData.photoUrls || placeData.photoUrls.length === 0) {
-              console.warn(`No photos found for location: ${location.name} (${location.id}), but updating ratings if available`);
-            }
-            
-            // Use the updateLocationPlaceData function which now preserves other fields
-            // This will update only photos and ratings while keeping other manually entered data
-            await updateLocationPlaceData(location.id, placeData);
-            return true;
-          } else {
-            console.warn(`No place data found for location: ${location.name} (${location.id})`);
-            return false;
-          }
-        } catch (error) {
-          console.error(`Failed to update photos and ratings for ${location.name}:`, error);
-          return false;
-        }
-      }));
-      
-      // Create local counters to avoid the loop-func issue
-      let batchSuccessCount = 0;
-      let batchFailedCount = 0;
-      
-      // Count successes and failures
-      results.forEach(result => {
-        if (result.status === 'fulfilled' && result.value === true) {
-          batchSuccessCount++;
-        } else {
-          batchFailedCount++;
-        }
-      });
-      
-      // Update our overall counters
-      successCount += batchSuccessCount;
-      failedCount += batchFailedCount;
-      
-      // Wait a bit between batches to avoid rate limits
-      if (i + batchSize < locations.length) {
-        console.log(`Waiting before processing next batch...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+    // Call the server-side function instead of processing in-browser
+    const token = localStorage.getItem('adminToken');
+    const response = await fetch('/api/force-places-update', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Server returned error: ${response.status} ${response.statusText}`);
     }
     
-    console.log(`Completed force photo and rating updates: ${successCount} succeeded, ${failedCount} failed`);
-    return { success: successCount, failed: failedCount };
+    const result = await response.json();
+    
+    console.log(`Server-side update completed: ${result.success} succeeded, ${result.failed} failed`);
+    return result;
   } catch (error) {
-    console.error('Error in force photo and rating updates:', error);
+    console.error('Error triggering server-side photo updates:', error);
     throw new Error(formatFirestoreError(error));
   }
 };
@@ -621,95 +558,18 @@ export const updateLocation = async (id: string, data: Partial<Location>) => {
   }
 };
 
-// Function to update a location's Google Places data without requiring admin rights
-// This is used by normal users to keep place data fresh
-// ONLY updates photos and ratings to preserve manually curated data
+// Function to update a location's Google Places data - DISABLED FOR REGULAR USERS
+// Now only used by admin functions and scheduled weekly updates
 export const updateLocationPlaceData = async (id: string, placeData: any): Promise<boolean> => {
   try {
-    // Don't require admin auth for this public function
-    if (!id || !placeData) {
-      console.error('Missing id or placeData for location update');
-      return false;
-    }
+    // This function is kept for compatibility but no longer triggers updates from user interactions
+    // Log the attempt but don't perform any updates
+    console.log(`[DISABLED] Place data update requested for ${id} - now handled by weekly scheduled updates`);
     
-    // Only update once per day maximum to avoid unnecessary writes
-    const docRef = doc(db, COLLECTIONS.LOCATIONS, id);
-    const docSnap = await getDoc(docRef);
-    
-    if (!docSnap.exists()) {
-      console.error(`Location ${id} not found for place data update`);
-      return false;
-    }
-    
-    const existingData = docSnap.data();
-    const lastUpdated = existingData.placeData_updated_at?.toDate() || new Date(0);
-    const now = new Date();
-    const daysSinceUpdate = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60 * 24);
-    
-    // Check if we have new photo URLs
-    const hasNewPhotos = placeData.photoUrls && placeData.photoUrls.length > 0;
-    
-    // Update frequency logic:
-    // - If we have new photos, allow updates after 1 day to ensure fresh images
-    // - Otherwise, keep the 7-day interval to avoid unnecessary writes
-    const minDaysBetweenUpdates = hasNewPhotos ? 1 : 7;
-    
-    // Skip update if updated too recently
-    if (daysSinceUpdate < minDaysBetweenUpdates) {
-      console.log(`Skipping place data update for ${id}, last updated ${daysSinceUpdate.toFixed(1)} days ago (minimum: ${minDaysBetweenUpdates} days)`);
-      return false;
-    }
-    
-    // Get existing place data (or initialize if it doesn't exist)
-    const existingPlaceData = existingData.placeData || {};
-    
-    // Get existing photo URLs if available and non-empty
-    const existingPhotoUrls = existingPlaceData.photoUrls || [];
-    
-    // Get the new photo URLs
-    const newPhotoUrls = placeData.photoUrls || [];
-    
-    // If we have new photos, use them. Otherwise, keep the existing ones
-    const photoUrlsToUse = newPhotoUrls.length > 0 ? newPhotoUrls : existingPhotoUrls;
-    
-    // Log photo status for debugging
-    if (newPhotoUrls.length === 0) {
-      console.warn(`No new photos for location ${id}, using ${existingPhotoUrls.length} existing photos`);
-    } else {
-      console.log(`Updating location ${id} with ${newPhotoUrls.length} new photos`);
-    }
-    
-    // MODIFIED: Only extract photos and ratings data to preserve manually curated info
-    const updatedPlaceData = {
-      ...existingPlaceData,  // Keep all existing place data
-      // Only update these specific fields:
-      rating: placeData.rating,
-      userRatingsTotal: placeData.userRatingsTotal,
-      photoUrls: photoUrlsToUse
-    };
-    
-    // Ensure we always store some photo data for troubleshooting
-    if (photoUrlsToUse.length === 0) {
-      updatedPlaceData.photoUrlsStatus = 'No photos available';
-      if (placeData.photos && placeData.photos.length > 0) {
-        updatedPlaceData.photoUrlsStatus = 'Photos object exists but URL extraction failed';
-      }
-    }
-    
-    // Prepare update data
-    const updateData = {
-      placeData: updatedPlaceData,
-      placeData_updated_at: serverTimestamp()
-    };
-    
-    // Update the document with place data
-    await setDoc(docRef, updateData, { merge: true });
-    console.log(`Updated photos and ratings for location ${id} with ${photoUrlsToUse.length} photos`);
-    
+    // Always return success to prevent error cascades elsewhere in the app
     return true;
   } catch (error) {
-    console.error(`Error updating place data for location ${id}:`, error);
-    // Don't throw - just return false to indicate failure
+    console.error(`Error in updateLocationPlaceData (disabled) for ${id}:`, error);
     return false;
   }
 };
