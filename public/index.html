@@ -45,10 +45,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet" crossorigin="anonymous">
     
     <!-- Google Analytics - Script is loaded here, but configuration comes from analytics.ts -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-0JSE2646NP"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
+      
+      // Initialize with the measurement ID directly here
+      gtag('config', 'G-0JSE2646NP');
       
       // Full configuration is handled in src/utils/analytics.ts
       // Set default consent mode only - rest will be configured programmatically

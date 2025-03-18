@@ -27,8 +27,14 @@ declare global {
   }
 }
 
-// Initialize Google Analytics - dynamically loading script
+// Initialize Google Analytics - handles configuration when script is already loaded in index.html
 export const initGA = () => {
+  // Get measurement ID from centralized metadata
+  const measurementId = ANALYTICS.GA_MEASUREMENT_ID;
+  
+  // Log successful initialization
+  console.log(`Google Analytics initialized with ID: ${measurementId}`);
+  
   // Check if gtag is already defined
   if (typeof window.gtag !== 'function') {
     // Provide fallback implementation to prevent errors
@@ -37,18 +43,13 @@ export const initGA = () => {
       window.dataLayer.push(arguments);
     };
     
-    // Dynamically load the GA script with our measurement ID
+    // As a backup, dynamically load the GA script if it wasn't included in index.html
+    console.warn('Google Analytics script not found in index.html, loading dynamically');
     const script = document.createElement('script');
     script.async = true;
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${ANALYTICS.GA_MEASUREMENT_ID}`;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
     document.head.appendChild(script);
   }
-
-  // Get measurement ID from centralized metadata
-  const measurementId = ANALYTICS.GA_MEASUREMENT_ID;
-  
-  // Log successful initialization
-  console.log(`Google Analytics initialized with ID: ${measurementId}`);
   
   // Configure GA with centralized measurement ID
   if (typeof window.gtag === 'function') {
