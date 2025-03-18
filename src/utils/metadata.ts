@@ -36,7 +36,7 @@ export const LOGOS = {
 
 // SEO metadata
 export const SEO = {
-  title: `${APP_NAME} - Children's Activities in Athens`,
+  title: `${APP_NAME} - Children's Activities in Greece`,
   description: APP_DESCRIPTION,
   keywords: "children activities, Athens, Greece, kids, indoor play, outdoor activities, sports, arts, music, education, entertainment, playgrounds, parks",
   author: "PameKids",
@@ -53,7 +53,7 @@ export const OPEN_GRAPH = {
   locale: "en_US",
   // This path is relative to the public folder
   image: LOGOS.ogImage,
-  imageAlt: "PameKids - Find children's activities in Athens",
+  imageAlt: "PameKids - Find children's activities in Greece",
   imageWidth: "1200",
   imageHeight: "630",
 };

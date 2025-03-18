@@ -146,6 +146,15 @@ const MapComponent: React.FC<MapProps> = () => {
     setDrawerOpen
   ]);
   
+  // Ensure desktop drawer has content on initial load
+  useEffect(() => {
+    if (!isMobile && visibleLocations.length === 0 && locations.length > 0 && !isLoadingLocations && mapReady) {
+      // Fallback: use the first 15 locations for desktop drawer if no visible locations
+      console.log('Populating fallback visible locations for desktop drawer');
+      setVisibleLocations(locations.slice(0, 15));
+    }
+  }, [isMobile, visibleLocations.length, locations, isLoadingLocations, mapReady, setVisibleLocations]);
+  
   // Fetch locations from Firebase on component mount
   useEffect(() => {
     const fetchLocations = async () => {
@@ -156,13 +165,27 @@ const MapComponent: React.FC<MapProps> = () => {
         const cachedLocations = sessionStorage.getItem('cachedLocations');
         if (cachedLocations) {
           console.log('Using cached locations data');
-          setLocations(JSON.parse(cachedLocations));
+          const parsedLocations = JSON.parse(cachedLocations);
+          setLocations(parsedLocations);
+          
+          // Immediately populate visibleLocations with initial locations on desktop
+          // This ensures the drawer has content before map initialization
+          if (!isMobile) {
+            console.log('Pre-populating visibleLocations for desktop drawer');
+            setVisibleLocations(parsedLocations.slice(0, 15));
+          }
+          
           setIsLoadingLocations(false);
           
           // Fetch fresh data in the background to update the cache
           getLocations().then(freshLocations => {
             sessionStorage.setItem('cachedLocations', JSON.stringify(freshLocations));
             setLocations(freshLocations);
+            
+            // Update visibleLocations with fresh data if on desktop
+            if (!isMobile) {
+              setVisibleLocations(freshLocations.slice(0, 15));
+            }
           }).catch(console.error);
           
           return;
@@ -171,6 +194,12 @@ const MapComponent: React.FC<MapProps> = () => {
         // If no cache, fetch from Firebase
         const fetchedLocations = await getLocations();
         setLocations(fetchedLocations);
+        
+        // Immediately populate visibleLocations on desktop with initial locations
+        if (!isMobile) {
+          console.log('Pre-populating visibleLocations for desktop drawer');
+          setVisibleLocations(fetchedLocations.slice(0, 15));
+        }
         
         // Cache the locations in session storage
         sessionStorage.setItem('cachedLocations', JSON.stringify(fetchedLocations));
@@ -183,7 +212,7 @@ const MapComponent: React.FC<MapProps> = () => {
     };
 
     fetchLocations();
-  }, []);
+  }, [isMobile, setVisibleLocations]);
 
   // Get user location on component mount without a timeout to ensure we wait for user permission response
   useEffect(() => {
