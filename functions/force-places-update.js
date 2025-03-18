@@ -2,9 +2,6 @@
 // This is called by the admin dashboard using the "Update Photos & Ratings" button
 
 const admin = require('firebase-admin');
-const fetch = require('node-fetch');
-
-// Import the same helper functions from the scheduled update file
 const {
   initializeFirebaseAdmin,
   getFirestore,
@@ -16,15 +13,22 @@ const {
 // Verify admin authentication
 async function verifyAdminAuth(token) {
   if (!token) {
-    throw new Error('Admin authentication required');
+    throw new Error('Admin authentication required - no token provided');
   }
   
-  // This is a simplified check - implement your actual admin auth verification here
-  // For example, validate against a known admin token or use Firebase Auth
+  // This is a simplified check - we're just validating against an environment variable
+  // In a production system, you might want more robust authentication
+  if (!process.env.ADMIN_TOKEN) {
+    console.error('ADMIN_TOKEN environment variable is not set');
+    throw new Error('Server configuration error: Admin token is not configured');
+  }
+  
   if (token !== process.env.ADMIN_TOKEN) {
-    throw new Error('Invalid admin token');
+    console.warn('Invalid admin token provided');
+    throw new Error('Invalid admin token - authentication failed');
   }
   
+  console.log('Admin authentication successful');
   return true;
 }
 
@@ -39,6 +43,13 @@ exports.handler = async (event, context) => {
   }
   
   console.log('Manual photo update triggered from admin dashboard');
+  
+  // Log environment variable availability for debugging
+  console.log('Environment variables check:');
+  console.log('- GOOGLE_MAPS_API_KEY available:', !!process.env.GOOGLE_MAPS_API_KEY);
+  console.log('- REACT_APP_GOOGLE_MAPS_API_KEY available:', !!process.env.REACT_APP_GOOGLE_MAPS_API_KEY);
+  console.log('- FIREBASE_SERVICE_ACCOUNT available:', !!process.env.FIREBASE_SERVICE_ACCOUNT);
+  console.log('- ADMIN_TOKEN available:', !!process.env.ADMIN_TOKEN);
   
   try {
     // Extract admin token from Authorization header
@@ -58,22 +69,22 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 200,
         body: JSON.stringify({
-          // Store status information for monitoring in the admin dashboard
-try {
-  const statusRef = db.collection('system').doc('update_status');
-  await statusRef.set({
-    last_update: admin.firestore.FieldValue.serverTimestamp(),
-    next_scheduled_update: new Date(Date.now() + (72 * 60 * 60 * 1000)), // 72 hours from now
-    success_count: admin.firestore.FieldValue.increment(results.success),
-    failed_count: admin.firestore.FieldValue.increment(results.failed),
-    skipped_count: admin.firestore.FieldValue.increment(results.skipped),
-    last_run_type: 'manual',
-    info: {
-      total_locations: locations.length,
-      timestamp: new Date().toISOString(),
-      duration_minutes: ((Date.now() - startTime) / 60000).toFixed(2)
+          message: 'No locations to update',
+          timestamp: new Date().toISOString()
+        })
+      };
     }
-  }, { merge: true });
+    
+    // Record starting time for performance tracking
+    const startTime = Date.now();
+    
+    // Track success and failure counts
+    const results = {
+      success: 0,
+      failed: 0,
+      skipped: 0
+    };
+    
     // Process locations in batches to avoid overwhelming the API
     const batchSize = 5;
     for (let i = 0; i < locations.length; i += batchSize) {
@@ -115,6 +126,27 @@ try {
     }
     
     console.log(`Completed manual update: ${results.success} succeeded, ${results.failed} failed, ${results.skipped} skipped`);
+    
+    // Store status information for monitoring in the admin dashboard
+    try {
+      const statusRef = db.collection('system').doc('update_status');
+      await statusRef.set({
+        last_update: admin.firestore.FieldValue.serverTimestamp(),
+        next_scheduled_update: new Date(Date.now() + (72 * 60 * 60 * 1000)), // 72 hours from now
+        success_count: admin.firestore.FieldValue.increment(results.success),
+        failed_count: admin.firestore.FieldValue.increment(results.failed),
+        skipped_count: admin.firestore.FieldValue.increment(results.skipped),
+        last_run_type: 'manual',
+        info: {
+          total_locations: locations.length,
+          timestamp: new Date().toISOString(),
+          duration_minutes: ((Date.now() - startTime) / 60000).toFixed(2)
+        }
+      }, { merge: true });
+    } catch (error) {
+      console.error('Error updating status document:', error);
+      // Don't fail the entire function if just status update fails
+    }
     
     return {
       statusCode: 200,

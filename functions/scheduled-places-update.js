@@ -82,10 +82,12 @@ async function fetchAllLocations(db) {
 // Function to fetch place details from Google Places API
 async function fetchPlaceDetails(placeId) {
   try {
-    // Google Places API endpoint
-    const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+    // Google Places API endpoint - try different environment variable formats
+    // Netlify functions might access variables differently than React app
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
-      throw new Error('Google Places API key is missing');
+      console.warn('Google Maps API key is missing - check environment variables');
+      throw new Error('Google Places API key is missing. Check both GOOGLE_MAPS_API_KEY and REACT_APP_GOOGLE_MAPS_API_KEY in your environment.');
     }
     
     // Only request the fields we need to update
@@ -123,10 +125,17 @@ async function updateLocationPlaceData(db, locationId, placeDetails) {
     
     // 1. Process photos
     if (placeDetails.photos && placeDetails.photos.length > 0) {
+      // Get API key - try different environment variable formats
+      const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+      if (!apiKey) {
+        console.warn('Cannot generate photo URLs: Google Maps API key is missing');
+        return false;
+      }
+      
       // Generate photo URLs
       const photoUrls = placeDetails.photos.slice(0, 10).map(photo => {
         const reference = photo.photo_reference;
-        return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${reference}&key=${process.env.GOOGLE_PLACES_API_KEY}`;
+        return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${reference}&key=${apiKey}`;
       });
       
       // Only add to update if we have valid URLs
@@ -171,33 +180,35 @@ exports.handler = async (event, context) => {
   // Check if this is a scheduled event
   const isScheduledEvent = event.headers && event.headers['x-netlify-scheduled'];
   console.log(`Starting places update... (Triggered by: ${isScheduledEvent ? 'schedule' : 'manual request'})`);
-  // Store status information for monitoring in the admin dashboard
+  
+  // Log environment variable availability for debugging
+  console.log('Environment variables check:');
+  console.log('- GOOGLE_MAPS_API_KEY available:', !!process.env.GOOGLE_MAPS_API_KEY);
+  console.log('- REACT_APP_GOOGLE_MAPS_API_KEY available:', !!process.env.REACT_APP_GOOGLE_MAPS_API_KEY);
+  console.log('- FIREBASE_SERVICE_ACCOUNT available:', !!process.env.FIREBASE_SERVICE_ACCOUNT);
+  console.log('- ADMIN_TOKEN available:', !!process.env.ADMIN_TOKEN);
+  
   try {
-    const statusRef = db.collection('system').doc('update_status');
-    await statusRef.set({
-      last_update: admin.firestore.FieldValue.serverTimestamp(),
-      next_scheduled_update: new Date(Date.now() + (72 * 60 * 60 * 1000)), // 72 hours from now
-      success_count: admin.firestore.FieldValue.increment(results.success),
-      failed_count: admin.firestore.FieldValue.increment(results.failed),
-      skipped_count: admin.firestore.FieldValue.increment(results.skipped),
-      last_run_type: 'scheduled',
-      info: {
-        total_locations: locations.length,
-        timestamp: new Date().toISOString(),
-        duration_minutes: ((Date.now() - startTime) / 60000).toFixed(2)
-      }
-    }, { merge: true });
+    // Initialize Firebase
+    const db = getFirestore();
+    
+    // Fetch all locations from Firestore
+    const locations = await fetchAllLocations(db);
+    
+    if (locations.length === 0) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          message: 'No locations to update',
+          timestamp: new Date().toISOString()
+        })
       };
-      
-      // Export helper functions so they can be reused by other functions
-      exports.initializeFirebaseAdmin = initializeFirebaseAdmin;
-      exports.getFirestore = getFirestore;
-      exports.fetchAllLocations = fetchAllLocations;
-      exports.fetchPlaceDetails = fetchPlaceDetails;
-      exports.updateLocationPlaceData = updateLocationPlaceData;
     }
     
     console.log(`Processing ${locations.length} locations...`);
+    
+    // Record starting time for performance tracking
+    const startTime = Date.now();
     
     // Track success and failure counts
     const results = {
@@ -248,6 +259,27 @@ exports.handler = async (event, context) => {
     
     console.log(`Completed scheduled update: ${results.success} succeeded, ${results.failed} failed, ${results.skipped} skipped`);
     
+    // Store status information for monitoring in the admin dashboard
+    try {
+      const statusRef = db.collection('system').doc('update_status');
+      await statusRef.set({
+        last_update: admin.firestore.FieldValue.serverTimestamp(),
+        next_scheduled_update: new Date(Date.now() + (72 * 60 * 60 * 1000)), // 72 hours from now
+        success_count: admin.firestore.FieldValue.increment(results.success),
+        failed_count: admin.firestore.FieldValue.increment(results.failed),
+        skipped_count: admin.firestore.FieldValue.increment(results.skipped),
+        last_run_type: isScheduledEvent ? 'scheduled' : 'manual',
+        info: {
+          total_locations: locations.length,
+          timestamp: new Date().toISOString(),
+          duration_minutes: ((Date.now() - startTime) / 60000).toFixed(2)
+        }
+      }, { merge: true });
+    } catch (error) {
+      console.error('Error updating status document:', error);
+      // Don't fail the entire function if just status update fails
+    }
+    
     return {
       statusCode: 200,
       body: JSON.stringify({
@@ -266,4 +298,13 @@ exports.handler = async (event, context) => {
       })
     };
   }
+};
+
+// Export helper functions so they can be reused by other functions
+module.exports = {
+  initializeFirebaseAdmin,
+  getFirestore,
+  fetchAllLocations,
+  fetchPlaceDetails,
+  updateLocationPlaceData
 };

@@ -58,9 +58,36 @@ const CacheManager: React.FC = () => {
     setIsLoadingStatus(true);
     try {
       const status = await getUpdateStatus();
+      
+      // Helper function to handle Firestore timestamp objects
+      const convertTimestamp = (timestamp: any): Date | null => {
+        if (!timestamp) return null;
+        
+        // Handle Firestore timestamp objects
+        if (timestamp && typeof timestamp === 'object') {
+          // If timestamp has a toDate method (Firestore Timestamp), use it
+          if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+            return timestamp.toDate();
+          }
+          
+          // If timestamp has seconds (Firestore Timestamp-like), convert to Date
+          if (timestamp.seconds !== undefined) {
+            return new Date(timestamp.seconds * 1000);
+          }
+        }
+        
+        // Try regular Date conversion for ISO strings
+        try {
+          return new Date(timestamp);
+        } catch (e) {
+          console.warn('Failed to parse timestamp:', timestamp);
+          return null;
+        }
+      };
+      
       setUpdateStatus({
-        lastUpdate: status.last_update ? new Date(status.last_update) : null,
-        nextScheduledUpdate: status.next_scheduled_update ? new Date(status.next_scheduled_update) : null,
+        lastUpdate: convertTimestamp(status.last_update),
+        nextScheduledUpdate: convertTimestamp(status.next_scheduled_update),
         successCount: status.success_count || 0,
         failedCount: status.failed_count || 0,
         lastRunType: status.last_run_type || null
@@ -427,7 +454,7 @@ const CacheManager: React.FC = () => {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Last Update:</p>
                   <p className="font-medium">
-                    {updateStatus.lastUpdate ? (
+                    {updateStatus.lastUpdate && !isNaN(updateStatus.lastUpdate.getTime()) ? (
                       <span className="text-green-600">
                         {updateStatus.lastUpdate.toLocaleString()}
                         {updateStatus.lastRunType && ` (${updateStatus.lastRunType})`}
@@ -441,7 +468,7 @@ const CacheManager: React.FC = () => {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Next Scheduled Update:</p>
                   <p className="font-medium">
-                    {updateStatus.nextScheduledUpdate ? (
+                    {updateStatus.nextScheduledUpdate && !isNaN(updateStatus.nextScheduledUpdate.getTime()) ? (
                       <span className="text-blue-600">
                         {updateStatus.nextScheduledUpdate.toLocaleString()}
                       </span>

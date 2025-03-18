@@ -158,22 +158,49 @@ export const forcePhotoUpdatesForAllLocations = async (): Promise<{success: numb
     
     // Call the server-side function instead of processing in-browser
     const token = localStorage.getItem('adminToken');
-    const response = await fetch('/api/force-places-update', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Server returned error: ${response.status} ${response.statusText}`);
+    if (!token) {
+      throw new Error('Admin token not found in localStorage. Please log in again.');
     }
     
-    const result = await response.json();
-    
-    console.log(`Server-side update completed: ${result.success} succeeded, ${result.failed} failed`);
-    return result;
+    // Improved error handling for the fetch request
+    try {
+      const response = await fetch('/api/force-places-update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      // Handle different types of errors
+      if (!response.ok) {
+        // Try to get detailed error information from the response
+        let errorMessage;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || `Status: ${response.status} ${response.statusText}`;
+        } catch (e) {
+          // If we can't parse the JSON, use the status text
+          errorMessage = `Status: ${response.status} ${response.statusText}`;
+        }
+        
+        throw new Error(`Server returned error: ${errorMessage}`);
+      }
+      
+      const result = await response.json();
+      
+      console.log(`Server-side update completed: ${result.success} succeeded, ${result.failed} failed`);
+      return {
+        success: result.success || 0,
+        failed: result.failed || 0
+      };
+    } catch (fetchError) {
+      // Special handling for network errors
+      if (fetchError instanceof TypeError && fetchError.message.includes('fetch')) {
+        throw new Error(`Network error connecting to server function. Check if Netlify functions are properly deployed: ${fetchError.message}`);
+      }
+      throw fetchError;
+    }
   } catch (error) {
     console.error('Error triggering server-side photo updates:', error);
     throw new Error(formatFirestoreError(error));

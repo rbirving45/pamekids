@@ -7,10 +7,23 @@
 # Create data directory during build
 [build.environment]
   CREATE_DATA_DIR = "true"
+  NODE_ENV = "production"
+
+# Set node.js version for functions
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["firebase-admin"]
 
 # Scheduled function for updating place data every 72 hours
 [functions."scheduled-places-update"]
   schedule = "0 0 */3 * *"
+  # Increased timeout for function as it may need to process many locations
+  timeout = 120
+
+# Individual function configuration for manual update
+[functions."force-places-update"]
+  # Increased timeout for function as it may need to process many locations
+  timeout = 120
 
 # Redirects for API endpoints to Netlify Functions
 [[redirects]]
