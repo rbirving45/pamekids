@@ -213,7 +213,7 @@ export async function fetchPlaceDetailsFromGoogleApi(
         fields: [
           'name', 'formatted_address', 'geometry', 'types', 'price_level',
           'formatted_phone_number', 'website', 'opening_hours', 'rating',
-          'user_ratings_total', 'photos'
+          'user_ratings_total', 'photos', 'reviews'
         ]
       },
       (place, status) => {
