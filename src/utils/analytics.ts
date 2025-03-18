@@ -249,6 +249,14 @@ export const trackMarkerClick = throttle((
   queueAnalyticsEvent('marker_click', eventParams);
 }, 1000); // 1 second throttle
 
+// Keep track of recent searches to avoid duplicates
+const recentSearches = new Set<string>();
+
+// Clear recent searches after a time period
+setInterval(() => {
+  recentSearches.clear();
+}, 30 * 60 * 1000); // Clear every 30 minutes
+
 // Track search queries with throttling to avoid excessive events
 export const trackSearchQuery = throttle((
   query: string,
@@ -256,6 +264,31 @@ export const trackSearchQuery = throttle((
   hasActivityFilter: boolean = false,
   hasAgeFilter: boolean = false
 ) => {
+  // Skip if query is too short or empty
+  if (!query || query.trim().length < 3) {
+    return;
+  }
+  
+  // Create a unique key for this search (including filters)
+  const searchKey = `${query}|${hasActivityFilter}|${hasAgeFilter}`;
+  
+  // Skip if we've tracked this exact search recently
+  if (recentSearches.has(searchKey)) {
+    if (DEBUG_CONFIG.enableDebug) {
+      console.log(`📊 Analytics: Skipped duplicate search for "${query}"`);
+    }
+    return;
+  }
+  
+  // Add to recent searches
+  recentSearches.add(searchKey);
+  
+  // Only keep the last 50 searches in memory
+  if (recentSearches.size > 50) {
+    const oldestSearch = recentSearches.values().next().value;
+    recentSearches.delete(oldestSearch);
+  }
+  
   const eventParams = {
     event_category: 'Search',
     event_label: query,
@@ -263,6 +296,7 @@ export const trackSearchQuery = throttle((
     result_count: resultCount,
     has_activity_filter: hasActivityFilter,
     has_age_filter: hasAgeFilter,
+    search_length: query.length,
     non_interaction: false
   };
   
@@ -278,7 +312,7 @@ export const trackSearchQuery = throttle((
   
   // Add to batch queue instead of sending immediately
   queueAnalyticsEvent('search_query', eventParams);
-}, 500); // 500ms throttle for searches
+}, 2000); // 2000ms (2 second) throttle for searches
 
 // Track search result clicks
 export const trackSearchResultClick = (

@@ -495,29 +495,22 @@ const MapComponent: React.FC<MapProps> = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [setSearchExpanded, setIsAgeDropdownOpen]);
 
+  // Track the last search term that was actually sent to analytics
+  const lastTrackedSearchTermRef = useRef<string>("");
+  
   useEffect(() => {
     if (!searchTerm) {
       setSearchResults([]);
       return;
     }
 
-    // Debounce search for better performance
-    const debounceTimeout = setTimeout(() => {
+    // Short debounce for UI responsiveness (search results)
+    const uiDebounceTimeout = setTimeout(() => {
       // Use our enhanced search function that understands activities and ages
       const results = performEnhancedSearch(locations, searchTerm, activityConfig);
       
       // Limit to first 10 results for better performance
       setSearchResults(results.slice(0, 10));
-      
-      // Track the search query and results (only if search term is valid)
-      if (searchTerm.trim().length > 1) {
-        trackSearchQuery(
-          searchTerm,
-          results.length,
-          activeFilters.length > 0,
-          selectedAge !== null
-        );
-      }
       
       // Debug logging only when explicitly enabled via localStorage
       if (process.env.NODE_ENV === 'development' && localStorage.getItem('enableSearchDebug') === 'true') {
@@ -535,9 +528,38 @@ const MapComponent: React.FC<MapProps> = () => {
         }
         console.groupEnd();
       }
-    }, 150); // 150ms debounce
+    }, 150); // 150ms debounce for UI updates
     
-    return () => clearTimeout(debounceTimeout);
+    // Longer debounce for analytics tracking (only track after user stops typing)
+    const analyticsDebounceTimeout = setTimeout(() => {
+      // Only track the search if:
+      // 1. The search term is valid (at least 3 characters)
+      // 2. It's different from the last tracked search
+      if (searchTerm.trim().length >= 3 && searchTerm !== lastTrackedSearchTermRef.current) {
+        // Update the last tracked search term
+        lastTrackedSearchTermRef.current = searchTerm;
+        
+        // Get fresh results for accurate count
+        const results = performEnhancedSearch(locations, searchTerm, activityConfig);
+        
+        // Track the search query with analytics
+        trackSearchQuery(
+          searchTerm,
+          results.length,
+          activeFilters.length > 0,
+          selectedAge !== null
+        );
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`🔍 Analytics: Tracked completed search for "${searchTerm}" with ${results.length} results`);
+        }
+      }
+    }, 1500); // 1.5 second debounce for analytics (wait until user stops typing)
+    
+    return () => {
+      clearTimeout(uiDebounceTimeout);
+      clearTimeout(analyticsDebounceTimeout);
+    };
   // activityConfig is defined at the module level and won't change between renders
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, locations]);
@@ -588,8 +610,31 @@ const MapComponent: React.FC<MapProps> = () => {
     setSelectedLocation(location);
     setSearchExpanded(false);
     
-    // Track search result click with enhanced parameters before clearing the search term
+    // When a user clicks a result, we need to ensure we track both the search and the click
     if (searchTerm) {
+      // Force immediate tracking of the search term when a result is clicked
+      // This ensures we capture the search even if the user clicks before the debounce period
+      if (searchTerm.trim().length >= 3 && searchTerm !== lastTrackedSearchTermRef.current) {
+        // Get fresh results for accurate count
+        const results = performEnhancedSearch(locations, searchTerm, activityConfig);
+        
+        // Track the search immediately (override the debounce)
+        trackSearchQuery(
+          searchTerm,
+          results.length,
+          activeFilters.length > 0,
+          selectedAge !== null
+        );
+        
+        // Update the last tracked search term
+        lastTrackedSearchTermRef.current = searchTerm;
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`🔍 Analytics: Force-tracked search for "${searchTerm}" on result click`);
+        }
+      }
+      
+      // Track the result click with the search term that led to it
       trackSearchResultClick(
         searchTerm,
         location.name,
