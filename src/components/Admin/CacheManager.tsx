@@ -33,6 +33,32 @@ const CacheManager: React.FC = () => {
     lastRunType: null
   });
   const [isLoadingStatus, setIsLoadingStatus] = useState(false);
+  
+  // New state for image refresh statistics
+  const [refreshStats, setRefreshStats] = useState<{
+    totalRefreshes: number;
+    successfulRefreshes: number;
+    failedRefreshes: number;
+    mostRefreshedLocations: Array<{
+      id: string;
+      name: string;
+      count: number;
+      lastRefresh: number;
+    }>;
+    recentRefreshes: Array<{
+      id: string;
+      name: string;
+      timestamp: number;
+      success: boolean;
+    }>;
+  }>({
+    totalRefreshes: 0,
+    successfulRefreshes: 0,
+    failedRefreshes: 0,
+    mostRefreshedLocations: [],
+    recentRefreshes: []
+  });
+  const [isLoadingRefreshStats, setIsLoadingRefreshStats] = useState(false);
 
   // Load cache information
   const loadCacheInfo = () => {
@@ -99,11 +125,146 @@ const CacheManager: React.FC = () => {
       setIsLoadingStatus(false);
     }
   };
+  
+  // Load image refresh statistics
+  const loadRefreshStats = () => {
+    setIsLoadingRefreshStats(true);
+    try {
+      // Get data from localStorage
+      const expiredUrls = JSON.parse(localStorage.getItem('expired_image_urls') || '{}');
+      const successLog = JSON.parse(localStorage.getItem('image_refresh_success') || '{}');
+      const failureLog = JSON.parse(localStorage.getItem('image_refresh_failure') || '{}');
+      
+      // Count successful and failed refreshes
+      const successCount = Object.keys(successLog).length;
+      const failureCount = Object.keys(failureLog).length;
+      const totalCount = successCount + failureCount;
+      
+      // Get most frequently refreshed locations
+      const locationCounts: Record<string, {
+        id: string;
+        name: string;
+        count: number;
+        lastRefresh: number;
+      }> = {};
+      
+      // Process expired URLs (detected errors)
+      Object.entries(expiredUrls).forEach(([id, data]: [string, any]) => {
+        if (!locationCounts[id]) {
+          locationCounts[id] = {
+            id,
+            name: data.name || 'Unknown location',
+            count: 0,
+            lastRefresh: 0
+          };
+        }
+        
+        // Update count based on number of URLs or increment by 1
+        const urlCount = Array.isArray(data.urls) ? data.urls.length : 1;
+        locationCounts[id].count += urlCount;
+        
+        // Update last error timestamp if newer
+        if (data.lastError && (!locationCounts[id].lastRefresh || data.lastError > locationCounts[id].lastRefresh)) {
+          locationCounts[id].lastRefresh = data.lastError;
+        }
+      });
+      
+      // Process successful refreshes
+      Object.entries(successLog).forEach(([id, data]: [string, any]) => {
+        if (!locationCounts[id]) {
+          locationCounts[id] = {
+            id,
+            name: data.name || 'Unknown location',
+            count: 0,
+            lastRefresh: 0
+          };
+        }
+        
+        // Increment count for successful refresh
+        locationCounts[id].count += 1;
+        
+        // Update last refresh timestamp if newer
+        if (data.timestamp && (!locationCounts[id].lastRefresh || data.timestamp > locationCounts[id].lastRefresh)) {
+          locationCounts[id].lastRefresh = data.timestamp;
+        }
+      });
+      
+      // Process failed refreshes
+      Object.entries(failureLog).forEach(([id, data]: [string, any]) => {
+        if (!locationCounts[id]) {
+          locationCounts[id] = {
+            id,
+            name: data.name || 'Unknown location',
+            count: 0,
+            lastRefresh: 0
+          };
+        }
+        
+        // Increment count for failed refresh
+        locationCounts[id].count += 1;
+        
+        // Update last refresh timestamp if newer
+        if (data.timestamp && (!locationCounts[id].lastRefresh || data.timestamp > locationCounts[id].lastRefresh)) {
+          locationCounts[id].lastRefresh = data.timestamp;
+        }
+      });
+      
+      // Convert to array and sort by count (descending)
+      const mostRefreshedLocations = Object.values(locationCounts)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10); // Top 10
+      
+      // Get recent refreshes (combine successful and failed)
+      const recentRefreshes: Array<{
+        id: string;
+        name: string;
+        timestamp: number;
+        success: boolean;
+      }> = [];
+      
+      // Add successful refreshes
+      Object.entries(successLog).forEach(([id, data]: [string, any]) => {
+        recentRefreshes.push({
+          id,
+          name: data.name || 'Unknown location',
+          timestamp: data.timestamp || Date.now(),
+          success: true
+        });
+      });
+      
+      // Add failed refreshes
+      Object.entries(failureLog).forEach(([id, data]: [string, any]) => {
+        recentRefreshes.push({
+          id,
+          name: data.name || 'Unknown location',
+          timestamp: data.timestamp || Date.now(),
+          success: false
+        });
+      });
+      
+      // Sort by timestamp (descending) and take the most recent 20
+      recentRefreshes.sort((a, b) => b.timestamp - a.timestamp).slice(0, 20);
+      
+      // Update state with the calculated statistics
+      setRefreshStats({
+        totalRefreshes: totalCount,
+        successfulRefreshes: successCount,
+        failedRefreshes: failureCount,
+        mostRefreshedLocations,
+        recentRefreshes
+      });
+    } catch (error) {
+      console.error('Error loading refresh statistics:', error);
+    } finally {
+      setIsLoadingRefreshStats(false);
+    }
+  };
 
-  // Load cache info and update status on mount
+  // Load cache info, update status, and refresh stats on mount
   useEffect(() => {
     loadCacheInfo();
     loadUpdateStatus();
+    loadRefreshStats();
   }, []);
 
   // Handle clearing locations cache
@@ -513,6 +674,143 @@ const CacheManager: React.FC = () => {
             </div>
           </div>
 
+          {/* Image Refresh Statistics */}
+          <div className="border-t pt-4 mt-4">
+            <h3 className="text-lg font-medium mb-3">Image Refresh Statistics</h3>
+            
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-medium text-indigo-700">Real-time Image URL Refresh Activity</h4>
+                {isLoadingRefreshStats ? (
+                  <div className="animate-pulse h-5 w-24 bg-gray-200 rounded"></div>
+                ) : (
+                  <button
+                    onClick={loadRefreshStats}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                      <path d="M21 2v6h-6"></path>
+                      <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                      <path d="M3 22v-6h6"></path>
+                      <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                    </svg>
+                    Refresh
+                  </button>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div className="bg-white p-4 rounded-md border border-gray-200">
+                  <p className="text-sm text-gray-600 mb-1">Total Refreshes:</p>
+                  <p className="font-medium text-2xl">
+                    {refreshStats.totalRefreshes}
+                  </p>
+                </div>
+                
+                <div className="bg-white p-4 rounded-md border border-gray-200">
+                  <p className="text-sm text-gray-600 mb-1">Success Rate:</p>
+                  <p className="font-medium text-2xl text-green-600">
+                    {refreshStats.totalRefreshes ?
+                      `${Math.round((refreshStats.successfulRefreshes / refreshStats.totalRefreshes) * 100)}%` :
+                      'N/A'}
+                  </p>
+                </div>
+                
+                <div className="bg-white p-4 rounded-md border border-gray-200">
+                  <p className="text-sm text-gray-600 mb-1">Failed Refreshes:</p>
+                  <p className="font-medium text-2xl text-red-600">
+                    {refreshStats.failedRefreshes}
+                  </p>
+                </div>
+              </div>
+              
+              <h4 className="font-medium mb-3 mt-6">Most Frequently Refreshed Locations</h4>
+              {refreshStats.mostRefreshedLocations.length > 0 ? (
+                <div className="overflow-x-auto bg-white border border-gray-200 rounded-md">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                        <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Refresh Count</th>
+                        <th scope="col" className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Last Refresh</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {refreshStats.mostRefreshedLocations.map((location) => (
+                        <tr key={location.id}>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">{location.name}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-center font-medium">{location.count}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-right text-gray-500">
+                            {location.lastRefresh ?
+                              new Date(location.lastRefresh).toLocaleString() :
+                              'Unknown'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="bg-white p-6 text-center text-gray-500 border border-gray-200 rounded-md">
+                  No refresh data available yet
+                </div>
+              )}
+              
+              <h4 className="font-medium mb-3 mt-6">Recent Refresh Activity</h4>
+              {refreshStats.recentRefreshes.length > 0 ? (
+                <div className="overflow-x-auto bg-white border border-gray-200 rounded-md">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                        <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                        <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {refreshStats.recentRefreshes.map((refresh, index) => (
+                        <tr key={`${refresh.id}-${index}`}>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(refresh.timestamp).toLocaleString()}
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm">{refresh.name}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              refresh.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {refresh.success ? 'Success' : 'Failed'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="bg-white p-6 text-center text-gray-500 border border-gray-200 rounded-md">
+                  No recent refresh activity
+                </div>
+              )}
+              
+              <div className="mt-6 p-4 bg-blue-50 text-blue-800 rounded-lg">
+                <h4 className="font-medium mb-2">About Image Refreshing</h4>
+                <p className="text-sm">
+                  PameKids now automatically detects and refreshes expired Google image URLs in real-time. When a user encounters a broken image, the system will:
+                </p>
+                <ul className="text-sm list-disc pl-5 mt-2 space-y-1">
+                  <li>Detect the broken image URL</li>
+                  <li>Queue a refresh request for just that location</li>
+                  <li>Fetch fresh image URLs from Google Places API</li>
+                  <li>Update the location in Firestore</li>
+                  <li>Reload the images for the user</li>
+                </ul>
+                <p className="text-sm mt-2">
+                  <strong>Benefits:</strong> Users always see images instead of fallbacks, and only locations with issues are refreshed (saving API quota).
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Technical details */}
           <div className="p-4 bg-gray-50 rounded-lg mt-4 border-t pt-4">
             <h4 className="font-medium mb-2">Technical Notes</h4>
@@ -524,6 +822,9 @@ const CacheManager: React.FC = () => {
             </p>
             <p className="text-sm mt-2">
               <strong>Scheduled Updates:</strong> Every 72 hours, an automated process updates photos, ratings, and review counts for all locations without modifying any other data.
+            </p>
+            <p className="text-sm mt-2">
+              <strong>Real-time Image Refresh:</strong> When broken images are detected, a targeted refresh is triggered only for the affected location. Requests are rate-limited to prevent API quota issues.
             </p>
             <p className="text-sm mt-2">
               <strong>Cache Version:</strong> Currently {cacheInfo.cacheVersion || 'Not set'} - This automatically manages compatibility when the app is updated with new features.
