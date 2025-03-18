@@ -588,16 +588,28 @@ const MapComponent: React.FC<MapProps> = () => {
     setSelectedLocation(location);
     setSearchExpanded(false);
     
-    // Track search result click before clearing the search term
+    // Track search result click with enhanced parameters before clearing the search term
     if (searchTerm) {
-      trackSearchResultClick(searchTerm, location.name, index);
+      trackSearchResultClick(
+        searchTerm,
+        location.name,
+        index,
+        location.id,       // Include location ID for better reporting
+        location.types     // Track activity types to analyze popular categories
+      );
     }
     
     // Clear search term after tracking
     setSearchTerm('');
     
-    // Track the marker click for analytics, same as direct marker clicks
-    trackMarkerClick(location.name);
+    // Track the marker click for analytics with enhanced parameters
+    // Use 'search_result' as interaction method to differentiate from map clicks
+    trackMarkerClick(
+      location.name,
+      location.id,
+      location.types,
+      'search_result'
+    );
     
     if (map) {
       // On mobile, ensure the drawer opens and map pans correctly
@@ -786,9 +798,16 @@ const MapComponent: React.FC<MapProps> = () => {
   }, [isMobile, setDrawerState, setDrawerOpen, setSelectedLocation]);
 
   // Handle location selection from tile or marker
-  const handleLocationSelect = useCallback((location: Location) => {
+  const handleLocationSelect = useCallback((location: Location, source: 'map_click' | 'list_item' = 'map_click') => {
     setSelectedLocation(location);
-    trackMarkerClick(location.name);
+    
+    // Track with enhanced parameters to identify interaction source
+    trackMarkerClick(
+      location.name,
+      location.id,
+      location.types,
+      source
+    );
     
     // Only pan to the location on mobile view
     if (map && isMobile) {
@@ -1297,7 +1316,8 @@ const MapComponent: React.FC<MapProps> = () => {
                     if (isMobile) {
                       // On mobile, ensure the marker is centered first, then open drawer
                       setTimeout(() => {
-                        handleLocationSelect(location);
+                        // Explicitly pass 'map_click' as the interaction source
+                        handleLocationSelect(location, 'map_click');
                         // Set drawer state to partial by default
                         setDrawerState('partial');
                         // Keep setDrawerOpen for backward compatibility
@@ -1305,7 +1325,8 @@ const MapComponent: React.FC<MapProps> = () => {
                       }, 50);
                     } else {
                       // On desktop, open drawer immediately
-                      handleLocationSelect(location);
+                      // Explicitly pass 'map_click' as the interaction source
+                      handleLocationSelect(location, 'map_click');
                     }
                   }}
                   onMouseOver={() => {
@@ -1457,7 +1478,7 @@ const MapComponent: React.FC<MapProps> = () => {
               activeFilters={activeFilters}
               selectedAge={selectedAge}
               openNowFilter={openNowFilter}
-              onLocationSelect={handleLocationSelect}
+              onLocationSelect={(location) => handleLocationSelect(location, 'list_item')}
               mobileDrawerOpen={drawerState !== 'closed'}
               backToList={() => {
                 // Transition to list view on mobile while preserving drawer state

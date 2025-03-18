@@ -7,6 +7,7 @@ interface RatingDisplayProps {
   totalRatings: number;
   placeId: string;
   businessName: string;
+  activityTypes?: string[];
 }
 
 const RatingDisplay: React.FC<RatingDisplayProps> = React.memo(({ rating, totalRatings, placeId, businessName }) => {
@@ -19,7 +20,16 @@ const RatingDisplay: React.FC<RatingDisplayProps> = React.memo(({ rating, totalR
     // This format works better across platforms (desktop and mobile)
     const baseUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(businessName)}&query_place_id=${placeId}`;
     const reviewsUrl = addUtmParams(baseUrl);
-    trackExternalLink('reviews', businessName, reviewsUrl);
+    
+    // Enhanced tracking with location ID and activity types
+    trackExternalLink(
+      'reviews',
+      businessName,
+      reviewsUrl,
+      placeId,
+      'detail'
+    );
+    
     window.open(reviewsUrl, '_blank', 'noopener,noreferrer');
   };
 

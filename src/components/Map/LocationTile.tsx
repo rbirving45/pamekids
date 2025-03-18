@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Location, ActivityType } from '../../types/location';
 import { fetchPlaceDetails } from '../../utils/places-api';
 import { handleImageError } from '../../utils/image-refresh-service';
+import { trackMarkerClick } from '../../utils/analytics';
 import { Star } from 'lucide-react';
 
 interface LocationTileProps {
@@ -123,7 +124,18 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
   return (
     <div
       className="py-1.5 md:py-2 px-3 md:px-4 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer transition-colors duration-150 z-location-tile"
-      onClick={onSelect}
+      onClick={() => {
+        // Track the interaction with enhanced details
+        trackMarkerClick(
+          location.name,          // Business name
+          location.id,            // Location ID for specific tracking
+          location.types,         // Activity types for detailed reporting
+          'list_item'             // Interaction method - from list view
+        );
+        
+        // Call the original onSelect handler
+        onSelect();
+      }}
     >
       <div className="flex items-start gap-2 md:gap-3">
         {/* Left content - Location info */}

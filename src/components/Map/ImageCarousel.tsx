@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ChevronLeft, ChevronRight, RefreshCcw, Image as ImageIcon, ExternalLink } from 'lucide-react';
-import { addUtmParams, trackExternalLink } from '../../utils/analytics';
+import { addUtmParams, trackExternalLink, trackPhotoInteraction } from '../../utils/analytics';
 import { handleImageError } from '../../utils/image-refresh-service';
 
 interface ImageCarouselProps {
@@ -55,13 +55,37 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
   // Navigate through carousel
   const nextPhoto = useCallback(() => {
     if (totalSlides <= 1) return;
-    setCurrentIndex((prev) => (prev + 1) % totalSlides);
-  }, [totalSlides]);
+    const newIndex = (currentIndex + 1) % totalSlides;
+    setCurrentIndex(newIndex);
+    
+    // Track photo navigation
+    if (newIndex !== photoCount) { // Don't track when moving to "View more" slide
+      trackPhotoInteraction(
+        'swipe',
+        businessName,
+        placeId,
+        newIndex,
+        photoCount
+      );
+    }
+  }, [totalSlides, currentIndex, photoCount, businessName, placeId]);
 
   const prevPhoto = useCallback(() => {
     if (totalSlides <= 1) return;
-    setCurrentIndex((prev) => (prev - 1 + totalSlides) % totalSlides);
-  }, [totalSlides]);
+    const newIndex = (currentIndex - 1 + totalSlides) % totalSlides;
+    setCurrentIndex(newIndex);
+    
+    // Track photo navigation
+    if (newIndex !== photoCount) { // Don't track when moving to "View more" slide
+      trackPhotoInteraction(
+        'swipe',
+        businessName,
+        placeId,
+        newIndex,
+        photoCount
+      );
+    }
+  }, [totalSlides, currentIndex, photoCount, businessName, placeId]);
 
   // Clean up on unmount
   useEffect(() => {
@@ -235,10 +259,31 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
   const handleImageLoad = () => {
     setIsLoading(false);
     setError(null);
+    
+    // Track successful image view (first view only, not on every render)
+    if (isLoading && currentIndex !== photoCount) { // Don't track for "View more" slide
+      trackPhotoInteraction(
+        'view',
+        businessName,
+        placeId,
+        currentIndex,
+        photoCount
+      );
+    }
   };
 
   // Handle image error
   const handleCarouselImageError = (failedUrl: string) => {
+    // Track the error event
+    trackPhotoInteraction(
+      'error',
+      businessName,
+      placeId,
+      currentIndex,
+      photoCount,
+      `Failed to load image at index ${currentIndex}`
+    );
+    
     // If one image fails but we have others, don't set global error yet
     if (displayedUrls.length > 1) {
       // Try the next image
@@ -295,7 +340,16 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
     
     const baseUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(businessName)}&query_place_id=${placeId}`;
     const url = addUtmParams(baseUrl);
-    trackExternalLink('photos', businessName, url);
+    
+    // Enhanced tracking with location ID and source
+    trackExternalLink(
+      'photos',
+      businessName,
+      url,
+      placeId,
+      'detail'
+    );
+    
     window.open(url, '_blank', 'noopener,noreferrer');
     
     // Background refreshes are now handled by the scheduled server process
@@ -566,7 +620,20 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
             {Array.from({ length: totalSlides }).map((_, index) => (
               <button
                 key={index}
-                onClick={() => setCurrentIndex(index)}
+                onClick={() => {
+                  setCurrentIndex(index);
+                  
+                  // Only track when selecting a photo (not the "View more" slide)
+                  if (index !== photoCount) {
+                    trackPhotoInteraction(
+                      'swipe',
+                      businessName,
+                      placeId,
+                      index,
+                      photoCount
+                    );
+                  }
+                }}
                 className={`w-2 h-2 rounded-full transition-all ${
                   index === currentIndex ? 'bg-white scale-125' : 'bg-white/50'
                 }`}

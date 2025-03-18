@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, memo, useMemo, useRef } from 'react';
 import ImageCarousel from './ImageCarousel';
 import { Location, ActivityType } from '../../types/location';
-import { addUtmParams, trackExternalLink } from '../../utils/analytics';
+import { addUtmParams, trackExternalLink, trackCustomEvent } from '../../utils/analytics';
 import { X, Phone, Globe, MapPin, ChevronLeft } from 'lucide-react';
 import { fetchPlaceDetails } from '../../utils/places-api';
 import RatingDisplay from './RatingDisplay';
@@ -344,7 +344,13 @@ const Drawer: React.FC<DrawerProps> = memo(({
             href={getDirectionsUrl()}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => trackExternalLink('directions', location.name, getDirectionsUrl())}
+            onClick={() => trackExternalLink(
+              'directions',
+              location.name,
+              getDirectionsUrl(),
+              location.id,
+              'detail'
+            )}
             className="flex-1 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 text-center flex items-center justify-center gap-1"
           >
             <MapPin size={16} />
@@ -356,7 +362,13 @@ const Drawer: React.FC<DrawerProps> = memo(({
               href={addUtmParams(location.contact.website)}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => trackExternalLink('website', location.name, location.contact.website!)}
+              onClick={() => trackExternalLink(
+                'website',
+                location.name,
+                location.contact.website!,
+                location.id,
+                'detail'
+              )}
               className="flex-1 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 text-center flex items-center justify-center gap-1"
             >
               <Globe size={16} />
@@ -367,7 +379,13 @@ const Drawer: React.FC<DrawerProps> = memo(({
           {location.contact.phone && (
             <a
               href={`tel:${location.contact.phone}`}
-              onClick={() => trackExternalLink('phone', location.name, `tel:${location.contact.phone}`)}
+              onClick={() => trackExternalLink(
+                'phone',
+                location.name,
+                `tel:${location.contact.phone}`,
+                location.id,
+                'detail'
+              )}
               className="flex-1 px-3 py-2 text-sm font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 text-center flex items-center justify-center gap-1"
             >
               <Phone size={16} />
@@ -381,7 +399,13 @@ const Drawer: React.FC<DrawerProps> = memo(({
           href={getDirectionsUrl()}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={() => trackExternalLink('directions', location.name, getDirectionsUrl())}
+          onClick={() => trackExternalLink(
+            'directions',
+            location.name,
+            getDirectionsUrl(),
+            location.id,
+            'detail'
+          )}
           className="hidden md:flex w-full px-6 py-3 text-base font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 text-center items-center justify-center gap-2"
         >
           <MapPin size={20} />
@@ -394,7 +418,13 @@ const Drawer: React.FC<DrawerProps> = memo(({
               href={addUtmParams(location.contact.website)}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => trackExternalLink('website', location.name, location.contact.website!)}
+              onClick={() => trackExternalLink(
+                'website',
+                location.name,
+                location.contact.website!,
+                location.id,
+                'detail'
+              )}
               className="flex-1 px-6 py-3 text-base font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 text-center flex items-center justify-center gap-2"
             >
               <Globe size={20} />
@@ -405,7 +435,13 @@ const Drawer: React.FC<DrawerProps> = memo(({
           {location.contact.phone && (
             <a
               href={`tel:${location.contact.phone}`}
-              onClick={() => trackExternalLink('phone', location.name, `tel:${location.contact.phone}`)}
+              onClick={() => trackExternalLink(
+                'phone',
+                location.name,
+                `tel:${location.contact.phone}`,
+                location.id,
+                'detail'
+              )}
               className="flex-1 px-6 py-3 text-base font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 text-center flex items-center justify-center gap-2"
             >
               <Phone size={20} />
@@ -766,6 +802,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
                             totalRatings={mergedPlaceData.userRatingsTotal}
                             placeId={location.id}
                             businessName={location.name}
+                            activityTypes={location.types}
                           />
                         </div>
                       )}
@@ -934,6 +971,18 @@ const Drawer: React.FC<DrawerProps> = memo(({
                   <div className="mt-3 flex justify-center">
                     <button
                       onClick={() => {
+                        // Track this interaction with the new trackCustomEvent function
+                        trackCustomEvent(
+                          'pro_tip_click',
+                          'Content Interaction',
+                          location.name,
+                          {
+                            business_name: location.name,
+                            location_id: location.id,
+                            interaction_type: location.proTips ? 'add_pro_tip' : 'first_pro_tip'
+                          }
+                        );
+                        
                         // Use the global function to open the modal with pro-tips
                         (window as any).openReportIssueModal(location.id, location.name, 'pro-tips');
                       }}
@@ -989,7 +1038,13 @@ const Drawer: React.FC<DrawerProps> = memo(({
                         Phone:{" "}
                         <a
                           href={`tel:${location.contact.phone}`}
-                          onClick={() => trackExternalLink('phone', location.name, `tel:${location.contact.phone}`)}
+                          onClick={() => trackExternalLink(
+                            'phone',
+                            location.name,
+                            `tel:${location.contact.phone}`,
+                            location.id,
+                            'detail'
+                          )}
                           className="text-blue-600 hover:text-blue-800 hover:underline touchable-text"
                         >
                           {location.contact.phone}
@@ -1001,7 +1056,13 @@ const Drawer: React.FC<DrawerProps> = memo(({
                         Email:{" "}
                         <a
                           href={`mailto:${location.contact.email}`}
-                          onClick={() => trackExternalLink('website', location.name, `mailto:${location.contact.email}`)}
+                          onClick={() => trackExternalLink(
+                            'email',
+                            location.name,
+                            `mailto:${location.contact.email}`,
+                            location.id,
+                            'detail'
+                          )}
                           className="text-blue-600 hover:text-blue-800 hover:underline touchable-text"
                         >
                           {location.contact.email}
@@ -1015,7 +1076,13 @@ const Drawer: React.FC<DrawerProps> = memo(({
                           href={addUtmParams(location.contact.website)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          onClick={() => trackExternalLink('website', location.name, location.contact.website!)}
+                          onClick={() => trackExternalLink(
+                            'website',
+                            location.name,
+                            location.contact.website!,
+                            location.id,
+                            'detail'
+                          )}
                           className="text-blue-600 hover:text-blue-800 hover:underline touchable-text"
                         >
                           {location.contact.website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
@@ -1030,6 +1097,18 @@ const Drawer: React.FC<DrawerProps> = memo(({
                 <div className="mt-4 flex justify-center pb-6">
                   <button
                     onClick={() => {
+                      // Track this interaction
+                      trackCustomEvent(
+                        'report_issue_click',
+                        'Content Interaction',
+                        location.name,
+                        {
+                          business_name: location.name,
+                          location_id: location.id,
+                          interaction_type: 'incorrect-info'
+                        }
+                      );
+                    
                       // Use the global function to open the modal with incorrect-info
                       (window as any).openReportIssueModal(location.id, location.name, 'incorrect-info');
                     }}

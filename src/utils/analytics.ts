@@ -1,5 +1,25 @@
 import { ANALYTICS } from './metadata';
 
+// Debug configuration
+const DEBUG_CONFIG = {
+  // Set to true to enable debug logging of analytics events in console
+  enableDebug: false,
+  // Set to true to disable sending events to GA (useful for local testing)
+  disableSending: false
+};
+
+// Enable debug mode via localStorage for development purposes
+if (typeof localStorage !== 'undefined') {
+  const debugSetting = localStorage.getItem('pamekids_analytics_debug');
+  if (debugSetting === 'true') {
+    DEBUG_CONFIG.enableDebug = true;
+  }
+  const disableSetting = localStorage.getItem('pamekids_analytics_disable');
+  if (disableSetting === 'true') {
+    DEBUG_CONFIG.disableSending = true;
+  }
+}
+
 declare global {
   interface Window {
     gtag: (...args: any[]) => void;
@@ -97,7 +117,15 @@ const processAnalyticsQueue = () => {
   // Process each event in the batch
   batch.forEach(item => {
     try {
-      window.gtag('event', item.eventName, item.params);
+      // Skip sending to GA if disabled in debug mode
+      if (!DEBUG_CONFIG.disableSending) {
+        window.gtag('event', item.eventName, item.params);
+      }
+      
+      // Log events in console when debug is enabled
+      if (DEBUG_CONFIG.enableDebug) {
+        console.log(`📊 Analytics Queue: ${item.eventName}`, item.params);
+      }
     } catch {
       // Silently handle any errors in analytics
     }
@@ -109,6 +137,36 @@ const processAnalyticsQueue = () => {
   } else {
     analyticsTimeout = null;
   }
+};
+
+// Helper functions to toggle debug mode at runtime
+export const enableAnalyticsDebug = () => {
+  DEBUG_CONFIG.enableDebug = true;
+  localStorage.setItem('pamekids_analytics_debug', 'true');
+  console.log('🔍 Analytics debug mode ENABLED. All events will be logged to console.');
+  return true;
+};
+
+export const disableAnalyticsDebug = () => {
+  DEBUG_CONFIG.enableDebug = false;
+  localStorage.setItem('pamekids_analytics_debug', 'false');
+  console.log('🔍 Analytics debug mode DISABLED.');
+  return true;
+};
+
+// Helper functions to toggle sending events to GA
+export const disableAnalyticsSending = () => {
+  DEBUG_CONFIG.disableSending = true;
+  localStorage.setItem('pamekids_analytics_disable', 'true');
+  console.log('⚠️ Analytics sending DISABLED. Events will not be sent to Google Analytics.');
+  return true;
+};
+
+export const enableAnalyticsSending = () => {
+  DEBUG_CONFIG.disableSending = false;
+  localStorage.setItem('pamekids_analytics_disable', 'false');
+  console.log('✅ Analytics sending ENABLED. Events will be sent to Google Analytics.');
+  return true;
 };
 
 // Add event to analytics queue
@@ -128,30 +186,67 @@ const queueAnalyticsEvent = (eventName: string, params: Record<string, any>) => 
 export const trackExternalLink = (
   type: 'website' | 'phone' | 'directions' | 'email' | 'reviews' | 'photos',
   businessName: string,
-  url: string
+  url: string,
+  locationId?: string,
+  source?: 'map' | 'list' | 'search' | 'detail'
 ) => {
   if (!window.gtag) return;
   
-  // Important conversion events sent immediately instead of batched
-  window.gtag('event', `${type}_click`, {
+  const eventParams = {
     event_category: 'External Link',
     event_label: businessName,
     business_name: businessName,
+    location_id: locationId || 'unknown', // Include location ID for better reporting
     link_type: type,
     link_url: url,
+    interaction_source: source || 'detail', // Track where the interaction originated
     non_interaction: false
-  });
+  };
+  
+  // Debug logging if enabled
+  if (DEBUG_CONFIG.enableDebug) {
+    console.log(`📊 Analytics: ${type}_click`, eventParams);
+  }
+  
+  // Skip sending to GA if disabled
+  if (DEBUG_CONFIG.disableSending) {
+    return;
+  }
+  
+  // Important conversion events sent immediately instead of batched
+  window.gtag('event', `${type}_click`, eventParams);
 };
 
 // Track map marker clicks with throttling to avoid excessive events
-export const trackMarkerClick = throttle((businessName: string) => {
-  // Add to batch queue instead of sending immediately
-  queueAnalyticsEvent('marker_click', {
+export const trackMarkerClick = throttle((
+  businessName: string,
+  locationId?: string,
+  activityTypes?: string[],
+  interactionMethod: 'map_click' | 'search_result' | 'list_item' = 'map_click'
+) => {
+  // Create event parameters with all relevant details
+  const eventParams = {
     event_category: 'Map Interaction',
     event_label: businessName,
     business_name: businessName,
+    location_id: locationId || 'unknown',
+    activity_types: activityTypes ? activityTypes.join(',') : undefined,
+    interaction_method: interactionMethod,
     non_interaction: false
-  });
+  };
+  
+  // Debug logging if enabled
+  if (DEBUG_CONFIG.enableDebug) {
+    console.log(`📊 Analytics: marker_click`, eventParams);
+  }
+  
+  // Skip sending to GA if disabled
+  if (DEBUG_CONFIG.disableSending) {
+    return;
+  }
+  
+  // Add to batch queue instead of sending immediately
+  queueAnalyticsEvent('marker_click', eventParams);
 }, 1000); // 1 second throttle
 
 // Track search queries with throttling to avoid excessive events
@@ -161,8 +256,7 @@ export const trackSearchQuery = throttle((
   hasActivityFilter: boolean = false,
   hasAgeFilter: boolean = false
 ) => {
-  // Add to batch queue instead of sending immediately
-  queueAnalyticsEvent('search_query', {
+  const eventParams = {
     event_category: 'Search',
     event_label: query,
     search_term: query,
@@ -170,24 +264,53 @@ export const trackSearchQuery = throttle((
     has_activity_filter: hasActivityFilter,
     has_age_filter: hasAgeFilter,
     non_interaction: false
-  });
+  };
+  
+  // Debug logging if enabled
+  if (DEBUG_CONFIG.enableDebug) {
+    console.log(`📊 Analytics: search_query`, eventParams);
+  }
+  
+  // Skip sending to GA if disabled
+  if (DEBUG_CONFIG.disableSending) {
+    return;
+  }
+  
+  // Add to batch queue instead of sending immediately
+  queueAnalyticsEvent('search_query', eventParams);
 }, 500); // 500ms throttle for searches
 
 // Track search result clicks
 export const trackSearchResultClick = (
   query: string,
   resultName: string,
-  resultPosition: number
+  resultPosition: number,
+  locationId?: string,
+  activityTypes?: string[]
 ) => {
-  // Add to batch queue instead of sending immediately
-  queueAnalyticsEvent('search_result_click', {
+  const eventParams = {
     event_category: 'Search',
     event_label: resultName,
     search_term: query,
     result_name: resultName,
     result_position: resultPosition,
+    location_id: locationId || 'unknown',
+    activity_types: activityTypes ? activityTypes.join(',') : undefined,
     non_interaction: false
-  });
+  };
+  
+  // Debug logging if enabled
+  if (DEBUG_CONFIG.enableDebug) {
+    console.log(`📊 Analytics: search_result_click`, eventParams);
+  }
+  
+  // Skip sending to GA if disabled
+  if (DEBUG_CONFIG.disableSending) {
+    return;
+  }
+  
+  // Add to batch queue instead of sending immediately
+  queueAnalyticsEvent('search_result_click', eventParams);
 };
 
 // Add UTM parameters to URLs
@@ -201,4 +324,69 @@ export const addUtmParams = (url: string): string => {
   // Check if URL already has parameters
   const hasParams = url.includes('?');
   return `${url}${hasParams ? '&' : '?'}${utmParams.toString()}`;
+};
+
+// Track photo interactions for better reporting on image engagement
+export const trackPhotoInteraction = (
+  action: 'view' | 'swipe' | 'error' | 'zoom',
+  businessName: string,
+  locationId?: string,
+  photoIndex?: number,
+  totalPhotos?: number,
+  error?: string
+) => {
+  const eventParams = {
+    event_category: 'Image Interaction',
+    event_label: businessName,
+    business_name: businessName,
+    location_id: locationId || 'unknown',
+    photo_action: action,
+    photo_index: photoIndex,
+    total_photos: totalPhotos,
+    error_message: error,
+    non_interaction: action === 'view' // 'view' is passive, other actions are interactive
+  };
+  
+  // Debug logging if enabled
+  if (DEBUG_CONFIG.enableDebug) {
+    console.log(`📊 Analytics: photo_${action}`, eventParams);
+  }
+  
+  // Skip sending to GA if disabled
+  if (DEBUG_CONFIG.disableSending) {
+    return;
+  }
+  
+  // Add to batch queue instead of sending immediately
+  queueAnalyticsEvent(`photo_${action}`, eventParams);
+};
+
+// Generic function for tracking custom events not covered by other tracking functions
+export const trackCustomEvent = (
+  eventName: string,
+  category: string,
+  label: string,
+  params: Record<string, any> = {},
+  nonInteraction: boolean = false
+) => {
+  // Build complete event parameters
+  const eventParams = {
+    event_category: category,
+    event_label: label,
+    ...params,
+    non_interaction: nonInteraction
+  };
+  
+  // Debug logging if enabled
+  if (DEBUG_CONFIG.enableDebug) {
+    console.log(`📊 Analytics Custom: ${eventName}`, eventParams);
+  }
+  
+  // Skip sending to GA if disabled
+  if (DEBUG_CONFIG.disableSending) {
+    return;
+  }
+  
+  // Add to batch queue instead of sending immediately
+  queueAnalyticsEvent(eventName, eventParams);
 };
