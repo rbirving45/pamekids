@@ -62,6 +62,11 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
         // Try to fetch from Firestore first (to prevent duplicates)
         placeData = await fetchPlaceDetails(placeIdToFetch, window.google.maps);
         console.log('Location found in database, loading existing data...');
+        
+        // If we get here, the location already exists in our database
+        setIsLoading(false);
+        setError(`This location (${placeData.name || placeIdToFetch}) already exists in the database. To modify it, please use the edit function, or delete it first if you want to recreate it.`);
+        return; // Exit early - don't proceed with form creation for existing locations
       } catch (firestoreError: unknown) {
         // If location not found in Firestore, fetch from Google Places API instead
         if (
@@ -157,19 +162,24 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
       // Set form data
       setFormData(initialFormData);
       
-      // Generate AI description
+      // Try to generate an AI description
       try {
-        setGeneratingDescription(true);
-        const aiDescription = await generatePlaceDescription(placeData);
-        
-        // Update the form data with the AI-generated description
-        setFormData(prevData => {
-          if (!prevData) return null;
-          return {
-            ...prevData,
-            description: aiDescription
-          };
-        });
+        // Make sure placeData has a name before trying to generate a description
+        if (placeData && placeData.name) {
+          setGeneratingDescription(true);
+          const aiDescription = await generatePlaceDescription(placeData);
+          
+          // Update the form data with the AI-generated description
+          setFormData(prevData => {
+            if (!prevData) return null;
+            return {
+              ...prevData,
+              description: aiDescription
+            };
+          });
+        } else {
+          console.warn('Skipping description generation due to missing place name');
+        }
       } catch (descError) {
         console.error('Error generating AI description:', descError);
         // Keep the default description - no need to show error to user

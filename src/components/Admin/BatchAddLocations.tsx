@@ -70,6 +70,21 @@ const BatchAddLocations: React.FC<BatchAddLocationsProps> = ({ onComplete }) => 
         try {
           placeData = await fetchPlaceDetails(placeId, window.google.maps);
           console.log(`Location ${placeId} already exists in database, loading existing data...`);
+          
+          // If we get here, the location already exists
+          // Add a result entry indicating this location is a duplicate
+          setResults(prev => [
+            ...prev,
+            {
+              id: placeId,
+              name: placeData.name || placeId,
+              success: false,
+              error: 'Location already exists in database. Skipping.'
+            }
+          ]);
+          
+          // Skip to the next place ID
+          continue;
         } catch (firestoreError: unknown) {
           // If location not found in Firestore, fetch from Google Places API
           if (
@@ -166,16 +181,21 @@ const BatchAddLocations: React.FC<BatchAddLocationsProps> = ({ onComplete }) => 
 
         // Try to generate an AI description
         try {
-          // Update results to show description generation
-          setResults(prev => [
-            ...prev.filter(r => r.id !== placeId),
-            { id: placeId, name: placeData.name, success: false, error: 'Generating AI description...' }
-          ]);
-          
-          const aiDescription = await generatePlaceDescription(placeData);
-          formattedData.description = aiDescription;
+          // Make sure placeData has a valid name before trying to generate a description
+          if (placeData && placeData.name) {
+            // Update results to show description generation
+            setResults(prev => [
+              ...prev.filter(r => r.id !== placeId),
+              { id: placeId, name: placeData.name, success: false, error: 'Generating AI description...' }
+            ]);
+            
+            const aiDescription = await generatePlaceDescription(placeData);
+            formattedData.description = aiDescription;
+          } else {
+            console.warn('Skipping description generation due to missing place name');
+          }
         } catch (descError) {
-          console.error(`Error generating AI description for ${placeData.name}:`, descError);
+          console.error(`Error generating AI description for ${placeData.name || placeId}:`, descError);
           // Keep the default description
         }
 
