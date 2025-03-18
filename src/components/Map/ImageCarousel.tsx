@@ -317,9 +317,8 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
     // Only handle single-finger touches
     if (e.touches.length !== 1) return;
     
-    // Don't start new touch sequence if we're on the "View more" slide
-    // We'll check this condition dynamically inside the handler instead of using a dependency
-    if (hasViewMoreSlide && currentIndex === photoCount) return;
+    // Allow touch events on all slides, including the "View more" slide
+    // We'll handle direction-specific logic in handleTouchEnd
     
     // Store the initial touch position
     touchStartXRef.current = e.touches[0].clientX;
@@ -327,7 +326,7 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
     isTouchActiveRef.current = true;
     
     // Don't stop propagation - allow event bubbling to parent components
-  }, [hasViewMoreSlide, currentIndex, photoCount]);
+  }, []);
   
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     // Skip if we're not in an active touch sequence
@@ -359,21 +358,27 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
     // Calculate swipe distance
     const deltaX = touchEndXRef.current - touchStartXRef.current;
     
+    // Check if we're on the "View more" slide
+    const isOnViewMoreSlide = hasViewMoreSlide && currentIndex === photoCount;
+    
     // If the swipe distance exceeds our minimum threshold, change the photo
     if (Math.abs(deltaX) > minSwipeDistance) {
       if (deltaX > 0) {
         // Swiped right (previous photo)
+        // Always allow going back to previous photos, even from "View more" slide
         prevPhoto();
-      } else {
+      } else if (!isOnViewMoreSlide) {
         // Swiped left (next photo)
+        // Only allow advancing forward if we're not on the "View more" slide
         nextPhoto();
       }
+      // If on "View more" slide and swiping left, do nothing (we're at the end)
     }
     
     // Reset touch positions
     touchStartXRef.current = null;
     touchEndXRef.current = null;
-  }, [nextPhoto, prevPhoto]);
+  }, [nextPhoto, prevPhoto, hasViewMoreSlide, currentIndex, photoCount]);
 
   // No images available
   if ((totalSlides === 0 || (!displayedUrls.length && !isLoading)) && !useFallback) {
