@@ -128,7 +128,7 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
         priceRange: placeData.priceLevel ? '€'.repeat(placeData.priceLevel) : '€',
         contact: {
           phone: placeData.phone || placeData.formatted_phone_number || '',
-          email: `contact@${placeData.name.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`,
+          email: ``,
           website: placeData.website || ''
         },
         proTips: '' // Initialize with empty string for proTips
