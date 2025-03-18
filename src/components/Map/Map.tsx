@@ -671,11 +671,63 @@ const MapComponent: React.FC<MapProps> = () => {
     map.addListener('bounds_changed', () => {
       const bounds = map.getBounds();
       if (bounds) {
-        // Filter locations to those within current bounds
+        // Get the map center
+        const center = map.getCenter();
+        if (!center) {
+          // If center is undefined, fallback to visible locations only
+          const locationsInView = locations.filter(location => {
+            return bounds.contains(location.coordinates);
+          });
+          setVisibleLocations(locationsInView);
+          return;
+        }
+        
+        const mapCenterPosition = {
+          lat: center.lat(),
+          lng: center.lng()
+        };
+        
+        // First get locations within current bounds
         const locationsInView = locations.filter(location => {
           return bounds.contains(location.coordinates);
         });
-        setVisibleLocations(locationsInView);
+        
+        // If we have fewer than 10 locations in view, add closest locations outside bounds
+        if (locationsInView.length < 10) {
+          // Calculate distance for all locations outside the current bounds
+          const locationsOutsideView = locations.filter(location => {
+            return !bounds.contains(location.coordinates);
+          });
+          
+          // Calculate distance from map center for each location outside view
+          const locationsWithDistance = locationsOutsideView.map(location => {
+            // Simple Euclidean distance (sufficient for sorting by relative distance)
+            const distance = Math.sqrt(
+              Math.pow(location.coordinates.lat - mapCenterPosition.lat, 2) +
+              Math.pow(location.coordinates.lng - mapCenterPosition.lng, 2)
+            );
+            return { location, distance };
+          });
+          
+          // Sort by distance (closest first)
+          locationsWithDistance.sort((a, b) => a.distance - b.distance);
+          
+          // Get just the locations (without distance property)
+          const closestOutsideLocations = locationsWithDistance
+            .map(item => item.location)
+            .slice(0, 10 - locationsInView.length); // Take just enough to reach 10 total
+          
+          // Combine in-view locations with closest outside locations
+          const combinedLocations = [
+            ...locationsInView,           // In-bounds locations first
+            ...closestOutsideLocations    // Then closest out-of-bounds locations
+          ];
+          
+          setVisibleLocations(combinedLocations);
+        } else {
+          // If we already have 10+ locations in view, just use those
+          setVisibleLocations(locationsInView);
+        }
       }
     });
     
