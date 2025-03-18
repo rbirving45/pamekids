@@ -7,7 +7,7 @@ const CACHE_KEYS = {
   CACHE_VERSION: 'pamekids_cache_version'
 };
 const CACHE_VERSION = '1.0'; // Increment when data structure changes
-const CACHE_EXPIRATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_EXPIRATION_MS = 30 * 60 * 1000; // 30 minutes (reduced from 24 hours)
 const PHOTO_URL_EXPIRATION_MS = 3 * 24 * 60 * 60 * 1000; // 3 days - Google photo URLs typically expire in 3-7 days
 
 // Type for the cached place data
