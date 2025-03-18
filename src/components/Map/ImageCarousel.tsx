@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ChevronLeft, ChevronRight, RefreshCcw, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import { addUtmParams, trackExternalLink } from '../../utils/analytics';
+import { handleImageError } from '../../utils/image-refresh-service';
 
 interface ImageCarouselProps {
   photos?: google.maps.places.PlacePhoto[] | undefined;
@@ -26,6 +27,7 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
   const [displayedUrls, setDisplayedUrls] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [useFallback, setUseFallback] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const unmountedRef = useRef(false);
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
@@ -236,7 +238,7 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
   };
 
   // Handle image error
-  const handleImageError = () => {
+  const handleCarouselImageError = (failedUrl: string) => {
     // If one image fails but we have others, don't set global error yet
     if (displayedUrls.length > 1) {
       // Try the next image
@@ -244,10 +246,46 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
     } else {
       setError("Couldn't load photo");
       
-      // Only switch to fallback if we aren't already using fallbacks
-      if (!useFallback) {
+      // Only switch to fallback if we aren't already using fallbacks and not currently refreshing
+      if (!useFallback && !isRefreshing) {
         setUseFallback(true);
       }
+    }
+    
+    // If we have a place ID, try to refresh the images
+    if (placeId && !isRefreshing) {
+      setIsRefreshing(true);
+      
+      // Use our image refresh service
+      handleImageError(
+        placeId,
+        businessName,
+        failedUrl,
+        () => {
+          // On successful refresh, clear error states and try to load the images again
+          console.log(`Images refreshed successfully for ${businessName}, reloading carousel`);
+          setError(null);
+          setUseFallback(false);
+          setIsRefreshing(false);
+          
+          // Refetch the photo URLs
+          // We'll use a custom event to notify parent components that photos have been refreshed
+          const refreshEvent = new CustomEvent('photos-refreshed', {
+            detail: { placeId, businessName }
+          });
+          window.dispatchEvent(refreshEvent);
+          
+          // Reset loading and try to load fresh URLs after a small delay
+          setTimeout(() => {
+            // This will trigger a re-render that should use the newly refreshed URLs
+            setDisplayedUrls([]);
+            setIsLoading(true);
+          }, 500);
+        }
+      ).catch(err => {
+        console.error('Error handling image refresh:', err);
+        setIsRefreshing(false);
+      });
     }
   };
   
@@ -380,13 +418,68 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
         <div className="absolute inset-0 flex items-center justify-center z-carousel-error">
           <div className="text-center bg-white p-4 rounded-lg shadow-md">
             <p className="text-gray-700 mb-3">{error}</p>
-            <button
-              onClick={handleRetry}
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center justify-center mx-auto"
-            >
-              <RefreshCcw size={16} className="mr-2" />
-              Retry
-            </button>
+            <div className="flex gap-2 justify-center">
+              <button
+                onClick={handleRetry}
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center justify-center"
+                disabled={isRefreshing}
+              >
+                <RefreshCcw size={16} className="mr-2" />
+                Retry
+              </button>
+              
+              {placeId && (
+                <button
+                  onClick={() => {
+                    if (currentImageUrl) {
+                      // Call our image refresh service with the current URL
+                      setIsRefreshing(true);
+                      handleImageError(
+                        placeId,
+                        businessName,
+                        currentImageUrl,
+                        () => {
+                          // On success
+                          setError(null);
+                          setUseFallback(false);
+                          setIsRefreshing(false);
+                          
+                          // Trigger reload of images
+                          setDisplayedUrls([]);
+                          setIsLoading(true);
+                          
+                          // Notify parent components
+                          const refreshEvent = new CustomEvent('photos-refreshed', {
+                            detail: { placeId, businessName }
+                          });
+                          window.dispatchEvent(refreshEvent);
+                        }
+                      ).catch(() => {
+                        setIsRefreshing(false);
+                      });
+                    }
+                  }}
+                  className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 flex items-center justify-center"
+                  disabled={isRefreshing}
+                >
+                  {isRefreshing ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Refreshing...
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                      </svg>
+                      Refresh Images
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -427,31 +520,12 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
             }`}
             onLoad={handleImageLoad}
             onError={(e) => {
+              // Get the failed URL
+              const failedUrl = (e.target as HTMLImageElement).src;
               console.warn(`Image loading error for carousel: ${businessName}`, e);
-              handleImageError();
               
-              // TODO: Future implementation - report broken image URLs to a central system
-              // This will be used to trigger targeted updates for specific locations
-              if (placeId) {
-                // For now, we're just logging the error
-                // In the future, we'll implement a reporting mechanism
-                console.log(`Image URL expired for location: ${placeId}`);
-                
-                // We could store failed image URLs in localStorage to track patterns
-                try {
-                  // Get existing reported URLs
-                  const reportedUrls = JSON.parse(localStorage.getItem('expired_image_urls') || '{}');
-                  // Add this location
-                  reportedUrls[placeId] = {
-                    timestamp: Date.now(),
-                    businessName
-                  };
-                  // Store back to localStorage
-                  localStorage.setItem('expired_image_urls', JSON.stringify(reportedUrls));
-                } catch (err) {
-                  // Ignore errors in localStorage operations
-                }
-              }
+              // Call our updated error handler with the failed URL
+              handleCarouselImageError(failedUrl);
             }}
             referrerPolicy="no-referrer"
             loading="eager"

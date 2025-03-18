@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Location, ActivityType } from '../../types/location';
 import { fetchPlaceDetails } from '../../utils/places-api';
+import { handleImageError } from '../../utils/image-refresh-service';
 import { Star } from 'lucide-react';
 
 interface LocationTileProps {
@@ -198,27 +199,43 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
                 // Clear loading state when image loads successfully
                 setIsLoading(false);
               }}
-              onError={() => {
+              onError={(e) => {
                 console.warn(`Image loading error for: ${location.name}`);
                 setImageError(true);
                 // Clear loading state on error
                 setIsLoading(false);
                 
-                // Track broken image URLs for future handling
-                try {
-                  // Get existing reported URLs
-                  const reportedUrls = JSON.parse(localStorage.getItem('expired_image_urls') || '{}');
-                  // Add this location
-                  reportedUrls[location.id] = {
-                    timestamp: Date.now(),
-                    name: location.name,
-                    context: 'locationTile'
-                  };
-                  // Store back to localStorage
-                  localStorage.setItem('expired_image_urls', JSON.stringify(reportedUrls));
-                } catch (err) {
-                  // Ignore errors in localStorage operations
-                }
+                // Get the failed URL if available
+                const failedUrl = (e.target as HTMLImageElement).src;
+                
+                // Use our image refresh service to handle this error
+                handleImageError(
+                  location.id,
+                  location.name,
+                  failedUrl,
+                  () => {
+                    // On successful refresh, clear the error and try loading the image again
+                    console.log(`Image refreshed successfully for ${location.name}, resetting error state`);
+                    setImageError(false);
+                    
+                    // Re-fetch place data
+                    fetchPlaceDetails(location.id, undefined, true)
+                      .then(freshData => {
+                        if (freshData && location) {
+                          // Update the location object with fresh data
+                          location.placeData = freshData;
+                          // Force a re-render by updating state
+                          setPlaceData({...freshData});
+                          console.log(`Updated place data for ${location.name} after image refresh`);
+                        }
+                      })
+                      .catch(err => {
+                        console.error('Error re-fetching place data after refresh:', err);
+                      });
+                  }
+                ).catch(err => {
+                  console.error('Error during image refresh:', err);
+                });
               }}
               referrerPolicy="no-referrer"
               loading="lazy"
