@@ -19,6 +19,7 @@ import { NewsletterButton, NewsletterModal } from './components/Newsletter';
 import ReportIssueModal from './components/ReportIssue/ReportIssueModal';
 import AdminLogin from './components/Admin/AdminLogin';
 import Dashboard from './components/Admin/Dashboard';
+import AnalyticsDebugger from './components/Analytics/AnalyticsDebugger';
 
 // Import activity categories from centralized metadata
 import { ACTIVITY_CATEGORIES as activityConfig } from './utils/metadata';
@@ -134,6 +135,11 @@ const MainApp = () => {
         locationName={reportIssueData.locationName}
         defaultIssueType={reportIssueData.defaultIssueType}
       />
+      
+      {/* Analytics Debugger - only visible in development or with debug URL param */}
+      {(process.env.NODE_ENV === 'development' || window.location.search.includes('debug=analytics')) && (
+        <AnalyticsDebugger />
+      )}
     </div>
   );
 };
