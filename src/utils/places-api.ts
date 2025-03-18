@@ -183,9 +183,54 @@ export function extractPlaceIdFromUrl(url: string): string | null {
   }
 }
 
+/**
+ * Fetches place details directly from Google Places API
+ * This is used when a location doesn't exist in our database yet (for admin functions)
+ * @param placeId - The Google Maps Place ID
+ * @param maps - Google Maps API instance
+ * @returns Promise with place data from Google API
+ */
+export async function fetchPlaceDetailsFromGoogleApi(
+  placeId: string,
+  maps: typeof google.maps
+): Promise<any> {
+  if (!placeId) {
+    return Promise.reject(new Error('Missing placeId'));
+  }
+  
+  if (!maps || !maps.places) {
+    return Promise.reject(new Error('Google Maps API not loaded or missing Places library'));
+  }
+  
+  console.log(`Fetching place details for ${placeId} directly from Google Places API...`);
+  
+  return new Promise((resolve, reject) => {
+    const service = new maps.places.PlacesService(document.createElement('div'));
+    
+    service.getDetails(
+      {
+        placeId: placeId,
+        fields: [
+          'name', 'formatted_address', 'geometry', 'types', 'price_level',
+          'formatted_phone_number', 'website', 'opening_hours', 'rating',
+          'user_ratings_total', 'photos'
+        ]
+      },
+      (place, status) => {
+        if (status === maps.places.PlacesServiceStatus.OK && place) {
+          resolve(place);
+        } else {
+          reject(new Error(`Google Places API error: ${status}`));
+        }
+      }
+    );
+  });
+}
+
 // Exported interface for the API
 const placesApi = {
   fetchPlaceDetails,
+  fetchPlaceDetailsFromGoogleApi,
   extractPlaceIdFromUrl,
   shouldRefreshPhotos
 };

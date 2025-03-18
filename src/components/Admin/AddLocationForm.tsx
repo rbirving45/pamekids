@@ -50,13 +50,33 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
       if (!window.google || !window.google.maps) {
         throw new Error('Google Maps API not loaded');
       }
-
-      // Fetch place details using your existing utility
-      const placeData = await fetchPlaceDetails(placeIdToFetch, window.google.maps);
       
       // Update the placeId state if using a provided ID
       if (id) {
         setPlaceId(id);
+      }
+      
+      // First check if this place already exists in our database
+      let placeData: any = null;
+      try {
+        // Try to fetch from Firestore first (to prevent duplicates)
+        placeData = await fetchPlaceDetails(placeIdToFetch, window.google.maps);
+        console.log('Location found in database, loading existing data...');
+      } catch (firestoreError: unknown) {
+        // If location not found in Firestore, fetch from Google Places API instead
+        if (
+          firestoreError instanceof Error &&
+          firestoreError.message &&
+          firestoreError.message.includes('Location not found')
+        ) {
+          console.log(`Location not found in database, fetching from Google Places API: ${placeIdToFetch}`);
+          // Import the new function to fetch from Google Places API
+          const { fetchPlaceDetailsFromGoogleApi } = await import('../../utils/places-api');
+          placeData = await fetchPlaceDetailsFromGoogleApi(placeIdToFetch, window.google.maps);
+        } else {
+          // Re-throw other errors
+          throw firestoreError;
+        }
       }
       
       if (!placeData) {

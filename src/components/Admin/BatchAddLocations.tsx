@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { addLocation, getLocations } from '../../utils/firebase-service';
-import { fetchPlaceDetails } from '../../utils/places-api';
+import { fetchPlaceDetails, fetchPlaceDetailsFromGoogleApi } from '../../utils/places-api';
 import { generatePlaceDescription } from '../../utils/description-generator';
 import { ActivityType } from '../../types/location';
 
@@ -65,8 +65,25 @@ const BatchAddLocations: React.FC<BatchAddLocationsProps> = ({ onComplete }) => 
           throw new Error('Google Maps API not loaded');
         }
 
-        // Fetch place details
-        const placeData = await fetchPlaceDetails(placeId, window.google.maps);
+        // Try to fetch from Firestore first (to check for duplicates)
+        let placeData: any = null;
+        try {
+          placeData = await fetchPlaceDetails(placeId, window.google.maps);
+          console.log(`Location ${placeId} already exists in database, loading existing data...`);
+        } catch (firestoreError: unknown) {
+          // If location not found in Firestore, fetch from Google Places API
+          if (
+            firestoreError instanceof Error &&
+            firestoreError.message &&
+            firestoreError.message.includes('Location not found')
+          ) {
+            console.log(`Location ${placeId} not found in database, fetching from Google Places API...`);
+            placeData = await fetchPlaceDetailsFromGoogleApi(placeId, window.google.maps);
+          } else {
+            // Re-throw other errors
+            throw firestoreError;
+          }
+        }
         
         if (!placeData) {
           throw new Error('Could not fetch place details');
