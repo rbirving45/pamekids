@@ -45,6 +45,13 @@ const MapComponent: React.FC<MapProps> = () => {
   const { drawerState, setDrawerState, isMapBlocked, setLocationClearCallback } = useTouch();
   // For backward compatibility with older components
   const { setDrawerOpen } = useUIState();
+  
+  // Sync UIState drawer open state with TouchContext on component mount
+  useEffect(() => {
+    if (isMobile && drawerState === 'partial') {
+      setDrawerOpen(true);
+    }
+  }, [isMobile, drawerState, setDrawerOpen]);
 
   // Helper function to safely get z-index from CSS variables
   const getZIndexValue = useCallback((variableName: string): number => {
@@ -74,6 +81,7 @@ const MapComponent: React.FC<MapProps> = () => {
   const searchRef = useRef<HTMLDivElement>(null);
   const ageDropdownRef = useRef<HTMLDivElement>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  const drawerInitializedRef = useRef<boolean>(false);
 
   // This function has been removed as we now use a simpler approach for map positioning
   
@@ -89,6 +97,54 @@ const MapComponent: React.FC<MapProps> = () => {
       }
     });
   }, [setLocationClearCallback, setSelectedLocation, setHoveredLocation, mapReady, selectedLocation]);
+  
+  // Handle the initial drawer state on mobile - ONLY ON FIRST LOAD
+  useEffect(() => {
+    // Skip if we've already initialized the drawer or if we're not on mobile
+    if (!isMobile || drawerInitializedRef.current) {
+      return;
+    }
+    
+    // Wait until map is ready and locations are loaded
+    if (mapReady && !isLoadingLocations && locations.length > 0) {
+      // Short delay to ensure everything is properly initialized
+      const timer = setTimeout(() => {
+        console.log('Setting drawer to partial state on initial app load');
+        // Set drawer to partial state
+        setDrawerState('partial');
+        // Update UIState for backward compatibility
+        setDrawerOpen(true);
+        // Mark as initialized so we don't re-open it after user closes
+        drawerInitializedRef.current = true;
+      }, 300);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [
+    isMobile,
+    locations.length,
+    mapReady,
+    isLoadingLocations,
+    setDrawerState,
+    setDrawerOpen
+  ]);
+
+  // Handle drawer state based on visible locations
+  useEffect(() => {
+    if (isMobile && !isLoadingLocations && visibleLocations.length === 0 && drawerState !== 'closed') {
+      // If no locations are visible and we're not still loading, close the drawer
+      console.log('No visible locations - closing drawer');
+      setDrawerState('closed');
+      setDrawerOpen(false);
+    }
+  }, [
+    isMobile,
+    isLoadingLocations,
+    visibleLocations.length,
+    drawerState,
+    setDrawerState,
+    setDrawerOpen
+  ]);
   
   // Fetch locations from Firebase on component mount
   useEffect(() => {
@@ -600,7 +656,10 @@ const MapComponent: React.FC<MapProps> = () => {
       // On mobile, clicking the map should close the drawer completely
       if (isMobile) {
         setSelectedLocation(null);
+        setDrawerState('closed');
         setDrawerOpen(false);
+        // Mark as initialized so it doesn't automatically reopen
+        drawerInitializedRef.current = true;
       } else {
         // On desktop, just deselect the location
         setSelectedLocation(null);
@@ -625,7 +684,7 @@ const MapComponent: React.FC<MapProps> = () => {
       // Using setTimeout to ensure the map is fully rendered
       map.setZoom(map.getZoom()!); // This triggers bounds_changed without changing the view
     }, 300);
-  }, [locations, isMobile, setDrawerOpen, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation, centerMapOnLocation]);
+  }, [locations, isMobile, setDrawerOpen, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation, centerMapOnLocation, setDrawerState]);
 
   // Handle drawer close action 
   const handleDrawerClose = useCallback(() => {
@@ -635,6 +694,10 @@ const MapComponent: React.FC<MapProps> = () => {
       setDrawerState('closed');
       // Keep setDrawerOpen for backward compatibility
       setDrawerOpen(false);
+      
+      // When user explicitly closes the drawer, respect this action
+      // This prevents the initialization effect from reopening it
+      drawerInitializedRef.current = true;
     } else {
       // On desktop, just deselect the location
       setSelectedLocation(null);
