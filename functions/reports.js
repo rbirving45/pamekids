@@ -88,28 +88,65 @@ async function handleSubmission(event) {
 // Get all reports (admin only)
 async function handleGetAllReports() {
   try {
-    const db = getFirestore();
+    console.log('Getting all issue reports (admin request)');
+    
+    // Initialize Firestore with improved error handling
+    let db;
+    try {
+      db = getFirestore();
+      console.log('Firestore initialized successfully for issue reports');
+    } catch (dbError) {
+      console.error('Failed to initialize Firestore for reports:', dbError);
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: 'Failed to initialize database connection',
+          message: dbError.message,
+          stack: process.env.NODE_ENV === 'development' ? dbError.stack : undefined
+        })
+      };
+    }
+    
     const reportsRef = db.collection('location-reports');
     
-    const snapshot = await reportsRef.get();
-    const reports = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        success: true,
-        reports
-      })
-    };
+    try {
+      console.log('Fetching issue reports from collection');
+      const snapshot = await reportsRef.get();
+      console.log(`Found ${snapshot.size} issue reports`);
+      
+      const reports = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          success: true,
+          reports,
+          count: reports.length
+        })
+      };
+    } catch (queryError) {
+      console.error('Error querying issue reports:', queryError);
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: 'Failed to fetch reports',
+          message: queryError.message,
+          stack: process.env.NODE_ENV === 'development' ? queryError.stack : undefined
+        })
+      };
+    }
   } catch (error) {
-    console.error('Error fetching issue reports:', error);
-    
+    console.error('Uncaught error in handleGetAllReports:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to fetch reports' })
+      body: JSON.stringify({
+        error: 'Failed to fetch reports',
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      })
     };
   }
 }

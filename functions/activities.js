@@ -88,28 +88,65 @@ async function handleSubmission(event) {
 // Get all submissions (admin only)
 async function handleGetAllSubmissions() {
   try {
-    const db = getFirestore();
+    console.log('Getting all activity suggestions (admin request)');
+    
+    // Initialize Firestore with improved error handling
+    let db;
+    try {
+      db = getFirestore();
+      console.log('Firestore initialized successfully for activity suggestions');
+    } catch (dbError) {
+      console.error('Failed to initialize Firestore for activities:', dbError);
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: 'Failed to initialize database connection',
+          message: dbError.message,
+          stack: process.env.NODE_ENV === 'development' ? dbError.stack : undefined
+        })
+      };
+    }
+    
     const activitiesRef = db.collection('activity-suggestions');
     
-    const snapshot = await activitiesRef.get();
-    const suggestions = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        success: true,
-        suggestions
-      })
-    };
+    try {
+      console.log('Fetching activity suggestions from collection');
+      const snapshot = await activitiesRef.get();
+      console.log(`Found ${snapshot.size} activity suggestions`);
+      
+      const suggestions = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          success: true,
+          suggestions,
+          count: suggestions.length
+        })
+      };
+    } catch (queryError) {
+      console.error('Error querying activity suggestions:', queryError);
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: 'Failed to fetch suggestions',
+          message: queryError.message,
+          stack: process.env.NODE_ENV === 'development' ? queryError.stack : undefined
+        })
+      };
+    }
   } catch (error) {
-    console.error('Error fetching activity suggestions:', error);
-    
+    console.error('Uncaught error in handleGetAllSubmissions:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to fetch suggestions' })
+      body: JSON.stringify({
+        error: 'Failed to fetch suggestions',
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      })
     };
   }
 }

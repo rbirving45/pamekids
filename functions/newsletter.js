@@ -99,29 +99,64 @@ async function handleSubscription(event) {
 // Get all subscribers (admin only)
 async function handleGetAllSubscriptions() {
   try {
-    const db = getFirestore();
+    console.log('Getting all newsletter subscribers (admin request)');
+    
+    // Initialize Firestore with improved error handling
+    let db;
+    try {
+      db = getFirestore();
+      console.log('Firestore initialized successfully for newsletter subscribers');
+    } catch (dbError) {
+      console.error('Failed to initialize Firestore for newsletter:', dbError);
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: 'Failed to initialize database connection',
+          message: dbError.message,
+          stack: process.env.NODE_ENV === 'development' ? dbError.stack : undefined
+        })
+      };
+    }
+    
     const subscribersRef = db.collection('newsletter-subscribers');
     
-    const snapshot = await subscribersRef.get();
-    const subscribers = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        success: true,
-        subscribers
-      })
-    };
+    try {
+      console.log('Fetching newsletter subscribers from collection');
+      const snapshot = await subscribersRef.get();
+      console.log(`Found ${snapshot.size} newsletter subscribers`);
+      
+      const subscribers = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          success: true,
+          subscribers,
+          count: subscribers.length
+        })
+      };
+    } catch (queryError) {
+      console.error('Error querying newsletter subscribers:', queryError);
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: 'Failed to fetch subscribers',
+          message: queryError.message,
+          stack: process.env.NODE_ENV === 'development' ? queryError.stack : undefined
+        })
+      };
+    }
   } catch (error) {
-    console.error('Error fetching subscribers:', error);
+    console.error('Uncaught error in handleGetAllSubscriptions:', error);
     return {
       statusCode: 500,
       body: JSON.stringify({ 
         error: 'Failed to fetch subscribers',
-        message: error.message
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       })
     };
   }
