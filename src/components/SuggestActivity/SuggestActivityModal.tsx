@@ -73,8 +73,8 @@ const SuggestActivityModal: React.FC<SuggestActivityModalProps> = ({
       newErrors.googleMapsLink = 'Please enter a valid URL';
     }
 
-    if (formData.description.length > 200) {
-      newErrors.description = 'Description must be 200 characters or less';
+    if (formData.description.length > 2000) {
+      newErrors.description = 'Description must be 2,000 characters or less';
     }
 
     if (formData.email && !isValidEmail(formData.email)) {
@@ -237,7 +237,7 @@ const SuggestActivityModal: React.FC<SuggestActivityModalProps> = ({
 
           <div>
             <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-              Tell us what you love about it (optional)
+              Tell us your Pro Tips and what you love about this place (optional)
             </label>
             <textarea
               id="description"
