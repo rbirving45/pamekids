@@ -4,6 +4,14 @@ import { fetchPlaceDetails, fetchPlaceDetailsFromGoogleApi } from '../../utils/p
 import { generatePlaceDescription } from '../../utils/description-generator';
 import { ActivityType } from '../../types/location';
 
+// Interface for Google Place photo to fix TS type errors
+interface GooglePlacePhoto {
+  photo_reference: string;
+  height?: number;
+  width?: number;
+  html_attributions?: string[];
+}
+
 // Activity type mapping similar to your existing batch-process.js
 const activityTypeMapping: Record<string, ActivityType> = {
   'amusement_park': 'entertainment',
@@ -153,15 +161,63 @@ const BatchAddLocations: React.FC<BatchAddLocationsProps> = ({ onComplete }) => 
 
         const coordinates = getLocationCoordinates();
         
+        // Process opening hours from Google Places API
+        const processOpeningHours = (): Record<string, string> => {
+          const openingHours: Record<string, string> = {};
+          
+          if (placeData.opening_hours && placeData.opening_hours.weekday_text) {
+            const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            
+            placeData.opening_hours.weekday_text.forEach((text: string) => {
+              for (const day of weekdays) {
+                if (text.startsWith(day)) {
+                  openingHours[day] = text.substring(day.length + 2); // +2 to skip ": "
+                  break;
+                }
+              }
+            });
+          }
+          
+          return openingHours;
+        };
+        
+        // Process and generate photo URLs
+        const processPhotos = (): string[] => {
+          if (!placeData.photos || !placeData.photos.length) {
+            return [];
+          }
+          
+          const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+          if (!apiKey) {
+            console.warn('Google Maps API key missing, cannot generate photo URLs');
+            return [];
+          }
+          
+          // Take up to 10 photos and generate URLs
+          return placeData.photos.slice(0, 10).map((photo: GooglePlacePhoto) => {
+            const reference = photo.photo_reference;
+            return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${reference}&key=${apiKey}`;
+          });
+        };
+        
+        // Create placeData with all available info from Google
+        const googlePlaceData = {
+          rating: placeData.rating,
+          userRatingsTotal: placeData.user_ratings_total,
+          photoUrls: processPhotos(),
+          phone: placeData.formatted_phone_number,
+          website: placeData.website,
+          address: placeData.formatted_address,
+          hours: processOpeningHours(),
+          last_fetched: new Date().toISOString()
+        };
+
+        // Create the basic location data
         const formattedData = {
           id: placeId,
           name: placeData.name,
           coordinates: coordinates,
-          placeData: {
-            rating: placeData.rating,
-            userRatingsTotal: placeData.userRatingsTotal
-          },
-          address: placeData.address || placeData.formatted_address,
+          address: placeData.formatted_address || placeData.address || '',
           types: [primaryType],
           primaryType: primaryType,
           ageRange: {
@@ -169,15 +225,18 @@ const BatchAddLocations: React.FC<BatchAddLocationsProps> = ({ onComplete }) => 
             max: 16
           },
           description: `${placeData.name} is a great place for kids in Athens. Suitable for various age groups.`,
-          openingHours: placeData.hours || {},
-          priceRange: placeData.priceLevel ? '$'.repeat(placeData.priceLevel) : '$',
+          openingHours: processOpeningHours(),
+          priceRange: placeData.price_level ? '€'.repeat(placeData.price_level) : '€',
           contact: {
-            phone: placeData.phone || placeData.formatted_phone_number || '',
+            phone: placeData.formatted_phone_number || placeData.phone || '',
             email: '',
             website: placeData.website || ''
           },
           proTips: '' // Initialize with empty string for proTips
         };
+        
+        // Add the placeData separately to avoid TypeScript errors
+        (formattedData as any).placeData = googlePlaceData;
 
         // Try to generate an AI description
         try {

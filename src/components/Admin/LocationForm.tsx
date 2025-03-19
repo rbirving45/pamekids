@@ -36,6 +36,7 @@ export interface LocationFormData {
     website?: string;
   };
   openingHours: Record<string, string>;
+  placeData?: any; // Using any to avoid strict typing issues across components
 }
 
 // Define props for the shared component

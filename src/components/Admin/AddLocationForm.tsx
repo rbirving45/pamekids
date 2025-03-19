@@ -6,6 +6,14 @@ import PlaceSearch from './PlaceSearch';
 import LocationForm, { LocationFormData } from './LocationForm';
 import { ActivityType } from '../../types/location';
 
+// Interface for Google Place photo to fix TS type errors
+interface GooglePlacePhoto {
+  photo_reference: string;
+  height?: number;
+  width?: number;
+  html_attributions?: string[];
+}
+
 const activityTypeMapping: Record<string, ActivityType> = {
   'amusement_park': 'entertainment',
   'aquarium': 'education',
@@ -136,28 +144,82 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
 
       const coordinates = getLocationCoordinates();
       
-      // Prepare the initial form data
+      // Process opening hours from Google Places API
+      const processOpeningHours = (): Record<string, string> => {
+        const openingHours: Record<string, string> = {};
+        
+        if (placeData.opening_hours && placeData.opening_hours.weekday_text) {
+          const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+          
+          placeData.opening_hours.weekday_text.forEach((text: string) => {
+            for (const day of weekdays) {
+              if (text.startsWith(day)) {
+                openingHours[day] = text.substring(day.length + 2); // +2 to skip ": "
+                break;
+              }
+            }
+          });
+        }
+        
+        return openingHours;
+      };
+      
+      // Process and generate photo URLs
+      const processPhotos = (): string[] => {
+        if (!placeData.photos || !placeData.photos.length) {
+          return [];
+        }
+        
+        const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+        if (!apiKey) {
+          console.warn('Google Maps API key missing, cannot generate photo URLs');
+          return [];
+        }
+        
+        // Take up to 10 photos and generate URLs
+        return placeData.photos.slice(0, 10).map((photo: GooglePlacePhoto) => {
+          const reference = photo.photo_reference;
+          return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${reference}&key=${apiKey}`;
+        });
+      };
+      
+      // Create placeData with all available info from Google
+      const googlePlaceData = {
+        rating: placeData.rating,
+        userRatingsTotal: placeData.user_ratings_total,
+        photoUrls: processPhotos(),
+        phone: placeData.formatted_phone_number,
+        website: placeData.website,
+        address: placeData.formatted_address,
+        hours: processOpeningHours(),
+        last_fetched: new Date().toISOString()
+      };
+      
+      // Prepare the initial form data with type-safe handling of placeData
       const initialFormData: LocationFormData = {
         id: placeIdToFetch,
         name: placeData.name,
         coordinates: coordinates,
         types: [primaryType],
         primaryType: primaryType,
-        address: placeData.address || placeData.formatted_address,
+        address: placeData.formatted_address || '',
         ageRange: {
           min: primaryType === 'education' ? 3 : 0,
           max: 16
         },
         description: `${placeData.name} is a great place for kids in Athens. Suitable for various age groups.`,
-        openingHours: placeData.hours || {},
-        priceRange: placeData.priceLevel ? '€'.repeat(placeData.priceLevel) : '€',
+        openingHours: processOpeningHours(),
+        priceRange: placeData.price_level ? '€'.repeat(placeData.price_level) : '€',
         contact: {
-          phone: placeData.phone || placeData.formatted_phone_number || '',
-          email: ``,
+          phone: placeData.formatted_phone_number || '',
+          email: '',
           website: placeData.website || ''
         },
         proTips: '' // Initialize with empty string for proTips
       };
+      
+      // Add the placeData separately to ensure type safety
+      (initialFormData as any).placeData = googlePlaceData;
 
       // Set form data
       setFormData(initialFormData);
