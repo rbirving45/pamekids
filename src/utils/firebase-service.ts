@@ -543,6 +543,21 @@ export const addLocation = async (location: Location) => {
     // Remove id field to avoid duplication in the document
     const { id: _, ...locationData } = locationWithTimestamps;
     
+    // Fix undefined values in placeData if they exist
+    // This specifically addresses the undefined phone issue without touching timestamps
+    if (locationData.placeData) {
+      // Convert any undefined values to empty strings (TypeScript-safe and Firestore-compatible)
+      if (locationData.placeData.phone === undefined) {
+        locationData.placeData.phone = '';
+      }
+      if (locationData.placeData.website === undefined) {
+        locationData.placeData.website = '';
+      }
+      if (locationData.placeData.address === undefined) {
+        locationData.placeData.address = '';
+      }
+    }
+    
     // Save to Firestore
     await setDoc(docRef, locationData);
     
