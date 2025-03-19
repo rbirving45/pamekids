@@ -151,6 +151,82 @@ const LocationForm: React.FC<LocationFormProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* Google Places Data Summary - Read-only confirmation */}
+      {formData.placeData && (
+        <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
+          <h3 className="text-sm font-medium text-blue-800 mb-2">Google Places Data Summary</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div>
+              <p className="text-blue-600 font-medium">Coordinates</p>
+              <p className="text-gray-700">
+                {formData.coordinates.lat.toFixed(6)}, {formData.coordinates.lng.toFixed(6)}
+              </p>
+            </div>
+            
+            <div>
+              <p className="text-blue-600 font-medium">Photos</p>
+              <p className="text-gray-700">
+                {formData.placeData?.photoUrls?.length || 0} imported
+              </p>
+            </div>
+            
+            <div>
+              <p className="text-blue-600 font-medium">Rating</p>
+              <p className="text-gray-700">
+                {formData.placeData?.rating ?
+                  `${formData.placeData.rating} ★` :
+                  'Not available'}
+              </p>
+            </div>
+            
+            <div>
+              <p className="text-blue-600 font-medium">Review Count</p>
+              <p className="text-gray-700">
+                {formData.placeData?.userRatingsTotal || 'Not available'}
+              </p>
+            </div>
+            
+            <div>
+              <p className="text-blue-600 font-medium">Opening Hours</p>
+              <p className="text-gray-700">
+                {Object.keys(formData.openingHours).length > 0 ?
+                  `${Object.keys(formData.openingHours).length} days imported` :
+                  'Not available'}
+              </p>
+            </div>
+            
+            <div>
+              <p className="text-blue-600 font-medium">Contact</p>
+              <p className="text-gray-700">
+                {formData.contact.phone || formData.contact.website ?
+                  `${formData.contact.phone ? '☎ ' : ''}${formData.contact.website ? '🌐 ' : ''}Imported` :
+                  'Not available'}
+              </p>
+            </div>
+            
+            <div>
+              <p className="text-blue-600 font-medium">Address</p>
+              <p className="text-gray-700 truncate">
+                {formData.address || 'Not available'}
+              </p>
+            </div>
+            
+            <div>
+              <p className="text-blue-600 font-medium">Updated</p>
+              <p className="text-gray-700">
+                {formData.placeData?.last_fetched ?
+                  new Date(formData.placeData.last_fetched).toLocaleString() :
+                  'Just now'}
+              </p>
+            </div>
+          </div>
+          
+          <p className="mt-3 text-xs text-blue-600 italic">
+            This data was automatically imported from Google Places API and will be stored with your location.
+          </p>
+        </div>
+      )}
+      
       {/* Basic Information */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
