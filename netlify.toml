@@ -39,6 +39,8 @@
 [functions."store-location-photos"]
   # Enough time to process up to 10 images
   timeout = 120
+  # Mark as background function to avoid 10-second timeout limit
+  background = true
   # Ensure environment variables are properly set
   [functions."store-location-photos".environment]
     NODE_ENV = "production"
