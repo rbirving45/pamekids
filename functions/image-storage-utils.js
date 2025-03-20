@@ -55,22 +55,17 @@ async function downloadImage(url) {
  */
 async function uploadImageToStorage(imageBuffer, locationId, index) {
   try {
-    // HARDCODED BUCKET - Replace with your actual Firebase Storage bucket
-    // This is a fallback in case environment variables aren't working
+    // HARDCODED BUCKET - Use the correct bucket name
+    // This MUST match your Firebase Storage bucket name exactly
     const FIREBASE_BUCKET = 'pamekids-ab0e5.firebasestorage.app';
     
-    // Get bucket name from environment variables with fallback to hardcoded value
-    const bucketName = process.env.FIREBASE_STORAGE_BUCKET ||
-                       process.env.REACT_APP_FIREBASE_STORAGE_BUCKET ||
-                       FIREBASE_BUCKET;
-    
-    console.log(`Using bucket name: ${bucketName}`);
+    console.log(`Using hardcoded storage bucket: ${FIREBASE_BUCKET}`);
     
     // Initialize Firebase Admin if not already done
     const storage = getStorage();
     
-    // Get bucket with explicit name
-    const bucket = storage.bucket(bucketName);
+    // Get bucket with explicit hardcoded bucket name
+    const bucket = storage.bucket(FIREBASE_BUCKET);
     
     // Create a unique filename
     const filename = `location_photos/${locationId}/${index}.jpg`;

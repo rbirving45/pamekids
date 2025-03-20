@@ -126,22 +126,16 @@ function getStorage() {
   try {
     const app = initializeFirebaseAdmin();
     
-    // HARDCODED BUCKET - Replace with your actual Firebase Storage bucket
-    // This is a fallback in case environment variables aren't working
+    // HARDCODED BUCKET - Use the correct Firebase Storage bucket name
     const FIREBASE_BUCKET = 'pamekids-ab0e5.firebasestorage.app';
     
     // Initialize Storage bucket if not already done
     if (!storageBucket) {
-      // Get the storage bucket name with fallback to hardcoded value
-      const bucketName = process.env.FIREBASE_STORAGE_BUCKET ||
-                         process.env.REACT_APP_FIREBASE_STORAGE_BUCKET ||
-                         FIREBASE_BUCKET;
+      console.log(`Using hardcoded storage bucket: ${FIREBASE_BUCKET}`);
       
-      console.log(`Using storage bucket: ${bucketName}`);
-      
-      // Initialize storage with explicit bucket name
-      storageBucket = app.storage(bucketName);
-      console.log(`Firebase Storage initialized successfully with bucket: ${bucketName}`);
+      // Initialize storage with explicit hardcoded bucket name
+      storageBucket = app.storage(FIREBASE_BUCKET);
+      console.log(`Firebase Storage initialized successfully with bucket: ${FIREBASE_BUCKET}`);
     }
     
     return storageBucket;

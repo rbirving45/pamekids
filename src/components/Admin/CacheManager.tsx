@@ -59,6 +59,19 @@ const CacheManager: React.FC = () => {
     recentRefreshes: []
   });
   const [isLoadingRefreshStats, setIsLoadingRefreshStats] = useState(false);
+  
+  // State for photo migration feature
+  const [isMigratingPhotos, setIsMigratingPhotos] = useState(false);
+  const [migrationStats, setMigrationStats] = useState<{
+    totalLocations: number;
+    processedLocations: number;
+    totalPhotos: number;
+    storedPhotos: number;
+    skippedLocations: number;
+    failedLocations: number;
+    duration?: string;
+  } | null>(null);
+  const [migrationError, setMigrationError] = useState<string | null>(null);
 
   // Load cache information
   const loadCacheInfo = () => {
@@ -354,6 +367,70 @@ const CacheManager: React.FC = () => {
       }
     }
   };
+  
+  // Handle photo migration for locations without stored photos
+  const handleMigratePhotos = async () => {
+    if (window.confirm('This will download photos from Google and store them permanently in Firebase Storage for all locations that don\'t already have stored photos. This process may take several minutes, but helps prevent broken images due to expiring Google URLs. Continue?')) {
+      try {
+        // Reset state
+        setMigrationError(null);
+        setMigrationStats(null);
+        setIsMigratingPhotos(true);
+        setMessage({
+          text: 'Photo migration started. This may take several minutes...',
+          type: 'info'
+        });
+        
+        // Get admin token from localStorage
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+          throw new Error('Admin token not found. Please log in again.');
+        }
+        
+        // Call the migrate-new-photos serverless function
+        const response = await fetch('/api/migrate-new-photos', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        // Handle response
+        if (!response.ok) {
+          let errorMessage = 'Server error';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorData.error || `Status: ${response.status}`;
+          } catch (e) {
+            errorMessage = `Status: ${response.status} ${response.statusText}`;
+          }
+          throw new Error(`Migration failed: ${errorMessage}`);
+        }
+        
+        // Parse successful response
+        const result = await response.json();
+        
+        // Update state with migration results
+        setMigrationStats(result.stats);
+        
+        // Show success message
+        setMessage({
+          text: `Photo migration completed! ${result.stats.storedPhotos} photos stored for ${result.stats.processedLocations} locations.`,
+          type: 'success'
+        });
+      } catch (error) {
+        console.error('Error migrating photos:', error);
+        setMigrationError(error instanceof Error ? error.message : String(error));
+        setMessage({
+          text: error instanceof Error ? error.message : 'Failed to migrate photos',
+          type: 'error'
+        });
+      } finally {
+        setIsMigratingPhotos(false);
+      }
+    }
+  };
 
   // Format cache size for display
   const formatCacheSize = (bytes: number) => {
@@ -586,6 +663,100 @@ const CacheManager: React.FC = () => {
             </div>
           </div>
           
+          {/* Photo Migration Section */}
+          <div className="border-t pt-4 mt-4">
+            <h3 className="text-lg font-medium mb-3">Firebase Storage Photo Migration</h3>
+            
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-medium text-purple-700">Migrate Google Photos to Permanent Storage</h4>
+              </div>
+              
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-3">
+                  This tool processes photos for all locations that don't already have permanent images in Firebase Storage.
+                  It will download Google Places photos and store them permanently, making them immune to Google's URL expiration.
+                </p>
+                
+                <div className="mb-2 flex">
+                  <button
+                    onClick={handleMigratePhotos}
+                    disabled={isMigratingPhotos}
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-purple-300 disabled:cursor-not-allowed"
+                  >
+                    {isMigratingPhotos ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Migrating Photos...
+                      </span>
+                    ) : (
+                      "Migrate New Photos to Firebase Storage"
+                    )}
+                  </button>
+                </div>
+              </div>
+              
+              {migrationError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <h5 className="text-sm font-medium text-red-700 mb-1">Migration Error</h5>
+                  <p className="text-sm text-red-600">{migrationError}</p>
+                </div>
+              )}
+              
+              {migrationStats && (
+                <div className="mb-4">
+                  <h5 className="text-sm font-medium mb-2">Migration Results</h5>
+                  <div className="bg-white p-3 rounded-md border border-gray-200">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      <div>
+                        <p className="text-xs text-gray-500">Total Locations:</p>
+                        <p className="font-medium">{migrationStats.totalLocations}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Photos Stored:</p>
+                        <p className="font-medium text-green-600">{migrationStats.storedPhotos}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Locations Processed:</p>
+                        <p className="font-medium">{migrationStats.processedLocations}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Locations Skipped:</p>
+                        <p className="font-medium text-gray-600">{migrationStats.skippedLocations}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Failed:</p>
+                        <p className="font-medium text-red-600">{migrationStats.failedLocations}</p>
+                      </div>
+                      {migrationStats.duration && (
+                        <div>
+                          <p className="text-xs text-gray-500">Time Taken:</p>
+                          <p className="font-medium">{migrationStats.duration}s</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="p-3 bg-blue-50 rounded-md text-sm text-blue-800">
+                <p className="font-medium mb-1">About Photo Migration</p>
+                <p className="mb-2">
+                  This tool provides a permanent solution to Google's URL expiration issue by downloading and storing photos in your own Firebase Storage.
+                </p>
+                <ul className="ml-5 list-disc text-blue-700 space-y-1">
+                  <li>Only processes locations without existing stored photos</li>
+                  <li>Creates permanent copies that won't expire</li>
+                  <li>Helpful after adding new locations</li>
+                  <li>Runs in small batches to prevent timeouts</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
           {/* Automated Update Status */}
           <div className="border-t pt-4 mt-4">
             <h3 className="text-lg font-medium mb-3">Scheduled Updates Status</h3>

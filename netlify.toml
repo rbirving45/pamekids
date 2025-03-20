@@ -27,6 +27,14 @@
   # Increased timeout for function as it may need to process many locations
   timeout = 120
 
+# Configuration for photo migration function
+[functions."migrate-new-photos"]
+  # Increased timeout for function as it may need to download and upload many images
+  timeout = 300
+  # Ensure environment variables are properly set
+  [functions."migrate-new-photos".environment]
+    NODE_ENV = "production"
+
 # Redirects for API endpoints to Netlify Functions
 [[redirects]]
   from = "/api/*"
