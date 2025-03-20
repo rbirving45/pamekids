@@ -1,9 +1,10 @@
 // Netlify serverless function to refresh images for a single location
 // This function fetches fresh photo URLs from Google Places API for a specific location ID
-// and updates only the photo URLs in Firestore
+// and uploads permanent copies to Firebase Storage
 
 const { initializeFirebaseAdmin, getFirestore, fetchPlaceDetails } = require('./scheduled-places-update');
 const admin = require('firebase-admin');
+const { processAndStoreLocationPhotos } = require('./image-storage-utils');
 
 // In-memory rate limiting for non-admin requests (resets on function cold start)
 const ipRateLimits = {};
@@ -57,7 +58,8 @@ async function verifyAccess(token, clientIp) {
   return { isAdmin: false };
 }
 
-// Update only photo URLs, rating, and user ratings count for a specific location
+// Update photo URLs, rating, and user ratings count for a specific location
+// Also downloads and stores images permanently in Firebase Storage
 async function updateLocationImages(db, locationId, placeDetails) {
   try {
     if (!placeDetails) {
@@ -77,7 +79,7 @@ async function updateLocationImages(db, locationId, placeDetails) {
         return { success: false, reason: 'API key missing' };
       }
       
-      // Generate photo URLs
+      // Generate photo URLs from Google Places API
       const photoUrls = placeDetails.photos.slice(0, 10).map(photo => {
         const reference = photo.photo_reference;
         return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${reference}&key=${apiKey}`;
@@ -86,6 +88,26 @@ async function updateLocationImages(db, locationId, placeDetails) {
       // Only add to update if we have valid URLs
       if (photoUrls.length > 0) {
         updateData['placeData.photoUrls'] = photoUrls;
+        
+        // Store photo references for attribution
+        const photoReferences = placeDetails.photos.slice(0, 10).map(photo => photo.photo_reference);
+        updateData['placeData.photoReferences'] = photoReferences;
+        
+        // Process and store permanent copies in Firebase Storage
+        console.log(`Downloading and storing ${photoUrls.length} images for location ${locationId}`);
+        try {
+          const storedUrls = await processAndStoreLocationPhotos(locationId, photoUrls);
+          
+          // Add the permanent URLs to the update if we have any
+          if (storedUrls && storedUrls.length > 0) {
+            updateData['placeData.storedPhotoUrls'] = storedUrls;
+            console.log(`Successfully stored ${storedUrls.length} permanent images in Firebase Storage`);
+          }
+        } catch (storageError) {
+          console.error(`Error storing images for ${locationId}:`, storageError);
+          // Continue with the update even if storage fails
+          // The original photoUrls will still be available as a fallback
+        }
       }
     }
     

@@ -87,18 +87,24 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
   // Combine placeData from state or from location, ensuring we get the most complete data
   const mergedPlaceData = placeData || location.placeData;
 
-  // Get the first available photo URL with simplified logic (no background refresh)
+  // Get the first available photo URL with priority for permanent stored URLs
   const featuredImageUrl = useMemo(() => {
     // If image already errored, don't try to show it
     if (imageError) return null;
     
-    // Check for photoUrls first (pre-processed URLs)
+    // Check for permanent stored URLs first (highest priority)
+    if (mergedPlaceData?.storedPhotoUrls && mergedPlaceData.storedPhotoUrls.length > 0) {
+      // Use the first stored URL - these are permanent Firebase Storage URLs
+      return mergedPlaceData.storedPhotoUrls[0];
+    }
+    
+    // Check for photoUrls as fallback (pre-processed URLs, might expire)
     if (mergedPlaceData?.photoUrls && mergedPlaceData.photoUrls.length > 0) {
-      // Use the first photo URL (best we can do without direct Google API access)
+      // Use the first photo URL as fallback
       return mergedPlaceData.photoUrls[0];
     }
     
-    // Check for raw photo objects as fallback (would need processing)
+    // Check for raw photo objects as last resort (would need processing)
     if (mergedPlaceData?.photos && mergedPlaceData.photos.length > 0 &&
         typeof mergedPlaceData.photos[0]?.getUrl === 'function') {
       try {

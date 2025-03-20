@@ -939,6 +939,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
                   <ImageCarousel
                     photos={mergedPlaceData?.photos}
                     photoUrls={mergedPlaceData?.photoUrls}
+                    storedPhotoUrls={mergedPlaceData?.storedPhotoUrls}
                     businessName={location.name}
                     placeId={location.id}
                   />

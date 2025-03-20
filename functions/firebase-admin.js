@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 
 let firebaseApp;
+let storageBucket;
 
 function initializeFirebaseAdmin() {
   if (firebaseApp) {
@@ -103,7 +104,25 @@ function getFirestore() {
   }
 }
 
+function getStorage() {
+  try {
+    const app = initializeFirebaseAdmin();
+    
+    // Initialize Storage bucket if not already done
+    if (!storageBucket) {
+      storageBucket = app.storage();
+      console.log('Firebase Storage initialized successfully');
+    }
+    
+    return storageBucket;
+  } catch (error) {
+    console.error('Error getting Storage instance:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   initializeFirebaseAdmin,
-  getFirestore
+  getFirestore,
+  getStorage
 };

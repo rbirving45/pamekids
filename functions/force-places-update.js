@@ -1,5 +1,6 @@
 // Netlify serverless function for manual triggering of place data updates
 // This is called by the admin dashboard using the "Update Photos & Ratings" button
+// Now also stores permanent copies of images in Firebase Storage
 
 const admin = require('firebase-admin');
 const {
@@ -9,6 +10,7 @@ const {
   fetchPlaceDetails,
   updateLocationPlaceData
 } = require('./scheduled-places-update');
+// We don't need to import the image storage utilities directly since they're used by updateLocationPlaceData
 
 // Verify admin authentication
 async function verifyAdminAuth(token) {

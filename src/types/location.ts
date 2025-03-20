@@ -28,6 +28,8 @@ export interface Location {
     userRatingsTotal?: number;
     photos?: google.maps.places.PlacePhoto[];
     photoUrls?: string[];
+    storedPhotoUrls?: string[]; // Permanent Firebase Storage URLs
+    photoReferences?: string[]; // Google Places photo references for attribution
     last_fetched?: string; // ISO string timestamp for when the data was fetched
     hours?: Record<string, string>;
     phone?: string;

@@ -6,6 +6,7 @@ import { handleImageError } from '../../utils/image-refresh-service';
 interface ImageCarouselProps {
   photos?: google.maps.places.PlacePhoto[] | undefined;
   photoUrls?: string[] | undefined;
+  storedPhotoUrls?: string[] | undefined; // New prop for permanent Firebase Storage URLs
   businessName: string;
   placeId?: string;
 }
@@ -21,7 +22,7 @@ const STATIC_FALLBACK_IMAGES = [
 // Maximum number of photos to display
 const MAX_PHOTOS = 10;
 
-const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, businessName, placeId }) => {
+const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, storedPhotoUrls, businessName, placeId }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [displayedUrls, setDisplayedUrls] = useState<string[]>([]);
@@ -115,7 +116,7 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [nextPhoto, prevPhoto]);
 
-  // Get URLs from Google Photos objects or from static fallbacks
+  // Get URLs from stored photos, Google Photos objects, or from static fallbacks
   useEffect(() => {
     // Reset when photos or photoUrls change
     setError(null);
@@ -138,7 +139,19 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
       setIsLoading(false);
     }, 5000); // 5 seconds timeout
 
-    // Case 1: Use photoUrls if available (these are pre-loaded URLs)
+    // Case 1: Use permanent stored URLs with highest priority (these never expire)
+    if (storedPhotoUrls && storedPhotoUrls.length > 0) {
+      // Limit to MAX_PHOTOS
+      setDisplayedUrls(storedPhotoUrls.slice(0, MAX_PHOTOS));
+      setIsLoading(false);
+      if (loadingTimerRef.current) {
+        clearTimeout(loadingTimerRef.current);
+        loadingTimerRef.current = null;
+      }
+      return;
+    }
+
+    // Case 2: Use photoUrls as fallback (these are pre-loaded URLs but may expire)
     if (photoUrls && photoUrls.length > 0) {
       // Limit to MAX_PHOTOS
       setDisplayedUrls(photoUrls.slice(0, MAX_PHOTOS));
@@ -201,7 +214,7 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, busine
         loadingTimerRef.current = null;
       }
     };
-  }, [photos, photoUrls]);
+  }, [photos, photoUrls, storedPhotoUrls]);
 
   // Use fallback images if needed
   useEffect(() => {
