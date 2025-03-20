@@ -35,14 +35,12 @@
   [functions."migrate-new-photos".environment]
     NODE_ENV = "production"
 
-# Configuration for storing photos for a single location
-[functions."store-location-photos"]
-  # Enough time to process up to 10 images
-  timeout = 120
-  # Mark as background function to avoid 10-second timeout limit
-  background = true
+# Configuration for background function to store photos for a single location
+[functions."store-location-photos-background"]
+  # Increased timeout for background function (max 15 minutes = 900 seconds)
+  timeout = 900
   # Ensure environment variables are properly set
-  [functions."store-location-photos".environment]
+  [functions."store-location-photos-background".environment]
     NODE_ENV = "production"
 
 # Redirects for API endpoints to Netlify Functions

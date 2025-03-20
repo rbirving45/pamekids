@@ -230,15 +230,8 @@ async function processLocation(db, locationId) {
 
 // Main handler for the Netlify function
 exports.handler = async (event, context) => {
-  // Only allow POST requests
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: 'Method not allowed' })
-    };
-  }
-
-  console.log('Single location photo storage triggered');
+  // This is a background function, so it doesn't need to return a response immediately
+  console.log('Background photo processing started');
   
   try {
     // Parse the request body
@@ -246,13 +239,8 @@ exports.handler = async (event, context) => {
     const { locationId } = payload;
     
     if (!locationId) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({
-          error: 'Missing required parameters',
-          message: 'locationId is required'
-        })
-      };
+      console.error('Missing required parameter: locationId');
+      return { statusCode: 400 };
     }
     
     // Extract admin token from Authorization header
@@ -260,39 +248,43 @@ exports.handler = async (event, context) => {
     const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
     
     // Verify admin authentication
-    await verifyAdminAuth(token);
-    
-    // Initialize Firebase and get Firestore instance
-    const db = getFirestore();
-    
-    // Process the location
-    const result = await processLocation(db, locationId);
-    
-    if (!result.success) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({
-          error: 'Failed to process location photos',
-          message: result.message || result.error || 'Unknown error',
-          details: result
-        })
-      };
+    try {
+      await verifyAdminAuth(token);
+    } catch (authError) {
+      console.error('Authentication failed:', authError.message);
+      return { statusCode: 401 };
     }
     
-    // Return success with results
+    // Initialize Firebase and get Firestore instance - will continue in the background
+    const db = getFirestore();
+    
+    // Process the location - this can continue after the function returns
+    console.log(`Starting background processing for location ID: ${locationId}`);
+    
+    // Return immediately with 202 Accepted
+    // Processing will continue in the background
+    processLocation(db, locationId)
+      .then(result => {
+        console.log(`Background processing completed for ${locationId}:`, result);
+      })
+      .catch(error => {
+        console.error(`Background processing failed for ${locationId}:`, error);
+      });
+    
+    // Return success right away
     return {
-      statusCode: 200,
+      statusCode: 202, // Accepted
       body: JSON.stringify({
-        message: result.message || 'Photos processed successfully',
-        result
+        message: 'Photo processing started in background',
+        locationId
       })
     };
   } catch (error) {
-    console.error('Error processing photos:', error);
+    console.error('Error initiating background processing:', error);
     return {
-      statusCode: error.message.includes('authentication') ? 401 : 500,
+      statusCode: 500,
       body: JSON.stringify({
-        error: 'Failed to process photos',
+        error: 'Failed to initiate background processing',
         message: error.message
       })
     };

@@ -308,8 +308,8 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
             throw new Error('Admin token not found. Please log in again.');
           }
           
-          // Call the serverless function to process images
-          const response = await fetch('/api/store-location-photos', {
+          // Call the background function to process images - fire and forget
+          fetch('/api/store-location-photos-background', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -318,47 +318,34 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
             body: JSON.stringify({
               locationId
             })
+          }).then(response => {
+            console.log('Background image processing initiated:', response.status);
+          }).catch(error => {
+            console.warn('Error initiating background image processing:', error);
+            // Non-blocking, so we don't throw the error
           });
           
-          // Parse the response
-          const result = await response.json();
-          
-          // Handle the response
-          if (!response.ok) {
-            throw new Error(result.message || `Error: ${response.status}`);
-          }
-          
-          console.log('Image processing result:', result);
-          
-          // Update status based on result
-          if (result.result.skipped) {
-            setImageProcessingStatus({
-              message: 'Location already has stored images.',
-              type: 'info'
-            });
-          } else {
-            setImageProcessingStatus({
-              message: `Successfully stored ${result.result.storedCount} images for this location.`,
-              type: 'success',
-              photoCount: result.result.storedCount
-            });
-          }
-        } catch (imageError) {
-          console.error('Error processing images:', imageError);
+          // Set status for user feedback
           setImageProcessingStatus({
-            message: `Failed to process images: ${imageError instanceof Error ? imageError.message : 'Unknown error'}`,
+            message: 'Images will be processed in the background. You can continue using the app.',
+            type: 'success'
+          });
+        } catch (error) {
+          console.error('Error initiating image processing:', error);
+          setImageProcessingStatus({
+            message: `Failed to initiate image processing: ${error instanceof Error ? error.message : 'Unknown error'}`,
             type: 'error'
           });
-      } finally {
-        setIsProcessingImages(false);
-        
-        // Show complete success message after images are processed
+        } finally {
+          setIsProcessingImages(false);
+          
+          // Show success message immediately, don't wait for images
+          alert('Location added successfully! Images will be processed in the background.');
+        }
+      } else {
+        // If no images to process, show success message immediately
         alert('Location added successfully!');
       }
-    } else {
-      // If no images to process, show success message immediately
-      alert('Location added successfully!');
-    }
     
     // Clear form data regardless of image processing status
       setPlaceId('');
