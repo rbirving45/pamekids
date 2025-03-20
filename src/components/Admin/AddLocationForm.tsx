@@ -285,14 +285,13 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
         throw new Error('Missing Place ID. Please try fetching the location details again.');
       }
       
-      console.log('Saving location with ID:', locationId);
-      await addLocation(formData);
-      
-      // Force a refresh of the locations data to update the admin UI
-      await getLocations(true);
-      
-      // Show initial success message
-      alert('Location added successfully!');
+    console.log('Saving location with ID:', locationId);
+    await addLocation(formData);
+    
+    // Force a refresh of the locations data to update the admin UI
+    await getLocations(true);
+    
+    // Don't show success message yet - will show after image processing
       
       // Process images if the location has placeData with photoUrls
       if (formData.placeData?.photoUrls && formData.placeData.photoUrls.length > 0) {
@@ -350,12 +349,18 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
             message: `Failed to process images: ${imageError instanceof Error ? imageError.message : 'Unknown error'}`,
             type: 'error'
           });
-        } finally {
-          setIsProcessingImages(false);
-        }
+      } finally {
+        setIsProcessingImages(false);
+        
+        // Show complete success message after images are processed
+        alert('Location added successfully!');
       }
-      
-      // Clear form data regardless of image processing status
+    } else {
+      // If no images to process, show success message immediately
+      alert('Location added successfully!');
+    }
+    
+    // Clear form data regardless of image processing status
       setPlaceId('');
       setFormData(null);
       if (onLocationAdded) {

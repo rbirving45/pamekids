@@ -166,7 +166,7 @@ const LocationForm: React.FC<LocationFormProps> = ({
             <div>
               <p className="text-blue-600 font-medium">Photos</p>
               <p className="text-gray-700">
-                {formData.placeData?.photoUrls?.length || 0} imported
+                {formData.placeData?.photoUrls?.length || 0} available
               </p>
             </div>
             
