@@ -1,13 +1,14 @@
 {
   "name": "pamekids-functions",
   "version": "1.0.0",
-  "description": "Netlify serverless functions for PameKids",
+  "description": "Serverless functions for PameKids",
   "main": "index.js",
-  "dependencies": {
-    "firebase-admin": "^13.2.0",
-    "node-fetch": "^2.6.7"
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "engines": {
-    "node": ">=14.0.0"
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "firebase-admin": "^13.0.0",
+    "node-fetch": "^2.6.7"
   }
 }

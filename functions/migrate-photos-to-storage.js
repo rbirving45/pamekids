@@ -7,9 +7,28 @@
  * 4. Updates the Firestore documents with permanent URLs
  */
 
+// Load environment variables from .env file
+require('dotenv').config();
+
 const { initializeFirebaseAdmin, getFirestore } = require('./firebase-admin');
 const { processAndStoreLocationPhotos } = require('./image-storage-utils');
 const admin = require('firebase-admin');
+
+// Print environment variables for debugging
+console.log('Environment variables:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('FIREBASE_STORAGE_BUCKET:', process.env.FIREBASE_STORAGE_BUCKET);
+console.log('REACT_APP_FIREBASE_STORAGE_BUCKET:', process.env.REACT_APP_FIREBASE_STORAGE_BUCKET);
+
+// HARDCODED BUCKET - Replace with your actual Firebase Storage bucket
+// This is a fallback in case environment variables aren't working
+const FIREBASE_BUCKET = 'pamekids-ab0e5.firebasestorage.app';
+
+// Set the environment variable directly as a fallback
+if (!process.env.FIREBASE_STORAGE_BUCKET) {
+  console.log(`Setting FIREBASE_STORAGE_BUCKET from hardcoded value: ${FIREBASE_BUCKET}`);
+  process.env.FIREBASE_STORAGE_BUCKET = FIREBASE_BUCKET;
+}
 
 // Track stats for the migration
 const stats = {

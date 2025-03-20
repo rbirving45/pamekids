@@ -17,6 +17,17 @@ function initializeFirebaseAdmin() {
     console.log('ADMIN_TOKEN available:', !!process.env.ADMIN_TOKEN);
     console.log('NODE_ENV:', process.env.NODE_ENV);
     
+    // Get the storage bucket name from environment variable
+    // Check all possible environment variable names
+    const storageBucketName = process.env.FIREBASE_STORAGE_BUCKET ||
+                             process.env.REACT_APP_FIREBASE_STORAGE_BUCKET;
+    
+    console.log('Storage bucket name:', storageBucketName || 'NOT FOUND');
+    
+    if (!storageBucketName) {
+      console.warn('WARNING: Storage bucket name not found in environment variables. Storage operations will fail.');
+    }
+    
     // Try to parse service account from environment variable
     const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
     
@@ -25,7 +36,8 @@ function initializeFirebaseAdmin() {
         // Initialize with parsed service account from environment variable
         const serviceAccount = JSON.parse(serviceAccountJson);
         firebaseApp = admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount)
+          credential: admin.credential.cert(serviceAccount),
+          storageBucket: storageBucketName
         });
         console.log('Firebase Admin initialized with service account from environment variable');
       } catch (parseError) {
@@ -77,10 +89,16 @@ function initializeFirebaseAdmin() {
           throw new Error('Service account file is missing required fields');
         }
         
+        // Get the storage bucket name from environment variable
+        const storageBucketName = process.env.FIREBASE_STORAGE_BUCKET ||
+                                 process.env.REACT_APP_FIREBASE_STORAGE_BUCKET;
+        
         firebaseApp = admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount)
+          credential: admin.credential.cert(serviceAccount),
+          storageBucket: storageBucketName
         });
         console.log('Firebase Admin initialized successfully with service account from:', serviceAccountPath);
+        console.log('Storage bucket configured:', storageBucketName || 'NOT FOUND');
       } catch (requireError) {
         console.error('Failed to load service account file:', requireError);
         throw new Error(`Failed to load service account file (${serviceAccountPath}): ${requireError.message}`);
@@ -108,10 +126,22 @@ function getStorage() {
   try {
     const app = initializeFirebaseAdmin();
     
+    // HARDCODED BUCKET - Replace with your actual Firebase Storage bucket
+    // This is a fallback in case environment variables aren't working
+    const FIREBASE_BUCKET = 'pamekids-ab0e5.firebasestorage.app';
+    
     // Initialize Storage bucket if not already done
     if (!storageBucket) {
-      storageBucket = app.storage();
-      console.log('Firebase Storage initialized successfully');
+      // Get the storage bucket name with fallback to hardcoded value
+      const bucketName = process.env.FIREBASE_STORAGE_BUCKET ||
+                         process.env.REACT_APP_FIREBASE_STORAGE_BUCKET ||
+                         FIREBASE_BUCKET;
+      
+      console.log(`Using storage bucket: ${bucketName}`);
+      
+      // Initialize storage with explicit bucket name
+      storageBucket = app.storage(bucketName);
+      console.log(`Firebase Storage initialized successfully with bucket: ${bucketName}`);
     }
     
     return storageBucket;

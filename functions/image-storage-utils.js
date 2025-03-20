@@ -55,8 +55,22 @@ async function downloadImage(url) {
  */
 async function uploadImageToStorage(imageBuffer, locationId, index) {
   try {
+    // HARDCODED BUCKET - Replace with your actual Firebase Storage bucket
+    // This is a fallback in case environment variables aren't working
+    const FIREBASE_BUCKET = 'pamekids-ab0e5.firebasestorage.app';
+    
+    // Get bucket name from environment variables with fallback to hardcoded value
+    const bucketName = process.env.FIREBASE_STORAGE_BUCKET ||
+                       process.env.REACT_APP_FIREBASE_STORAGE_BUCKET ||
+                       FIREBASE_BUCKET;
+    
+    console.log(`Using bucket name: ${bucketName}`);
+    
+    // Initialize Firebase Admin if not already done
     const storage = getStorage();
-    const bucket = storage.bucket();
+    
+    // Get bucket with explicit name
+    const bucket = storage.bucket(bucketName);
     
     // Create a unique filename
     const filename = `location_photos/${locationId}/${index}.jpg`;
@@ -82,8 +96,8 @@ async function uploadImageToStorage(imageBuffer, locationId, index) {
     // Make the file publicly accessible and get the URL
     await file.makePublic();
     
-    // Get the public URL
-    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filename}`;
+    // Get the public URL (with correct Firebase Storage URL format)
+    const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(filename)}?alt=media`;
     
     console.log(`Successfully uploaded image to: ${publicUrl}`);
     return publicUrl;

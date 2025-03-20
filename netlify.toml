@@ -8,6 +8,8 @@
 [build.environment]
   CREATE_DATA_DIR = "true"
   NODE_ENV = "production"
+  # Map React app environment variables to function environment variables
+  FIREBASE_STORAGE_BUCKET = "${REACT_APP_FIREBASE_STORAGE_BUCKET}"
 
 # Set node.js version for functions
 [functions]
