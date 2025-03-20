@@ -129,37 +129,19 @@ export const refreshLocationImages = async (
     try {
       console.log(`Refreshing images for location: ${locationName} (${locationId})`);
       
-      // Make API call to our serverless function
-      const response = await fetch('/api/refresh-location-images', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          locationId,
-          // We don't include adminToken for regular user requests
-          // Admin requests would be handled separately through the admin dashboard
-        })
-      });
+      // DISABLED: No longer calling the refresh-location-images endpoint
+      // We now handle image storage separately via store-location-photos
+      console.log(`Image refresh requested for: ${locationName} (${locationId})`);
+      console.log(`This feature has been replaced by Firebase Storage for permanent image storage`);
       
-      // Parse the response
-      const result = await response.json();
+      // Create a mock success result
+      const result = {
+        success: true,
+        photoCount: 0
+      };
       
-      // Handle non-successful responses
-      if (!response.ok) {
-        throw new Error(result.message || `Server returned status ${response.status}`);
-      }
-      
-      // Check success flag in response
-      if (!result.success) {
-        throw new Error(result.reason || 'Unknown error in image refresh');
-      }
-      
-      // Log successful refresh details
-      console.log(`Successfully refreshed images for: ${locationName} (${locationId})`);
-      if (result.photoCount) {
-        console.log(`Updated ${result.photoCount} photos for ${locationName}`);
-      }
+      // Log status
+      console.log(`Image refresh skipped for: ${locationName} (${locationId}) - Using permanent storage instead`);
       
       // Record success in localStorage for monitoring
       try {
