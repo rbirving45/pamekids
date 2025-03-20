@@ -35,6 +35,14 @@
   [functions."migrate-new-photos".environment]
     NODE_ENV = "production"
 
+# Configuration for storing photos for a single location
+[functions."store-location-photos"]
+  # Enough time to process up to 10 images
+  timeout = 120
+  # Ensure environment variables are properly set
+  [functions."store-location-photos".environment]
+    NODE_ENV = "production"
+
 # Redirects for API endpoints to Netlify Functions
 [[redirects]]
   from = "/api/*"

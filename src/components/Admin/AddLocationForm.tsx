@@ -40,6 +40,12 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<LocationFormData | null>(null);
   const [generatingDescription, setGeneratingDescription] = useState(false);
+  const [isProcessingImages, setIsProcessingImages] = useState(false);
+  const [imageProcessingStatus, setImageProcessingStatus] = useState<{
+    message: string;
+    type: 'info' | 'success' | 'error';
+    photoCount?: number;
+  } | null>(null);
 
   const fetchPlace = async (id?: string) => {
     // Use the provided id or fall back to the state value
@@ -268,6 +274,7 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
 
     setIsLoading(true);
     setError(null);
+    setImageProcessingStatus(null);
 
     try {
       // Ensure we're using the Google Place ID as our internal ID
@@ -284,12 +291,76 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
       // Force a refresh of the locations data to update the admin UI
       await getLocations(true);
       
+      // Show initial success message
+      alert('Location added successfully!');
+      
+      // Process images if the location has placeData with photoUrls
+      if (formData.placeData?.photoUrls && formData.placeData.photoUrls.length > 0) {
+        try {
+          setIsProcessingImages(true);
+          setImageProcessingStatus({
+            message: 'Processing images for permanent storage...',
+            type: 'info'
+          });
+          
+          // Get admin token
+          const adminToken = localStorage.getItem('adminToken');
+          if (!adminToken) {
+            throw new Error('Admin token not found. Please log in again.');
+          }
+          
+          // Call the serverless function to process images
+          const response = await fetch('/api/store-location-photos', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${adminToken}`
+            },
+            body: JSON.stringify({
+              locationId
+            })
+          });
+          
+          // Parse the response
+          const result = await response.json();
+          
+          // Handle the response
+          if (!response.ok) {
+            throw new Error(result.message || `Error: ${response.status}`);
+          }
+          
+          console.log('Image processing result:', result);
+          
+          // Update status based on result
+          if (result.result.skipped) {
+            setImageProcessingStatus({
+              message: 'Location already has stored images.',
+              type: 'info'
+            });
+          } else {
+            setImageProcessingStatus({
+              message: `Successfully stored ${result.result.storedCount} images for this location.`,
+              type: 'success',
+              photoCount: result.result.storedCount
+            });
+          }
+        } catch (imageError) {
+          console.error('Error processing images:', imageError);
+          setImageProcessingStatus({
+            message: `Failed to process images: ${imageError instanceof Error ? imageError.message : 'Unknown error'}`,
+            type: 'error'
+          });
+        } finally {
+          setIsProcessingImages(false);
+        }
+      }
+      
+      // Clear form data regardless of image processing status
       setPlaceId('');
       setFormData(null);
       if (onLocationAdded) {
         onLocationAdded();
       }
-      alert('Location added successfully!');
     } catch (err) {
       console.error('Error saving location:', err);
       setError(err instanceof Error ? err.message : 'Failed to save location');
@@ -383,18 +454,72 @@ const AddLocationForm: React.FC<AddLocationFormProps> = ({ onLocationAdded }) =>
             <button
               onClick={() => setFormData(null)}
               className="mr-3 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-              disabled={isLoading}
+              disabled={isLoading || isProcessingImages}
             >
               Cancel
             </button>
             <button
               onClick={saveLocation}
-              disabled={isLoading || generatingDescription}
+              disabled={isLoading || generatingDescription || isProcessingImages}
               className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-green-300"
             >
               {isLoading ? 'Saving...' : 'Save Location'}
             </button>
           </div>
+          
+          {/* Image Processing Status */}
+          {(isProcessingImages || imageProcessingStatus) && (
+            <div className="mt-4">
+              {isProcessingImages && (
+                <div className="flex items-center p-3 bg-blue-50 text-blue-700 rounded-md">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Processing images for permanent storage. This may take a moment...</span>
+                </div>
+              )}
+              
+              {!isProcessingImages && imageProcessingStatus && (
+                <div className={`p-3 rounded-md ${
+                  imageProcessingStatus.type === 'success' ? 'bg-green-50 text-green-700' :
+                  imageProcessingStatus.type === 'error' ? 'bg-red-50 text-red-700' :
+                  'bg-blue-50 text-blue-700'
+                }`}>
+                  <div className="flex items-center">
+                    {imageProcessingStatus.type === 'success' && (
+                      <svg className="h-5 w-5 mr-2 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                    {imageProcessingStatus.type === 'error' && (
+                      <svg className="h-5 w-5 mr-2 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                    {imageProcessingStatus.type === 'info' && (
+                      <svg className="h-5 w-5 mr-2 text-blue-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                    <span>{imageProcessingStatus.message}</span>
+                  </div>
+                  
+                  {imageProcessingStatus.type === 'success' && imageProcessingStatus.photoCount && (
+                    <p className="mt-1 ml-7 text-sm">
+                      {imageProcessingStatus.photoCount} {imageProcessingStatus.photoCount === 1 ? 'image has' : 'images have'} been stored permanently in Firebase Storage.
+                    </p>
+                  )}
+                  
+                  {imageProcessingStatus.type === 'error' && (
+                    <p className="mt-1 ml-7 text-sm">
+                      The location was saved successfully, but there was an issue storing the images permanently. Google-provided image URLs will still work but may expire after a few days.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
