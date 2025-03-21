@@ -133,8 +133,9 @@ function getStorageInstance() {
     if (!storageBucket) {
       console.log(`Using hardcoded storage bucket: ${FIREBASE_BUCKET}`);
       
-      // Initialize storage with explicit hardcoded bucket name
-      storageBucket = app.storage().bucket(FIREBASE_BUCKET);
+      // Use the imported getStorage function with the app as argument (modular pattern)
+      const storage = getAdminStorage(app);
+      storageBucket = storage.bucket(FIREBASE_BUCKET);
       console.log(`Firebase Storage initialized successfully with bucket: ${FIREBASE_BUCKET}`);
     }
     

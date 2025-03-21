@@ -129,7 +129,8 @@ function getFirestoreInstance() {
   
   try {
     const app = initializeFirebaseAdmin();
-    db = app.firestore();
+    // Use the imported getFirestore function with the app as argument (modular pattern)
+    db = getFirestore(app);
     return db;
   } catch (error) {
     console.error('Error getting Firestore instance:', error);
@@ -149,8 +150,9 @@ function getStorageInstance() {
     if (!storageBucket) {
       console.log(`Using hardcoded storage bucket: ${FIREBASE_BUCKET}`);
       
-      // Initialize storage with explicit hardcoded bucket name
-      storageBucket = app.storage().bucket(FIREBASE_BUCKET);
+      // Use the imported getStorage function with the app as argument (modular pattern)
+      const storage = getStorage(app);
+      storageBucket = storage.bucket(FIREBASE_BUCKET);
       console.log(`Firebase Storage initialized successfully with bucket: ${FIREBASE_BUCKET}`);
     }
     
