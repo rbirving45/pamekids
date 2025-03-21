@@ -222,8 +222,8 @@ async function processAndStoreLocationPhotos(locationId, photoUrls) {
         // Get the photo as a buffer
         const photoBuffer = await response.buffer();
         
-        // Generate a unique filename
-        const filename = `${locationDir}/photo_${i + 1}_${Date.now()}.jpg`;
+        // Generate a filename following the app's expected naming convention (0.jpg, 1.jpg, etc.)
+        const filename = `${locationDir}/${i}.jpg`;
         
         console.log(`Uploading photo to ${filename}`);
         
