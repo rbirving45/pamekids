@@ -650,7 +650,7 @@ export const updateLocationPlaceData = async (id: string, placeData: any): Promi
 export const deleteLocation = async (id: string) => {
   try {
     // Verify admin authentication
-    verifyAdminAuth();
+    const adminToken = verifyAdminAuth();
     
     console.log(`Deleting location with ID ${id}`);
     const docRef = doc(db, COLLECTIONS.LOCATIONS, id);
@@ -658,6 +658,31 @@ export const deleteLocation = async (id: string) => {
     
     // Clear locations cache to ensure immediate refresh in admin UI
     clearLocationsCache();
+    
+    // Trigger background deletion of location photos
+    try {
+      console.log(`Triggering background deletion of photos for location ${id}`);
+      
+      // Call the background function to delete photos
+      const response = await fetch('/api/delete-location-photos-background', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminToken}`
+        },
+        body: JSON.stringify({ locationId: id })
+      });
+      
+      if (response.ok) {
+        console.log(`Background deletion of photos initiated for location ${id}`);
+      } else {
+        // Log the error but don't throw - we've already deleted the location from Firestore
+        console.warn(`Failed to trigger photo deletion for location ${id}: Status ${response.status}`);
+      }
+    } catch (photoError) {
+      // Log the error but don't throw - we've already deleted the location from Firestore
+      console.warn(`Error triggering photo deletion for location ${id}:`, photoError);
+    }
     
     return { success: true, id };
   } catch (error) {
