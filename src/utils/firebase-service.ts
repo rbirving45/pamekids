@@ -674,10 +674,22 @@ export const deleteLocation = async (id: string) => {
       });
       
       if (response.ok) {
-        console.log(`Background deletion of photos initiated for location ${id}`);
+        // Try to parse the response for additional details
+        try {
+          const result = await response.json();
+          console.log(`Background deletion of photos initiated for location ${id}. Response:`, result);
+        } catch (parseError) {
+          console.log(`Background deletion of photos initiated for location ${id}`);
+        }
       } else {
-        // Log the error but don't throw - we've already deleted the location from Firestore
-        console.warn(`Failed to trigger photo deletion for location ${id}: Status ${response.status}`);
+        // Try to get more detailed error information
+        try {
+          const errorData = await response.json();
+          console.warn(`Failed to trigger photo deletion for location ${id}: Status ${response.status}`, errorData);
+        } catch (parseError) {
+          // Log the error but don't throw - we've already deleted the location from Firestore
+          console.warn(`Failed to trigger photo deletion for location ${id}: Status ${response.status}`);
+        }
       }
     } catch (photoError) {
       // Log the error but don't throw - we've already deleted the location from Firestore

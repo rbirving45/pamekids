@@ -15,6 +15,7 @@
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["firebase-admin"]
+  # .mjs files are automatically treated as ES modules by esbuild
 
 # Scheduled function for updating place data every 72 hours
 [functions."scheduled-places-update"]
@@ -35,7 +36,7 @@
   [functions."migrate-new-photos".environment]
     NODE_ENV = "production"
 
-# Configuration for background function to store photos for a single location
+# Configuration for background function to store photos for a single location (ES Module)
 [functions."store-location-photos-background"]
   # Increased timeout for background function (max 15 minutes = 900 seconds)
   timeout = 900
@@ -66,7 +67,7 @@
   to = "/index.html"
   status = 200
 
-# Configuration for background function to delete photos for a single location
+# Configuration for background function to delete photos for a single location (ES Module)
 [functions."delete-location-photos-background"]
   # Increased timeout for background function (max 15 minutes = 900 seconds)
   timeout = 900
