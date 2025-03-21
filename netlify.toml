@@ -65,3 +65,11 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Configuration for background function to delete photos for a single location
+[functions."delete-location-photos-background"]
+  # Increased timeout for background function (max 15 minutes = 900 seconds)
+  timeout = 900
+  # Ensure environment variables are properly set
+  [functions."delete-location-photos-background".environment]
+    NODE_ENV = "production"
