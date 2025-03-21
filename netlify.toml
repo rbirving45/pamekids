@@ -36,6 +36,14 @@
   [functions."migrate-new-photos".environment]
     NODE_ENV = "production"
 
+# Configuration for storedPhotoUrls migration function
+[functions."migrate-stored-photo-urls"]
+  # Increased timeout for function as it may need to process many locations
+  timeout = 300
+  # Ensure environment variables are properly set
+  [functions."migrate-stored-photo-urls".environment]
+    NODE_ENV = "production"
+
 # Configuration for background function to store photos for a single location (ES Module)
 [functions."store-location-photos-background"]
   # Increased timeout for background function (max 15 minutes = 900 seconds)

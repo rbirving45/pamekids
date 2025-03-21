@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Location, ActivityType } from '../../types/location';
 import { fetchPlaceDetails } from '../../utils/places-api';
-import { handleImageError } from '../../utils/image-refresh-service';
 import { trackMarkerClick } from '../../utils/analytics';
 import { Star } from 'lucide-react';
 
@@ -92,29 +91,9 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
     // If image already errored, don't try to show it
     if (imageError) return null;
     
-    // Check for permanent stored URLs first (highest priority)
+    // Use only storedPhotoUrls (from Firebase Storage)
     if (mergedPlaceData?.storedPhotoUrls && mergedPlaceData.storedPhotoUrls.length > 0) {
-      // Use the first stored URL - these are permanent Firebase Storage URLs
       return mergedPlaceData.storedPhotoUrls[0];
-    }
-    
-    // Check for photoUrls as fallback (pre-processed URLs, might expire)
-    if (mergedPlaceData?.photoUrls && mergedPlaceData.photoUrls.length > 0) {
-      // Use the first photo URL as fallback
-      return mergedPlaceData.photoUrls[0];
-    }
-    
-    // Check for raw photo objects as last resort (would need processing)
-    if (mergedPlaceData?.photos && mergedPlaceData.photos.length > 0 &&
-        typeof mergedPlaceData.photos[0]?.getUrl === 'function') {
-      try {
-        return mergedPlaceData.photos[0].getUrl({
-          maxWidth: 400,
-          maxHeight: 400
-        });
-      } catch (e) {
-        console.warn('Error getting photo URL:', e);
-      }
     }
     
     return null;
@@ -217,43 +196,11 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
                 // Clear loading state when image loads successfully
                 setIsLoading(false);
               }}
-              onError={(e) => {
+              onError={() => {
                 console.warn(`Image loading error for: ${location.name}`);
                 setImageError(true);
                 // Clear loading state on error
                 setIsLoading(false);
-                
-                // Get the failed URL if available
-                const failedUrl = (e.target as HTMLImageElement).src;
-                
-                // Use our image refresh service to handle this error
-                handleImageError(
-                  location.id,
-                  location.name,
-                  failedUrl,
-                  () => {
-                    // On successful refresh, clear the error and try loading the image again
-                    console.log(`Image refreshed successfully for ${location.name}, resetting error state`);
-                    setImageError(false);
-                    
-                    // Re-fetch place data
-                    fetchPlaceDetails(location.id, undefined, true)
-                      .then(freshData => {
-                        if (freshData && location) {
-                          // Update the location object with fresh data
-                          location.placeData = freshData;
-                          // Force a re-render by updating state
-                          setPlaceData({...freshData});
-                          console.log(`Updated place data for ${location.name} after image refresh`);
-                        }
-                      })
-                      .catch(err => {
-                        console.error('Error re-fetching place data after refresh:', err);
-                      });
-                  }
-                ).catch(err => {
-                  console.error('Error during image refresh:', err);
-                });
               }}
               referrerPolicy="no-referrer"
               loading="lazy"

@@ -1,22 +1,23 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ChevronLeft, ChevronRight, RefreshCcw, Image as ImageIcon, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import { addUtmParams, trackExternalLink, trackPhotoInteraction } from '../../utils/analytics';
-import { handleImageError } from '../../utils/image-refresh-service';
 
 interface ImageCarouselProps {
   photos?: google.maps.places.PlacePhoto[] | undefined;
   photoUrls?: string[] | undefined;
-  storedPhotoUrls?: string[] | undefined; // New prop for permanent Firebase Storage URLs
+  storedPhotoUrls?: string[] | undefined; // Firebase Storage URLs
   businessName: string;
   placeId?: string;
 }
 
 const STATIC_FALLBACK_IMAGES = [
-  'https://images.unsplash.com/photo-1526378722484-bd91ca387e72?q=80&w=1000',
-  'https://images.unsplash.com/photo-1468234560892-6b6a8a72594f?q=80&w=1000',
-  'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1000',
-  'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=1000',
-  'https://images.unsplash.com/photo-1471286174890-9c112ffca5b4?q=80&w=1000',
+  'https://images.unsplash.com/photo-1577428091255-4a1a24e70558?q=80&w=1600', // Kids playing on playground
+  'https://images.unsplash.com/photo-1602628865526-5bd06860a5d5?q=80&w=1600', // Family at museum
+  'https://images.unsplash.com/photo-1564419320461-6870880221ad?q=80&w=1600', // Children in art class
+  'https://images.unsplash.com/photo-1596464716127-f2a82984de30?q=80&w=1600', // Kids playing sports
+  'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1600', // Children reading/learning
+  'https://images.unsplash.com/photo-1445633629932-0029acc44e88?q=80&w=1600', // Kids in music class
+  'https://images.unsplash.com/photo-1517164850305-99a27ae571ee?q=80&w=1600', // Family hiking/outdoors
 ];
 
 // Maximum number of photos to display
@@ -28,7 +29,6 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, stored
   const [displayedUrls, setDisplayedUrls] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [useFallback, setUseFallback] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const unmountedRef = useRef(false);
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
@@ -38,16 +38,15 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, stored
   const minSwipeDistance = 50; // Minimum distance required for a swipe
   const isTouchActiveRef = useRef(false); // Track if we're in an active touch sequence
 
-  // Get actual image count (photos or fallbacks)
+  // Get actual image count (stored photos or fallbacks)
   const actualImageCount = useFallback
     ? Math.min(5, STATIC_FALLBACK_IMAGES.length)
-    : Math.max((photos?.length || 0), (photoUrls?.length || 0));
+    : (storedPhotoUrls?.length || 0);
   
   // Limit to MAX_PHOTOS
   const photoCount = Math.min(actualImageCount, MAX_PHOTOS);
   
   // Always add a "View more" slide if we have any photos and a place ID
-  // This ensures users can always click through to Google Maps for more photos
   const hasViewMoreSlide = photoCount > 0 && placeId;
   
   // Total number of slides including the "View more" slide
@@ -116,7 +115,7 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, stored
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [nextPhoto, prevPhoto]);
 
-  // Get URLs from stored photos, Google Photos objects, or from static fallbacks
+  // Set up displayed URLs from storedPhotoUrls, or use fallbacks if needed
   useEffect(() => {
     // Reset when photos or photoUrls change
     setError(null);
@@ -139,7 +138,7 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, stored
       setIsLoading(false);
     }, 5000); // 5 seconds timeout
 
-    // Case 1: Use permanent stored URLs with highest priority (these never expire)
+    // Use permanent stored URLs - these are the primary source now
     if (storedPhotoUrls && storedPhotoUrls.length > 0) {
       // Limit to MAX_PHOTOS
       setDisplayedUrls(storedPhotoUrls.slice(0, MAX_PHOTOS));
@@ -151,53 +150,8 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, stored
       return;
     }
 
-    // Case 2: Use photoUrls as fallback (these are pre-loaded URLs but may expire)
-    if (photoUrls && photoUrls.length > 0) {
-      // Limit to MAX_PHOTOS
-      setDisplayedUrls(photoUrls.slice(0, MAX_PHOTOS));
-      setIsLoading(false);
-      if (loadingTimerRef.current) {
-        clearTimeout(loadingTimerRef.current);
-        loadingTimerRef.current = null;
-      }
-      return;
-    }
-    
-    // Case 2: Create URLs from photo objects
-    if (photos && photos.length > 0) {
-      try {
-        // Get URLs from photo objects - limit to MAX_PHOTOS to avoid unnecessary work
-        const urls = photos
-          .slice(0, MAX_PHOTOS) // Limit before processing
-          .filter(photo => photo && typeof photo.getUrl === 'function')
-          .map(photo => {
-            try {
-              // Use the most reliable size
-              return photo.getUrl({ maxHeight: 500, maxWidth: 800 });
-            } catch (e) {
-              console.warn('Error getting photo URL', e);
-              return null;
-            }
-          })
-          .filter((url): url is string => Boolean(url));
-        
-        if (urls.length > 0 && !unmountedRef.current) {
-          setDisplayedUrls(urls);
-          setIsLoading(false);
-          
-          if (loadingTimerRef.current) {
-            clearTimeout(loadingTimerRef.current);
-            loadingTimerRef.current = null;
-          }
-          return;
-        }
-      } catch (e) {
-        console.error('Failed to get photo URLs:', e);
-      }
-    }
-    
-    // Case 3: If no photoUrls or photos are available, use fallbacks immediately
-    if ((!photoUrls || photoUrls.length === 0) && (!photos || photos.length === 0) && !unmountedRef.current) {
+    // Case 2: If no storedPhotoUrls are available, use fallbacks immediately
+    if ((!storedPhotoUrls || storedPhotoUrls.length === 0) && !unmountedRef.current) {
       setUseFallback(true);
       setIsLoading(false);
       
@@ -214,7 +168,7 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, stored
         loadingTimerRef.current = null;
       }
     };
-  }, [photos, photoUrls, storedPhotoUrls]);
+  }, [storedPhotoUrls]);
 
   // Use fallback images if needed
   useEffect(() => {
@@ -223,50 +177,6 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, stored
       setIsLoading(false);
     }
   }, [useFallback]);
-
-  // Handle retry button click
-  const handleRetry = useCallback(() => {
-    setError(null);
-    setIsLoading(true);
-    setUseFallback(false);
-    
-    // If we have photoUrls, use them directly
-    if (photoUrls && photoUrls.length > 0) {
-      setDisplayedUrls(photoUrls.slice(0, MAX_PHOTOS));
-      setIsLoading(false);
-      return;
-    }
-    
-    // If we have photos, try to get URLs again
-    if (photos && photos.length > 0) {
-      try {
-        const urls = photos
-          .slice(0, MAX_PHOTOS) // Limit before processing
-          .filter(photo => photo && typeof photo.getUrl === 'function')
-          .map(photo => {
-            try {
-              // Try a different size than the original attempt
-              return photo.getUrl({ maxWidth: 600, maxHeight: 400 });
-            } catch (e) {
-              return null;
-            }
-          })
-          .filter(Boolean) as string[];
-        
-        if (urls.length > 0) {
-          setDisplayedUrls(urls);
-          setIsLoading(false);
-          return;
-        }
-      } catch (e) {
-        console.error('Retry failed:', e);
-      }
-    }
-    
-    // If we still can't get photos, use fallback
-    setUseFallback(true);
-    setIsLoading(false);
-  }, [photos, photoUrls]);
 
   // Handle image load
   const handleImageLoad = () => {
@@ -285,8 +195,8 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, stored
     }
   };
 
-  // Handle image error
-  const handleCarouselImageError = (failedUrl: string) => {
+  // Handle image error - simplified, no refresh logic
+  const handleCarouselImageError = () => {
     // Track the error event
     trackPhotoInteraction(
       'error',
@@ -303,47 +213,7 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, stored
       nextPhoto();
     } else {
       setError("Couldn't load photo");
-      
-      // Only switch to fallback if we aren't already using fallbacks and not currently refreshing
-      if (!useFallback && !isRefreshing) {
-        setUseFallback(true);
-      }
-    }
-    
-    // If we have a place ID, try to refresh the images
-    if (placeId && !isRefreshing) {
-      setIsRefreshing(true);
-      
-      // Use our image refresh service
-      handleImageError(
-        placeId,
-        businessName,
-        failedUrl,
-        () => {
-          // On successful refresh, clear error states and try to load the images again
-          console.log(`Images refreshed successfully for ${businessName}, reloading carousel`);
-          setError(null);
-          setUseFallback(false);
-          setIsRefreshing(false);
-          
-          // Refetch the photo URLs
-          // We'll use a custom event to notify parent components that photos have been refreshed
-          const refreshEvent = new CustomEvent('photos-refreshed', {
-            detail: { placeId, businessName }
-          });
-          window.dispatchEvent(refreshEvent);
-          
-          // Reset loading and try to load fresh URLs after a small delay
-          setTimeout(() => {
-            // This will trigger a re-render that should use the newly refreshed URLs
-            setDisplayedUrls([]);
-            setIsLoading(true);
-          }, 500);
-        }
-      ).catch(err => {
-        console.error('Error handling image refresh:', err);
-        setIsRefreshing(false);
-      });
+      setUseFallback(true);
     }
   };
   
@@ -364,35 +234,17 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, stored
     );
     
     window.open(url, '_blank', 'noopener,noreferrer');
-    
-    // Background refreshes are now handled by the scheduled server process
-    // We'll implement a mechanism for reporting broken images in the future
   };
-  
-  // Keep the effect without using maybeRefreshPhotosInBackground
-  useEffect(() => {
-    // This is now a no-op, but we'll implement image URL refresh logic here later
-    if (placeId && (photos?.length || photoUrls?.length)) {
-      // No automatic refresh for now
-      // We'll implement a proper mechanism for handling expired URLs in the future
-      console.log('Images loaded - background refresh disabled');
-    }
-  }, [placeId, photos, photoUrls]);
   
   // Touch event handlers for swipe gestures
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     // Only handle single-finger touches
     if (e.touches.length !== 1) return;
     
-    // Allow touch events on all slides, including the "View more" slide
-    // We'll handle direction-specific logic in handleTouchEnd
-    
     // Store the initial touch position
     touchStartXRef.current = e.touches[0].clientX;
     touchEndXRef.current = e.touches[0].clientX;
     isTouchActiveRef.current = true;
-    
-    // Don't stop propagation - allow event bubbling to parent components
   }, []);
   
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
@@ -406,7 +258,6 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, stored
     const deltaX = touchEndXRef.current - (touchStartXRef.current || 0);
     
     // If horizontal movement is significant (> 10px), prevent page scrolling
-    // This ensures users can swipe the carousel without scrolling the page
     if (Math.abs(deltaX) > 10) {
       e.preventDefault();
     }
@@ -485,73 +336,11 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, stored
         </div>
       )}
       
-      {/* Error state with retry button */}
+      {/* Error state */}
       {error && !isLoading && !useFallback && !isViewMoreSlide && (
         <div className="absolute inset-0 flex items-center justify-center z-carousel-error">
           <div className="text-center bg-white p-4 rounded-lg shadow-md">
             <p className="text-gray-700 mb-3">{error}</p>
-            <div className="flex gap-2 justify-center">
-              <button
-                onClick={handleRetry}
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center justify-center"
-                disabled={isRefreshing}
-              >
-                <RefreshCcw size={16} className="mr-2" />
-                Retry
-              </button>
-              
-              {placeId && (
-                <button
-                  onClick={() => {
-                    if (currentImageUrl) {
-                      // Call our image refresh service with the current URL
-                      setIsRefreshing(true);
-                      handleImageError(
-                        placeId,
-                        businessName,
-                        currentImageUrl,
-                        () => {
-                          // On success
-                          setError(null);
-                          setUseFallback(false);
-                          setIsRefreshing(false);
-                          
-                          // Trigger reload of images
-                          setDisplayedUrls([]);
-                          setIsLoading(true);
-                          
-                          // Notify parent components
-                          const refreshEvent = new CustomEvent('photos-refreshed', {
-                            detail: { placeId, businessName }
-                          });
-                          window.dispatchEvent(refreshEvent);
-                        }
-                      ).catch(() => {
-                        setIsRefreshing(false);
-                      });
-                    }
-                  }}
-                  className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 flex items-center justify-center"
-                  disabled={isRefreshing}
-                >
-                  {isRefreshing ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Refreshing...
-                    </>
-                  ) : (
-                    <>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="17 8 12 3 7 8"></polyline>
-                        <line x1="12" y1="3" x2="12" y2="15"></line>
-                      </svg>
-                      Refresh Images
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
           </div>
         </div>
       )}
@@ -591,13 +380,9 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ photos, photoUrls, stored
               isLoading ? 'opacity-20' : 'opacity-100'
             }`}
             onLoad={handleImageLoad}
-            onError={(e) => {
-              // Get the failed URL
-              const failedUrl = (e.target as HTMLImageElement).src;
-              console.warn(`Image loading error for carousel: ${businessName}`, e);
-              
-              // Call our updated error handler with the failed URL
-              handleCarouselImageError(failedUrl);
+            onError={() => {
+              console.warn(`Image loading error for carousel: ${businessName}`);
+              handleCarouselImageError();
             }}
             referrerPolicy="no-referrer"
             loading="eager"

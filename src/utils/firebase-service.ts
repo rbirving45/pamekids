@@ -238,9 +238,9 @@ export const getUpdateStatus = async (): Promise<any> => {
 };
 
 // Function to update only photo URLs for a location
-export const updatePhotoUrlsForLocation = async (id: string, photoUrls: string[]): Promise<boolean> => {
+export const updatePhotoUrlsForLocation = async (id: string, storedPhotoUrls: string[]): Promise<boolean> => {
   try {
-    if (!id || !photoUrls || photoUrls.length === 0) {
+    if (!id || !storedPhotoUrls || storedPhotoUrls.length === 0) {
       return false;
     }
     
@@ -255,21 +255,21 @@ export const updatePhotoUrlsForLocation = async (id: string, photoUrls: string[]
     const existingData = docSnap.data();
     const existingPlaceData = existingData.placeData || {};
     
-    // Update only the photoUrls field in placeData while preserving all other fields
+    // Update only the storedPhotoUrls field in placeData while preserving all other fields
     const updateData = {
       placeData: {
-        ...existingPlaceData,  // Keep all existing place data
-        photoUrls: photoUrls   // Only update the photos
+        ...existingPlaceData,         // Keep all existing place data
+        storedPhotoUrls: storedPhotoUrls  // Update with Firebase Storage URLs
       },
       placeData_updated_at: serverTimestamp()
     };
     
     await setDoc(docRef, updateData, { merge: true });
-    console.log(`Updated ${photoUrls.length} photo URLs for location ${id}`);
+    console.log(`Updated ${storedPhotoUrls.length} stored photo URLs for location ${id}`);
     
     return true;
   } catch (error) {
-    console.error(`Error updating photo URLs for location ${id}:`, error);
+    console.error(`Error updating stored photo URLs for location ${id}:`, error);
     return false;
   }
 };
@@ -631,12 +631,12 @@ export const updateLocation = async (id: string, data: Partial<Location>) => {
 };
 
 // Function to update a location's Google Places data - DISABLED FOR REGULAR USERS
-// Now only used by admin functions and scheduled weekly updates
+// This function is retained only for backward compatibility, but all image management
+// is now handled through Firebase Storage directly
 export const updateLocationPlaceData = async (id: string, placeData: any): Promise<boolean> => {
   try {
     // This function is kept for compatibility but no longer triggers updates from user interactions
-    // Log the attempt but don't perform any updates
-    console.log(`[DISABLED] Place data update requested for ${id} - now handled by weekly scheduled updates`);
+    console.log(`[DISABLED] Place data update requested for ${id} - image management now uses Firebase Storage`);
     
     // Always return success to prevent error cascades elsewhere in the app
     return true;
