@@ -90,7 +90,28 @@ const MainApp = () => {
     <div className="h-screen w-full flex flex-col">
       <SEO /> {/* Use default SEO values from metadata.ts */}
       <MapBlockingOverlay />
-      <header className={`bg-white shadow-md z-header ${isMobile ? 'fixed top-0 left-0 right-0' : 'relative'}`}>
+      <header
+        className={`bg-white shadow-md z-header ${isMobile ? 'fixed top-0 left-0 right-0' : 'relative'}`}
+        onTouchStart={(e) => {
+          // Prevent touch events from reaching the map
+          e.stopPropagation();
+        }}
+        onTouchMove={(e) => {
+          // Prevent scrolling and stop propagation
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onTouchEnd={(e) => {
+          // Prevent touch events from reaching the map
+          e.stopPropagation();
+        }}
+        style={{
+          touchAction: 'none', // Disable browser handling of all touch events
+          pointerEvents: 'auto', // Ensure all pointer events are captured
+          position: isMobile ? 'fixed' : 'relative',
+          zIndex: 100 // Ensure header is above map
+        }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="relative inline-flex items-baseline">

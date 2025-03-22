@@ -2,6 +2,54 @@
   --touch-feedback-color: rgba(0, 0, 0, 0.05);
   --touch-active-opacity: 0.9;
   --touch-transition-duration: 150ms;
+  --header-height: 64px; /* 4rem */
+  --filter-bar-height: 52px;
+}
+
+/* Touch isolation for fixed UI elements */
+.fixed-ui-element {
+  touch-action: none !important; /* Prevent all touch actions */
+  pointer-events: auto !important; /* Ensure element captures all events */
+  will-change: transform; /* Optimize for hardware acceleration */
+  -webkit-user-select: none;
+  user-select: none;
+  isolation: isolate; /* Create stacking context */
+}
+
+/* Specific touch handling for header */
+header.z-header {
+  touch-action: none !important;
+  pointer-events: auto !important;
+  position: relative;
+  z-index: var(--z-header);
+  /* Important: create containing block for fixed elements */
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Mobile-specific touch handling */
+@media (max-width: 767px) {
+  .z-filter-bar,
+  .z-header,
+  .z-mobile-button {
+    isolation: isolate;
+    z-index: var(--z-filter-bar);
+    pointer-events: auto !important;
+    touch-action: none;
+    /* Create containing block */
+    transform: translateZ(0);
+    will-change: transform;
+  }
+  
+  /* Allow intended scrolling behavior on filter bar */
+  .z-filter-bar {
+    touch-action: pan-x !important;
+  }
+  
+  /* Ensure buttons have appropriate touch behavior */
+  button, a {
+    touch-action: manipulation;
+  }
 }
 
 /* Apply to interactive elements */
@@ -41,13 +89,22 @@
 }
 
 /* For elements that should block ALL interaction (non-scrollable areas) */
-.drawer-block-all {
+.drawer-block-all,
+.z-header,
+.z-filter-bar,
+.z-mobile-button {
   touch-action: none; /* Prevent all touch actions */
   -webkit-user-select: none;
   user-select: none;
   pointer-events: auto !important;
   position: relative;
   z-index: var(--z-drawer-content);
+  /* Create containing block for absolute positioning */
+  transform: translateZ(0);
+  /* Ensure hardware acceleration for smooth touch handling */
+  will-change: transform;
+  /* Creates a stacking context */
+  isolation: isolate;
 }
 
 /* Ensure text elements participate properly in scrolling only in full drawer state */
@@ -108,4 +165,26 @@
   pointer-events: none !important; /* Prevent all interactions */
   touch-action: none !important;
   user-select: none !important;
+}
+
+/* Floating buttons on map */
+.z-mobile-button {
+  pointer-events: auto !important;
+  touch-action: none !important;
+  z-index: var(--z-mobile-floating-button);
+  /* Create a stacking context to prevent touch bleed-through */
+  isolation: isolate;
+  /* Add hardware acceleration for touch handling */
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Fixed position header and filter bar */
+header.fixed,
+.fixed.z-filter-bar {
+  /* Create containing block for fixed positioning */
+  transform: translateZ(0);
+  will-change: transform;
+  /* Ensure elements capture all pointer events */
+  pointer-events: auto !important;
 }

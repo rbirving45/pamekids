@@ -1048,7 +1048,27 @@ const MapComponent: React.FC<MapProps> = () => {
           </button>
         </div>
       )}
-      <div className={`bg-white p-2 overflow-x-auto shadow-sm z-filter-bar ${isMobile ? 'fixed top-16 left-0 right-0 w-full' : 'relative'}`}>
+      <div
+        className={`bg-white p-2 overflow-x-auto shadow-sm z-filter-bar ${isMobile ? 'fixed top-16 left-0 right-0 w-full' : 'relative'}`}
+        onTouchStart={(e) => {
+          // Prevent touch events from reaching the map
+          e.stopPropagation();
+        }}
+        onTouchMove={(e) => {
+          // Allow horizontal scrolling for filters but prevent propagation
+          e.stopPropagation();
+          // Don't prevent default here to allow horizontal scrolling of filters
+        }}
+        onTouchEnd={(e) => {
+          // Prevent touch events from reaching the map
+          e.stopPropagation();
+        }}
+        style={{
+          touchAction: 'pan-x', // Allow horizontal scrolling only
+          pointerEvents: 'auto', // Ensure all pointer events are captured
+          zIndex: 110 // Ensure filter bar is above map and properly stacked
+        }}
+      >
         <div className="flex items-center gap-2">
           {/* Search Component */}
           <div ref={searchRef} className="relative z-search-container">
@@ -1557,7 +1577,24 @@ const MapComponent: React.FC<MapProps> = () => {
             // Update UIState for backward compatibility
             setDrawerOpen(true);
           }}
+          onTouchStart={(e) => {
+            // Prevent touch events from reaching the map
+            e.stopPropagation();
+          }}
+          onTouchMove={(e) => {
+            // Prevent scrolling and stop propagation
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onTouchEnd={(e) => {
+            // Prevent touch events from reaching the map
+            e.stopPropagation();
+          }}
           className="fixed z-mobile-button bottom-6 left-1/2 transform -translate-x-1/2 px-4 py-3 rounded-full bg-white hover:bg-gray-50 shadow-lg flex items-center gap-2 border border-gray-200"
+          style={{
+            touchAction: 'none', // Prevent all touch actions
+            pointerEvents: 'auto' // Ensure all pointer events are captured
+          }}
           aria-label="Show locations"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600">
@@ -1577,6 +1614,19 @@ const MapComponent: React.FC<MapProps> = () => {
             top: isMobile ? '132px' : '76px',  // Fixed positioning below the filter bar
             right: '15px',
             pointerEvents: 'auto'
+          }}
+          onTouchStart={(e) => {
+            // Prevent touch events from reaching the map
+            e.stopPropagation();
+          }}
+          onTouchMove={(e) => {
+            // Prevent scrolling and stop propagation
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onTouchEnd={(e) => {
+            // Prevent touch events from reaching the map
+            e.stopPropagation();
           }}
         >
           <button
@@ -1610,6 +1660,7 @@ const MapComponent: React.FC<MapProps> = () => {
             style={{
               width: '40px',
               height: '40px',
+              touchAction: 'none' // Prevent all touch actions
             }}
             aria-label="Center on my location"
           >

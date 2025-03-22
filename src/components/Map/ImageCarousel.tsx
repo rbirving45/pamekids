@@ -11,9 +11,6 @@ interface ImageCarouselProps {
 }
 
 const STATIC_FALLBACK_IMAGES = [
-  'https://images.unsplash.com/photo-1577428091255-4a1a24e70558?q=80&w=1600', // Kids playing on playground
-  'https://images.unsplash.com/photo-1602628865526-5bd06860a5d5?q=80&w=1600', // Family at museum
-  'https://images.unsplash.com/photo-1564419320461-6870880221ad?q=80&w=1600', // Children in art class
   'https://images.unsplash.com/photo-1596464716127-f2a82984de30?q=80&w=1600', // Kids playing sports
   'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1600', // Children reading/learning
   'https://images.unsplash.com/photo-1445633629932-0029acc44e88?q=80&w=1600', // Kids in music class
