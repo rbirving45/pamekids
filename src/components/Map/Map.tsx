@@ -1101,11 +1101,36 @@ const MapComponent: React.FC<MapProps> = () => {
           <div className="h-6 w-px bg-gray-200"></div>
 
           {/* Activity Filters */}
-          <div className="flex gap-2 snap-x snap-mandatory overflow-x-auto">
+          <div
+            className="flex gap-2 snap-x snap-mandatory overflow-x-auto"
+            onTouchStart={(e) => {
+              // Allow the scroll to happen but prevent propagation
+              e.stopPropagation();
+            }}
+            onTouchMove={(e) => {
+              // Allow horizontal scrolling but prevent propagation
+              e.stopPropagation();
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+            }}
+            style={{
+              touchAction: 'pan-x', // Allow horizontal scrolling
+              WebkitOverflowScrolling: 'touch', // Smooth scrolling on iOS
+              pointerEvents: 'auto'
+            }}
+          >
             {Object.entries(activityConfig).map(([type, config]) => (
               <button
                 key={type}
                 onClick={() => toggleFilter(type as ActivityType)}
+                onTouchStart={(e) => {
+                  // Prevent propagation while allowing the click
+                  e.stopPropagation();
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                }}
                 style={{
                   backgroundColor: activeFilters.includes(type as ActivityType)
                     ? config.color
@@ -1115,6 +1140,7 @@ const MapComponent: React.FC<MapProps> = () => {
                     : 'rgb(55 65 81)',
                   borderWidth: '1.5px',
                   borderColor: config.color,
+                  touchAction: 'manipulation', // Optimize for tap/click
                 }}
                 className="snap-start flex-shrink-0 px-3 py-1 rounded-full text-sm font-medium transition-colors hover:opacity-90"
               >
@@ -1123,14 +1149,35 @@ const MapComponent: React.FC<MapProps> = () => {
             ))}
 
             {/* Age Filter */}
-            <div ref={ageDropdownRef} className="relative">
+            <div
+              ref={ageDropdownRef}
+              className="relative"
+              onTouchStart={(e) => {
+                e.stopPropagation();
+              }}
+              onTouchMove={(e) => {
+                e.stopPropagation();
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+              }}
+            >
               <button
                 onClick={() => setIsAgeDropdownOpen(!isAgeDropdownOpen)}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                }}
                 className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium transition-colors
                   ${selectedAge !== null
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
+                style={{
+                  touchAction: 'manipulation' // Optimize for tap/click
+                }}
               >
                 {selectedAge !== null ? `Age ${selectedAge}` : 'Age'}
                 <ChevronDown size={16} className={`transform transition-transform ${isAgeDropdownOpen ? 'rotate-180' : ''}`} />
@@ -1163,11 +1210,20 @@ const MapComponent: React.FC<MapProps> = () => {
             {/* Open Now Filter */}
             <button
               onClick={() => setOpenNowFilter(!openNowFilter)}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+              }}
               className={`flex-shrink-0 px-3 py-1 rounded-full text-sm font-medium transition-colors
                 ${openNowFilter
                   ? 'bg-green-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
+              style={{
+                touchAction: 'manipulation' // Optimize for tap/click
+              }}
             >
               Open Now
             </button>
@@ -1176,7 +1232,16 @@ const MapComponent: React.FC<MapProps> = () => {
             {!isMobile && (activeFilters.length > 0 || selectedAge !== null || openNowFilter) && (
               <button
                 onClick={clearFilters}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                }}
                 className="flex-shrink-0 px-3 py-1 rounded-full text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100"
+                style={{
+                  touchAction: 'manipulation' // Optimize for tap/click
+                }}
               >
                 Clear All
               </button>
