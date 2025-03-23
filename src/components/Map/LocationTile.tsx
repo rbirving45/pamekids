@@ -186,7 +186,7 @@ const LocationTile: React.FC<LocationTileProps> = ({ location, activityConfig, o
         </div>
         
         {/* Right side - Featured image (square with rounded corners) */}
-        <div className="flex-shrink-0 w-24 h-24 md:w-32 md:h-32 overflow-hidden rounded-lg bg-gray-100 border border-gray-100 z-location-image">
+        <div className="flex-shrink-0 w-24 h-24 md:w-32 md:h-32 overflow-hidden rounded-lg bg-gray-100 border border-gray-100 z-location-image touchable-text">
           {featuredImageUrl ? (
             <img
               src={featuredImageUrl}
