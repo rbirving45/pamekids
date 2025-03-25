@@ -5,7 +5,6 @@ import { ActivityType, Location } from '../../types/location';
 import { Search, ChevronDown } from 'lucide-react';
 import { trackMarkerClick, trackSearchQuery, trackSearchResultClick } from '../../utils/analytics';
 import { useMobile } from '../../contexts/MobileContext';
-import { useUIState } from '../../contexts/UIStateContext';
 import { useTouch } from '../../contexts/TouchContext';
 import MapBlockingOverlay from './MapBlockingOverlay';
 import { getLocations } from '../../utils/firebase-service';
@@ -43,15 +42,8 @@ const MapComponent: React.FC<MapProps> = () => {
   const { isMobile } = useMobile();
   // Get drawer state and map blocking state from TouchContext
   const { drawerState, setDrawerState, isMapBlocked, setLocationClearCallback } = useTouch();
-  // For backward compatibility with older components
-  const { setDrawerOpen } = useUIState();
   
-  // Sync UIState drawer open state with TouchContext on component mount
-  useEffect(() => {
-    if (isMobile && drawerState === 'partial') {
-      setDrawerOpen(true);
-    }
-  }, [isMobile, drawerState, setDrawerOpen]);
+  // No synchronization needed as we're now only using TouchContext
 
   // Helper function to safely get z-index from CSS variables
   const getZIndexValue = useCallback((variableName: string): number => {
@@ -112,8 +104,6 @@ const MapComponent: React.FC<MapProps> = () => {
         console.log('Setting drawer to partial state on initial app load');
         // Set drawer to partial state
         setDrawerState('partial');
-        // Update UIState for backward compatibility
-        setDrawerOpen(true);
         // Mark as initialized so we don't re-open it after user closes
         drawerInitializedRef.current = true;
       }, 300);
@@ -125,8 +115,7 @@ const MapComponent: React.FC<MapProps> = () => {
     locations.length,
     mapReady,
     isLoadingLocations,
-    setDrawerState,
-    setDrawerOpen
+    setDrawerState
   ]);
 
   // Handle drawer state based on visible locations
@@ -135,15 +124,13 @@ const MapComponent: React.FC<MapProps> = () => {
       // If no locations are visible and we're not still loading, close the drawer
       console.log('No visible locations - closing drawer');
       setDrawerState('closed');
-      setDrawerOpen(false);
     }
   }, [
     isMobile,
     isLoadingLocations,
     visibleLocations.length,
     drawerState,
-    setDrawerState,
-    setDrawerOpen
+    setDrawerState
   ]);
   
   // Ensure desktop drawer has content on initial load
@@ -663,10 +650,8 @@ const MapComponent: React.FC<MapProps> = () => {
         map.panTo(location.coordinates);
         
         // Set drawer state to partial by default
-        setDrawerState('partial');
-        
-        // Keep setDrawerOpen for backward compatibility
-        setDrawerOpen(true);
+            // Set drawer state to partial by default
+            setDrawerState('partial');
         
         // Use enhanced centering with a slight delay to ensure proper positioning
         setTimeout(() => {
@@ -743,7 +728,6 @@ const MapComponent: React.FC<MapProps> = () => {
       if (isMobile) {
         setSelectedLocation(null);
         setDrawerState('closed');
-        setDrawerOpen(false);
         // Mark as initialized so it doesn't automatically reopen
         drawerInitializedRef.current = true;
       } else {
@@ -822,7 +806,7 @@ const MapComponent: React.FC<MapProps> = () => {
       // Using setTimeout to ensure the map is fully rendered
       map.setZoom(map.getZoom()!); // This triggers bounds_changed without changing the view
     }, 300);
-  }, [locations, isMobile, setDrawerOpen, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation, centerMapOnLocation, setDrawerState]);
+  }, [locations, isMobile, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation, centerMapOnLocation, setDrawerState]);
 
   // Handle drawer close action 
   const handleDrawerClose = useCallback(() => {
@@ -830,8 +814,6 @@ const MapComponent: React.FC<MapProps> = () => {
       // On mobile: Always close the drawer completely regardless of current state
       setSelectedLocation(null);
       setDrawerState('closed');
-      // Keep setDrawerOpen for backward compatibility
-      setDrawerOpen(false);
       
       // When user explicitly closes the drawer, respect this action
       // This prevents the initialization effect from reopening it
@@ -840,7 +822,7 @@ const MapComponent: React.FC<MapProps> = () => {
       // On desktop, just deselect the location
       setSelectedLocation(null);
     }
-  }, [isMobile, setDrawerState, setDrawerOpen, setSelectedLocation]);
+  }, [isMobile, setDrawerState, setSelectedLocation]);
 
   // Handle location selection from tile or marker
   const handleLocationSelect = useCallback((location: Location, source: 'map_click' | 'list_item' = 'map_click') => {
@@ -1450,8 +1432,6 @@ const MapComponent: React.FC<MapProps> = () => {
                         handleLocationSelect(location, 'map_click');
                         // Set drawer state to partial by default
                         setDrawerState('partial');
-                        // Keep setDrawerOpen for backward compatibility
-                        setDrawerOpen(true);
                       }, 50);
                     } else {
                       // On desktop, open drawer immediately
@@ -1483,7 +1463,7 @@ const MapComponent: React.FC<MapProps> = () => {
               />
             ))}
             // Close the useMemo callback and dependencies array
-            , [locations, activeFilters, selectedAge, openNowFilter, selectedLocation, hoveredLocation, getMarkerIcon, handleLocationSelect, isMobile, setDrawerOpen, setDrawerState, setHoveredLocation, getZIndexValue])}
+            , [locations, activeFilters, selectedAge, openNowFilter, selectedLocation, hoveredLocation, getMarkerIcon, handleLocationSelect, isMobile, setDrawerState, setHoveredLocation, getZIndexValue])}
 
             {/* User location marker */}
             {maps && (
@@ -1622,9 +1602,6 @@ const MapComponent: React.FC<MapProps> = () => {
                 }
                 // else keep current state (partial or full)
                 
-                // Update UIState for backward compatibility
-                setDrawerOpen(true);
-                
                 console.log('Back to list: drawer state =', drawerState);
               }}
             />
@@ -1639,8 +1616,6 @@ const MapComponent: React.FC<MapProps> = () => {
         <button
           onClick={() => {
             setDrawerState('partial');
-            // Update UIState for backward compatibility
-            setDrawerOpen(true);
           }}
           onTouchStart={(e) => {
             // Prevent touch events from reaching the map

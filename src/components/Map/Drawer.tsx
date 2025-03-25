@@ -7,7 +7,6 @@ import { fetchPlaceDetails } from '../../utils/places-api';
 import RatingDisplay from './RatingDisplay';
 import LocationTile from './LocationTile';
 import { useMobile } from '../../contexts/MobileContext';
-import { useUIState } from '../../contexts/UIStateContext';
 import { useTouch } from '../../contexts/TouchContext';
 
 interface DrawerProps {
@@ -39,14 +38,8 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // Store location ID to prevent unnecessary effect triggers
   const locationId = location?.id;
   
-  // Use context hooks for mobile detection and UI state
+  // Use context hooks for mobile detection
   const { isMobile } = useMobile();
-  const {
-    isDrawerOpen,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    setDrawerOpen,
-    isDrawerExpanded
-  } = useUIState();
   
   // Use TouchContext hook with all needed properties - moved before any conditional returns
   const { drawerState, setDrawerState, handleTouchStart, handleTouchMove, handleTouchEnd, isPartialDrawer, setContentScrollPosition, isModalOpen } = useTouch();
@@ -610,7 +603,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
   return (
     <>
       {/* Backdrop - only visible on mobile when drawer is open */}
-      {isMobile && isDrawerOpen && (
+      {isMobile && drawerState !== 'closed' && (
         <div
           className="fixed inset-0 bg-black z-drawer-backdrop"
           onClick={onClose}
@@ -747,7 +740,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
                 }}
                 onTouchMove={(e) => {
                   // In partial drawer mode, prevent default to block map interaction
-                  if (!isDrawerExpanded) {
+                  if (drawerState !== 'full') {
                     e.preventDefault();
                   }
                   // Always stop propagation
@@ -1133,14 +1126,14 @@ const Drawer: React.FC<DrawerProps> = memo(({
             {/* List Header - Streamlined for mobile */}
             <div 
               ref={headerRef}
-              className="flex-shrink-0 bg-white border-b"
+              className={`flex-shrink-0 bg-white border-b ${drawerState === 'full' && !isMobile ? 'sticky top-0 z-drawer-header-sticky' : 'z-drawer-header'}`}
               onTouchStart={(e) => {
                 // Stop propagation to prevent map gestures
                 e.stopPropagation();
               }}
               onTouchMove={(e) => {
                 // In partial drawer mode, prevent default to block map interaction
-                if (!isDrawerExpanded) {
+                if (drawerState !== 'full') {
                   e.preventDefault();
                 }
                 // Always stop propagation

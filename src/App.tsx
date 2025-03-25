@@ -7,7 +7,6 @@ import {
   Navigate
 } from 'react-router-dom';
 import { MobileProvider, useMobile } from './contexts/MobileContext';
-import { UIStateProvider } from './contexts/UIStateContext';
 import { TouchProvider, useTouch } from './contexts/TouchContext';
 import SEO from './components/SEO';
 
@@ -186,14 +185,13 @@ function App() {
 
   return (
     <MobileProvider>
-      <UIStateProvider>
-        <TouchProvider>
-          <Router
-            future={{
-              v7_startTransition: true,
-              v7_relativeSplatPath: true
-            }}
-          >
+      <TouchProvider>
+        <Router
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true
+          }}
+        >
             <Routes>
               <Route path="/" element={<MainApp />} />
               <Route
@@ -225,8 +223,7 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Router>
-        </TouchProvider>
-      </UIStateProvider>
+      </TouchProvider>
     </MobileProvider>
   );
 }
