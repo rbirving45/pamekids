@@ -43,8 +43,16 @@ interface TouchStateTracker {
 export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isMobile } = useMobile();
   
+  // Initialize drawer state based on mobile detection
+  const initialDrawerState: DrawerState = isMobile ? 'partial' : 'closed';
+  
+  // Debug log for initialization (development mode only)
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`TouchContext initializing with drawer state: ${initialDrawerState} (isMobile: ${isMobile})`);
+  }
+  
   // Core state
-  const [drawerState, setDrawerState] = useState<DrawerState>('closed');
+  const [drawerState, setDrawerState] = useState<DrawerState>(initialDrawerState);
   const [isModalOpen, setModalOpen] = useState(false);
   const [isContentAtTop, setIsContentAtTop] = useState(true);
   

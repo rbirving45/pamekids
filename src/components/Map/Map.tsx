@@ -43,6 +43,13 @@ const MapComponent: React.FC<MapProps> = () => {
   // Get drawer state and map blocking state from TouchContext
   const { drawerState, setDrawerState, isMapBlocked, setLocationClearCallback } = useTouch();
   
+  // Add effect to log drawer state changes for debugging
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Drawer state changed to: ${drawerState}`);
+    }
+  }, [drawerState]);
+  
   // No synchronization needed as we're now only using TouchContext
 
   // Helper function to safely get z-index from CSS variables
@@ -86,52 +93,28 @@ const MapComponent: React.FC<MapProps> = () => {
         console.log('Clearing marker selection due to drawer gesture close');
         setSelectedLocation(null);
         setHoveredLocation(null);
+        
+        // Don't set drawerInitializedRef to true here - we want to allow reopening
+        // This helps prevent issues where drawer can't be reopened
+        console.log('Drawer closed by gesture - allowing future reopening');
       }
     });
   }, [setLocationClearCallback, setSelectedLocation, setHoveredLocation, mapReady, selectedLocation]);
   
-  // Handle the initial drawer state on mobile - ONLY ON FIRST LOAD
+  // Simplified drawer initialization - only depends on mobile detection
   useEffect(() => {
-    // Skip if we've already initialized the drawer or if we're not on mobile
-    if (!isMobile || drawerInitializedRef.current) {
-      return;
+    // Only run this effect once on initial load for mobile devices
+    if (isMobile && !drawerInitializedRef.current) {
+      console.log('Setting drawer to partial state on initial app load (simplified)');
+      // Set drawer to partial state
+      setDrawerState('partial');
+      // Mark as initialized so we don't re-open it after user closes
+      drawerInitializedRef.current = true;
     }
-    
-    // Wait until map is ready and locations are loaded
-    if (mapReady && !isLoadingLocations && locations.length > 0) {
-      // Short delay to ensure everything is properly initialized
-      const timer = setTimeout(() => {
-        console.log('Setting drawer to partial state on initial app load');
-        // Set drawer to partial state
-        setDrawerState('partial');
-        // Mark as initialized so we don't re-open it after user closes
-        drawerInitializedRef.current = true;
-      }, 300);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [
-    isMobile,
-    locations.length,
-    mapReady,
-    isLoadingLocations,
-    setDrawerState
-  ]);
+  }, [isMobile, setDrawerState]);
 
-  // Handle drawer state based on visible locations
-  useEffect(() => {
-    if (isMobile && !isLoadingLocations && visibleLocations.length === 0 && drawerState !== 'closed') {
-      // If no locations are visible and we're not still loading, close the drawer
-      console.log('No visible locations - closing drawer');
-      setDrawerState('closed');
-    }
-  }, [
-    isMobile,
-    isLoadingLocations,
-    visibleLocations.length,
-    drawerState,
-    setDrawerState
-  ]);
+  // We no longer close the drawer based on visible locations
+  // since we now always show the 10 closest locations even if not in viewport
   
   // Ensure desktop drawer has content on initial load
   useEffect(() => {
@@ -815,9 +798,10 @@ const MapComponent: React.FC<MapProps> = () => {
       setSelectedLocation(null);
       setDrawerState('closed');
       
-      // When user explicitly closes the drawer, respect this action
-      // This prevents the initialization effect from reopening it
-      drawerInitializedRef.current = true;
+      // Only set drawer initialization flag if it was a direct user action
+      // This allows the drawer to be reopened via "Show locations" button
+      // Without this change, drawerInitializedRef.current = true would prevent auto-reopening
+      console.log('Drawer explicitly closed by user action');
     } else {
       // On desktop, just deselect the location
       setSelectedLocation(null);
@@ -1611,11 +1595,15 @@ const MapComponent: React.FC<MapProps> = () => {
           </div>
         </LoadScriptNext>
         
-      {/* Mobile Drawer Floating Button - Shows when drawer is closed on mobile */}
-      {isMobile && drawerState === 'closed' && (
+      {/* Mobile Drawer Floating Button - Always rendered on mobile, but only visible when drawer is closed */}
+      {isMobile && (
         <button
           onClick={() => {
+            // Always set drawer to partial state when button is clicked
             setDrawerState('partial');
+            // Reset initialization flag so drawer opens consistently
+            drawerInitializedRef.current = true;
+            console.log('Floating button clicked - opening drawer');
           }}
           onTouchStart={(e) => {
             // Prevent touch events from reaching the map
@@ -1633,9 +1621,13 @@ const MapComponent: React.FC<MapProps> = () => {
           className="fixed z-mobile-button bottom-6 left-1/2 transform -translate-x-1/2 px-4 py-3 rounded-full bg-white hover:bg-gray-50 shadow-lg flex items-center gap-2 border border-gray-200"
           style={{
             touchAction: 'none', // Prevent all touch actions
-            pointerEvents: 'auto' // Ensure all pointer events are captured
+            pointerEvents: 'auto', // Ensure all pointer events are captured
+            opacity: drawerState === 'closed' ? 1 : 0, // Hide when drawer is open
+            visibility: drawerState === 'closed' ? 'visible' : 'hidden', // Hide from screen readers when drawer is open
+            transition: 'opacity 0.3s ease-out, visibility 0.3s ease-out' // Smooth transition
           }}
           aria-label="Show locations"
+          aria-hidden={drawerState !== 'closed'} // Hide from screen readers when drawer is open
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600">
             <line x1="3" y1="6" x2="21" y2="6"></line>

@@ -561,9 +561,9 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // Limit to first 15 locations to prevent performance issues
   const displayedLocations = filteredLocations.slice(0, 15) || [];
 
-  // Check if we should render the drawer at all
+  // Simplified drawer rendering logic - no longer depends on visible locations
   const shouldRenderDrawer = isMobile
-    ? ((location !== null) || ((mobileMode === 'list') && (mobileDrawerOpen) && (visibleLocations.length > 0)))
+    ? ((location !== null) || ((mobileMode === 'list') && (mobileDrawerOpen)))
     : true;
   
   // If nothing to display on mobile, return null
