@@ -45,8 +45,7 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const { isMobile } = useMobile();
   const { shouldOpenDrawer, setDrawerInitialized } = useAppState();
   
-  // Initialize drawer state, but don't open immediately
-  // We'll wait for AppStateContext to tell us when to open
+  // Always initialize drawer as closed - will be opened based on app state signals
   const initialDrawerState: DrawerState = 'closed';
   
   // Debug log for initialization (development mode only)
@@ -380,8 +379,9 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => document.removeEventListener('touchmove', handleDocumentTouch);
   }, [isMobile, isMapBlocked]);
   
-  // NEW EFFECT: Control drawer state based on AppStateContext
+  // Effect to control drawer state based on AppStateContext
   useEffect(() => {
+    // Only act when shouldOpenDrawer changes to true
     if (shouldOpenDrawer) {
       // Only open drawer on mobile - desktop drawer starts closed until location selected
       if (isMobile) {
@@ -389,14 +389,37 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (process.env.NODE_ENV === 'development') {
             console.log('📱 TouchContext: Opening drawer based on AppStateContext signal');
           }
-          setDrawerState('partial');
+          
+          // Ensure we're not in the middle of a touch drag operation
+          if (!touchState.current.isDragging) {
+            // Open the drawer
+            setDrawerState('partial');
+            
+            // Signal that drawer has been initialized
+            // This should happen after drawer state is updated
+            setTimeout(() => {
+              setDrawerInitialized();
+            }, 50);
+          } else {
+            // If somehow we're in the middle of a drag, wait for it to finish
+            console.log('Delaying drawer open due to active touch operation');
+            setTimeout(() => {
+              if (drawerState === 'closed') {
+                setDrawerState('partial');
+                setDrawerInitialized();
+              }
+            }, 300);
+          }
+        } else {
+          // Drawer is already open, just signal initialization
+          setDrawerInitialized();
         }
+      } else {
+        // On desktop, still signal initialization even though drawer doesn't open
+        setDrawerInitialized();
       }
-      
-      // Signal that drawer has been initialized
-      setDrawerInitialized();
     }
-  }, [shouldOpenDrawer, isMobile, drawerState, setDrawerInitialized]);
+  }, [shouldOpenDrawer, isMobile, drawerState, setDrawerState, setDrawerInitialized]);
 
   // Add a simple computed property to check if drawer is in partial state
   const isPartialDrawer = drawerState === 'partial';

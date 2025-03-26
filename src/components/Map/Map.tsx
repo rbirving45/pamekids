@@ -45,7 +45,7 @@ const MapComponent: React.FC<MapProps> = () => {
   const { drawerState, setDrawerState, isMapBlocked, setLocationClearCallback } = useTouch();
   
   // Get app state signals from AppStateContext
-  const { setLocationsLoaded, setMapReady, shouldOpenDrawer } = useAppState();
+  const { setLocationsLoaded, setLocationsProcessed, setMapReady, shouldOpenDrawer } = useAppState();
   
   // Add effect to log drawer state changes for debugging
   
@@ -150,18 +150,61 @@ const MapComponent: React.FC<MapProps> = () => {
           if (!isMobile) {
             console.log('Pre-populating visibleLocations for desktop drawer');
             setVisibleLocations(parsedLocations.slice(0, 15));
+          } else {
+            // For mobile, also populate visible locations
+            console.log('Pre-populating visibleLocations for mobile');
+            // Get 15 closest locations to default Athens center
+            const defaultCoords = { lat: 37.9838, lng: 23.7275 };
+            const locationsWithDistance = parsedLocations.map((location: Location) => {
+              const distance = Math.sqrt(
+                Math.pow(location.coordinates.lat - defaultCoords.lat, 2) +
+                Math.pow(location.coordinates.lng - defaultCoords.lng, 2)
+              );
+              return { location, distance };
+            });
+            locationsWithDistance.sort((a: {location: Location, distance: number}, b: {location: Location, distance: number}) =>
+              a.distance - b.distance
+            );
+            const closestLocations = locationsWithDistance
+              .map((item: {location: Location, distance: number}) => item.location)
+              .slice(0, 15);
+            setVisibleLocations(closestLocations);
           }
           
           setIsLoadingLocations(false);
+          
+          // Signal both locations loaded and processed
+          setLocationsLoaded();
+          // Small delay to ensure UI updates before processing signal
+          setTimeout(() => {
+            setLocationsProcessed();
+          }, 50);
           
           // Fetch fresh data in the background to update the cache
           getLocations().then(freshLocations => {
             sessionStorage.setItem('cachedLocations', JSON.stringify(freshLocations));
             setLocations(freshLocations);
             
-            // Update visibleLocations with fresh data if on desktop
+            // Update visibleLocations with fresh data
             if (!isMobile) {
               setVisibleLocations(freshLocations.slice(0, 15));
+            } else {
+              // Update mobile locations too
+              const defaultCoords = { lat: 37.9838, lng: 23.7275 };
+              const locationsWithDistance = freshLocations.map((location: Location) => {
+                const distance = Math.sqrt(
+                  Math.pow(location.coordinates.lat - defaultCoords.lat, 2) +
+                  Math.pow(location.coordinates.lng - defaultCoords.lng, 2)
+                );
+                return { location, distance };
+              });
+              locationsWithDistance.sort((a: {location: Location, distance: number}, b: {location: Location, distance: number}) =>
+                a.distance - b.distance
+              );
+              const closestLocations = locationsWithDistance
+                .map((item: {location: Location, distance: number}) => item.location)
+                .slice(0, 15);
+              setVisibleLocations(closestLocations);
             }
           }).catch(console.error);
           
@@ -172,17 +215,40 @@ const MapComponent: React.FC<MapProps> = () => {
         const fetchedLocations = await getLocations();
         setLocations(fetchedLocations);
         
-        // Immediately populate visibleLocations on desktop with initial locations
+        // Signal locations are loaded (but not yet processed)
+        setLocationsLoaded();
+        
+        // Populate visibleLocations for both desktop and mobile
         if (!isMobile) {
           console.log('Pre-populating visibleLocations for desktop drawer');
           setVisibleLocations(fetchedLocations.slice(0, 15));
+        } else {
+          // For mobile, populate with closest locations to default center
+          console.log('Pre-populating visibleLocations for mobile');
+          const defaultCoords = { lat: 37.9838, lng: 23.7275 };
+          const locationsWithDistance = fetchedLocations.map((location: Location) => {
+            const distance = Math.sqrt(
+              Math.pow(location.coordinates.lat - defaultCoords.lat, 2) +
+              Math.pow(location.coordinates.lng - defaultCoords.lng, 2)
+            );
+            return { location, distance };
+          });
+          locationsWithDistance.sort((a: {location: Location, distance: number}, b: {location: Location, distance: number}) =>
+            a.distance - b.distance
+          );
+          const closestLocations = locationsWithDistance
+            .map((item: {location: Location, distance: number}) => item.location)
+            .slice(0, 15);
+          setVisibleLocations(closestLocations);
         }
         
         // Cache the locations in session storage
         sessionStorage.setItem('cachedLocations', JSON.stringify(fetchedLocations));
         
-        // Signal to AppStateContext that locations are loaded
-        setLocationsLoaded();
+        // Signal that locations are fully processed (ready for display)
+        setTimeout(() => {
+          setLocationsProcessed();
+        }, 100);
       } catch (error) {
         console.error('Error fetching locations:', error);
         setLoadError('Failed to load locations. Please try again later.');
@@ -192,7 +258,7 @@ const MapComponent: React.FC<MapProps> = () => {
     };
 
     fetchLocations();
-  }, [isMobile, setVisibleLocations, setLocationsLoaded]);
+  }, [isMobile, setVisibleLocations, setLocationsLoaded, setLocationsProcessed]);
 
   // Get user location on component mount without a timeout to ensure we wait for user permission response
   useEffect(() => {

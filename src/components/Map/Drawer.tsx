@@ -46,7 +46,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
   const { drawerState, setDrawerState, handleTouchStart, handleTouchMove, handleTouchEnd, isPartialDrawer, setContentScrollPosition, isModalOpen } = useTouch();
   
   // Use AppStateContext to coordinate with the app initialization sequence
-  const { isFullyInitialized, initState } = useAppState();
+  const { isFullyInitialized, initState, shouldOpenDrawer } = useAppState();
   
   // Debug log to verify context hooks are available (only in development)
   // Use a static check to ensure we only log once per component instance
@@ -57,6 +57,8 @@ const Drawer: React.FC<DrawerProps> = memo(({
     console.log('Modal open:', isModalOpen);
     console.log('App init state:', initState);
     console.log('Fully initialized:', isFullyInitialized);
+    console.log('Should open drawer:', shouldOpenDrawer);
+    console.log('Visible locations count:', visibleLocations?.length || 0);
     console.groupEnd();
     hasLoggedRef.current = true;
   }
@@ -310,22 +312,22 @@ const Drawer: React.FC<DrawerProps> = memo(({
   useEffect(() => {
     // Only run on mobile when we're showing the list view (no specific location)
     if (isMobile && !location && mobileMode === 'list') {
-      // When app has loaded locations or is in a later state
-      if (initState === 'locations-loaded' || initState === 'map-ready' ||
-          initState === 'drawer-initialized' || initState === 'fully-ready') {
+      // Only open drawer when locations are fully processed (key improvement)
+      if (initState === 'locations-processed' || initState === 'drawer-initialized' ||
+          initState === 'fully-ready' || shouldOpenDrawer) {
         
         if (process.env.NODE_ENV === 'development') {
           console.log(`Drawer coordinating with app init state: ${initState}`);
         }
         
-        // Always ensure drawer is opened during these states, regardless of mobileDrawerOpen flag
+        // Only open drawer if currently closed
         if (drawerState === 'closed') {
           console.log('Opening drawer based on app initialization state:', initState);
           setDrawerState('partial');
         }
       }
     }
-  }, [initState, isMobile, location, mobileMode, drawerState, setDrawerState]);
+  }, [initState, isMobile, location, mobileMode, drawerState, setDrawerState, shouldOpenDrawer]);
 
   // Add click handlers for the pull handle
   useEffect(() => {
@@ -606,14 +608,19 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // Limit to first 15 locations to prevent performance issues
   const displayedLocations = filteredLocations.slice(0, 15) || [];
 
-  // Simplified drawer rendering logic to ensure it works during initialization
+  // Improved drawer rendering logic based on app initialization state
   const shouldRenderDrawer = isMobile
     ? ((location !== null) || (mobileMode === 'list' && (
-        // Handle app states - render drawer whenever the app is past the initial loading state
-        mobileDrawerOpen || initState === 'locations-loaded' || initState === 'map-ready' ||
-        initState === 'drawer-initialized' || initState === 'fully-ready'
+        // Only render when explicitly told to by AppStateContext or when a location is selected
+        mobileDrawerOpen ||
+        // Use shouldOpenDrawer from AppStateContext which is only true when locations are processed
+        shouldOpenDrawer ||
+        // For backward compatibility, also check specific states
+        initState === 'locations-processed' ||
+        initState === 'drawer-initialized' ||
+        initState === 'fully-ready'
       )))
-    : true;
+    : true; // Always render on desktop (visibility controlled by CSS)
   
   // If nothing to display on mobile, return null
   if (!shouldRenderDrawer) {
@@ -647,12 +654,22 @@ const Drawer: React.FC<DrawerProps> = memo(({
         <div className="overflow-y-auto h-[calc(100vh-4rem-3.25rem-76px)]">
           {displayedLocations.length === 0 ? (
             <div className="p-6 text-center text-gray-500">
-              {initState === 'fully-ready' ? (
+              {initState === 'locations-processed' || initState === 'drawer-initialized' || initState === 'fully-ready' ? (
+                // User can see and interact with drawer, but no locations are in viewport
                 <>
                   <p>No locations in current view</p>
                   <p className="text-sm mt-2">Try zooming out or panning the map</p>
                 </>
+              ) : initState === 'map-ready' ? (
+                // Map is ready but locations aren't fully processed yet
+                <>
+                  <p>Processing locations...</p>
+                  <div className="mt-4 flex justify-center">
+                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                </>
               ) : (
+                // Initial loading state
                 <>
                   <p>Loading locations...</p>
                   <div className="mt-4 flex justify-center">
@@ -1243,12 +1260,22 @@ const Drawer: React.FC<DrawerProps> = memo(({
             >
               {displayedLocations.length === 0 ? (
                 <div className="p-6 text-center text-gray-500">
-                  {initState === 'fully-ready' || initState === 'drawer-initialized' ? (
+                  {initState === 'locations-processed' || initState === 'drawer-initialized' || initState === 'fully-ready' ? (
+                    // User can see and interact with drawer, but no locations are in viewport
                     <>
                       <p>No locations in current view</p>
                       <p className="text-sm mt-2">Try zooming out or panning the map</p>
                     </>
+                  ) : initState === 'map-ready' ? (
+                    // Map is ready but locations aren't fully processed yet
+                    <>
+                      <p className="mb-2">Processing locations...</p>
+                      <div className="flex justify-center mt-4">
+                        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    </>
                   ) : (
+                    // Initial loading state
                     <>
                       <p className="mb-2">Loading locations...</p>
                       <div className="flex justify-center mt-4">

@@ -178,10 +178,36 @@ function App() {
           return [];
         }
       };
+      
+      // Add initialization error tracking for debugging
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📱 App initialization started');
+        
+        // Track initialization errors
+        window.addEventListener('error', (event) => {
+          console.error('App initialization error:', event.error);
+        });
+      }
     }
 
     // Inject schema.org structured data for rich search results
     injectSchemaOrgData();
+  }, []);
+
+  // Log when app is mounted
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📱 App component mounted');
+    }
+    
+    // Add a delayed message to confirm when app is fully rendered
+    const timer = setTimeout(() => {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📱 App rendering completed');
+      }
+    }, 1000);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   return (

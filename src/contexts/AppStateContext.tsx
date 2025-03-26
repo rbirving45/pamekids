@@ -1,135 +1,143 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { useMobile } from './MobileContext';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 
-// Define all possible app states in our initialization sequence
-type AppInitState =
-  | 'initial'              // App just started
-  | 'loading-locations'    // Fetching location data
-  | 'locations-loaded'     // Location data ready
-  | 'map-ready'            // Map initialized and ready
-  | 'drawer-initialized'   // Drawer state set appropriately
-  | 'fully-ready';         // Everything initialized and ready
+// Define all possible app initialization states
+export type InitializationState =
+  | 'initial' // Initial app state before any loading
+  | 'loading-locations' // Starting to fetch locations from Firebase
+  | 'locations-loaded' // Raw locations data received from Firebase
+  | 'locations-processed' // Locations data fully processed and ready for display
+  | 'map-ready' // Google Map has initialized and is ready
+  | 'drawer-initialized' // Drawer has been properly initialized
+  | 'fully-ready'; // Everything is initialized and ready for user interaction
 
 interface AppStateContextType {
-  // Core state
-  initState: AppInitState;
+  // App initialization state
+  initState: InitializationState;
   isFullyInitialized: boolean;
-  
-  // State setters (used by components to signal completion)
+  shouldOpenDrawer: boolean;
+
+  // State transition methods
+  setLocationsLoading: () => void;
   setLocationsLoaded: () => void;
+  setLocationsProcessed: () => void;
   setMapReady: () => void;
   setDrawerInitialized: () => void;
-  
-  // Coordination helpers
-  shouldOpenDrawer: boolean;
-  shouldShowMap: boolean;
-  shouldLoadLocations: boolean;
+  setFullyReady: () => void;
 }
 
-// Create the context with undefined initial value
 const AppStateContext = createContext<AppStateContextType | undefined>(undefined);
 
-// AppState Provider component
 export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isMobile } = useMobile();
-  const [initState, setInitState] = useState<AppInitState>('initial');
+  // Core initialization state - all components respond to this
+  const [initState, setInitState] = useState<InitializationState>('initial');
   
-  // Debug logging in development
-  useEffect(() => {
+  // Signal for when to open drawer - only set after locations are processed
+  const [shouldOpenDrawer, setShouldOpenDrawer] = useState(false);
+  
+  // Debug logging of state transitions
+  const logStateTransition = (newState: InitializationState) => {
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🚀 App initialization state: ${initState}`);
+      console.log(`🚀 App initialization state: ${newState}`);
     }
-  }, [initState]);
+  };
   
-  // Define state transition functions
+  // State transition methods
+  const setLocationsLoading = useCallback(() => {
+    setInitState(prev => {
+      if (prev === 'initial') {
+        logStateTransition('loading-locations');
+        return 'loading-locations';
+      }
+      return prev; // Don't allow backward state transitions
+    });
+  }, []);
+  
   const setLocationsLoaded = useCallback(() => {
     setInitState(prev => {
-      if (prev === 'loading-locations') {
+      if (prev === 'initial' || prev === 'loading-locations') {
+        logStateTransition('locations-loaded');
         return 'locations-loaded';
       }
-      return prev; // Only transition from correct previous state
+      return prev;
+    });
+  }, []);
+
+  // New separate state for when locations are fully processed
+  const setLocationsProcessed = useCallback(() => {
+    setInitState(prev => {
+      if (prev === 'initial' || prev === 'loading-locations' || prev === 'locations-loaded') {
+        logStateTransition('locations-processed');
+        // Only NOW signal drawer to open (key timing fix)
+        setShouldOpenDrawer(true);
+        return 'locations-processed';
+      }
+      return prev;
     });
   }, []);
   
   const setMapReady = useCallback(() => {
     setInitState(prev => {
-      if (prev === 'locations-loaded') {
+      // Map can be ready regardless of location loading state
+      if (prev !== 'drawer-initialized' && prev !== 'fully-ready') {
+        logStateTransition('map-ready');
         return 'map-ready';
       }
-      return prev; // Only transition from correct previous state
+      return prev;
     });
   }, []);
   
   const setDrawerInitialized = useCallback(() => {
     setInitState(prev => {
-      if (prev === 'map-ready') {
+      if (prev === 'locations-processed' || prev === 'map-ready' ||
+          prev === 'locations-loaded') {
+        logStateTransition('drawer-initialized');
         return 'drawer-initialized';
       }
-      return prev; // Only transition from correct previous state
+      return prev;
     });
-    
-    // After drawer is initialized, complete the sequence to fully-ready
-    setTimeout(() => {
-      setInitState('fully-ready');
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🎉 App fully initialized');
-      }
-    }, 50);
   }, []);
   
-  // Start loading locations once we're out of initial state
-  useEffect(() => {
-    if (initState === 'initial') {
-      setInitState('loading-locations');
-    }
-  }, [initState]);
+  const setFullyReady = useCallback(() => {
+    setInitState(prev => {
+      // Any state can transition to fully ready as a fallback
+      logStateTransition('fully-ready');
+      return 'fully-ready';
+    });
+  }, []);
   
-  // Derived state based on current initialization state and device type
-  const shouldOpenDrawer = useMemo(() => {
-    // On mobile, we should open the drawer when map is ready
-    // On desktop, we keep drawer closed until a location is selected
-    if (isMobile) {
-      return initState === 'map-ready' || initState === 'drawer-initialized' || initState === 'fully-ready';
-    } else {
-      // On desktop we don't automatically open the drawer during initialization
-      // The map component will handle opening it when a location is selected
-      return false;
-    }
-  }, [initState, isMobile]);
+  // Calculate if app is fully initialized based on state
+  const isFullyInitialized = initState === 'fully-ready';
   
-  const shouldShowMap = useMemo(() => {
-    return initState === 'locations-loaded' || initState === 'map-ready' ||
-           initState === 'drawer-initialized' || initState === 'fully-ready';
-  }, [initState]);
-  
-  const shouldLoadLocations = useMemo(() => {
-    return initState === 'loading-locations';
-  }, [initState]);
-  
-  const isFullyInitialized = useMemo(() => {
-    return initState === 'fully-ready';
-  }, [initState]);
-  
-  // Context value with all state and functions
+  // Create context value with memoization
   const contextValue = useMemo(() => ({
     initState,
     isFullyInitialized,
+    shouldOpenDrawer,
+    setLocationsLoading,
     setLocationsLoaded,
+    setLocationsProcessed,
     setMapReady,
     setDrawerInitialized,
-    shouldOpenDrawer,
-    shouldShowMap,
-    shouldLoadLocations
+    setFullyReady
   }), [
     initState,
     isFullyInitialized,
+    shouldOpenDrawer,
+    setLocationsLoading,
     setLocationsLoaded,
+    setLocationsProcessed,
     setMapReady,
     setDrawerInitialized,
-    shouldOpenDrawer,
-    shouldShowMap,
-    shouldLoadLocations
+    setFullyReady
   ]);
+  
+  // Initialize to loading locations on first mount
+  React.useEffect(() => {
+    if (initState === 'initial') {
+      logStateTransition('initial');
+      // Don't immediately transition to avoid too many state changes during initialization
+    }
+  }, [initState]);
   
   return (
     <AppStateContext.Provider value={contextValue}>
@@ -138,7 +146,6 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   );
 };
 
-// Custom hook to use the AppState context
 export const useAppState = (): AppStateContextType => {
   const context = useContext(AppStateContext);
   if (!context) {
