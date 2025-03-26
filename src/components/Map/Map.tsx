@@ -107,18 +107,19 @@ const MapComponent: React.FC<MapProps> = () => {
     });
   }, [setLocationClearCallback, setSelectedLocation, setHoveredLocation, mapReadyState, selectedLocation]);
   
-  // Enhanced drawer initialization - respects AppStateContext
+  // Enhanced drawer initialization - respects AppStateContext but defers to TouchContext
   useEffect(() => {
     // Only run this effect when shouldOpenDrawer changes to true
-    // and we haven't already initialized
-    if (shouldOpenDrawer && isMobile && !drawerInitializedRef.current) {
-      console.log('Opening drawer based on AppStateContext signal');
-      // Set drawer to partial state
-      setDrawerState('partial');
-      // Mark as initialized so we don't re-open it after user closes
+    if (shouldOpenDrawer && isMobile) {
+      // We no longer directly set drawer state here
+      // This prevents multiple components trying to control the drawer during initialization
+      // TouchContext is now the single source of truth for drawer initialization
+      console.log('Map detected initialization signal, deferring to TouchContext for drawer handling');
+      
+      // Still mark as initialized in the Map component
       drawerInitializedRef.current = true;
     }
-  }, [shouldOpenDrawer, isMobile, setDrawerState]);
+  }, [shouldOpenDrawer, isMobile]);
 
   // We no longer close the drawer based on visible locations
   // since we now always show the 10 closest locations even if not in viewport

@@ -320,10 +320,12 @@ const Drawer: React.FC<DrawerProps> = memo(({
           console.log(`Drawer coordinating with app init state: ${initState}`);
         }
         
-        // Only open drawer if currently closed
+        // Check if drawer is closed AND this is still the initial load sequence
+        // TouchContext will handle the actual auto-open so we can defer to it here
         if (drawerState === 'closed') {
-          console.log('Opening drawer based on app initialization state:', initState);
-          setDrawerState('partial');
+          console.log('Drawer detected initialization state, deferring to TouchContext for auto-open');
+          // We're not calling setDrawerState here anymore
+          // This lets TouchContext be the single source of truth for the initial auto-open
         }
       }
     }

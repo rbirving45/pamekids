@@ -61,6 +61,10 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Callback reference for clearing selection when drawer is closed
   const clearLocationCallbackRef = useRef<(() => void) | null>(null);
   
+  // Add refs needed for tracking initialization state
+  const initialAutoOpenCompletedRef = useRef<boolean>(false);
+  const isProgrammaticChange = useRef(false);
+  
   // Touch tracking refs
   const touchState = useRef<TouchStateTracker>({
     startY: 0,
@@ -70,6 +74,9 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     startTime: 0,
     drawerHeight: 0
   });
+  
+  // Add a simple computed property to check if drawer is in partial state
+  const isPartialDrawer = drawerState === 'partial';
   
   // Calculate if map should be blocked based on state
   const isMapBlocked = useMemo(() => {
@@ -342,6 +349,13 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }, 10);
       console.log('Drawer closed by gesture - clearing selection');
       clearLocationCallbackRef.current();
+      
+      // Mark that we've handled a user closing gesture
+      // This doesn't affect the initial auto-open which has already happened
+      // It just confirms that subsequent touch gestures work normally
+      if (process.env.NODE_ENV === 'development') {
+        console.log('User has manually closed the drawer - normal touch behavior');
+      }
     }
     
     // Set the new drawer state
@@ -383,6 +397,18 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     // Only act when shouldOpenDrawer changes to true
     if (shouldOpenDrawer) {
+      // Check if we've already done the initial auto-open
+      if (initialAutoOpenCompletedRef.current) {
+        // We've already opened the drawer once, don't auto-open again
+        if (process.env.NODE_ENV === 'development') {
+          console.log('📱 TouchContext: Skipping auto-open, already completed initial open');
+        }
+        
+        // Still signal initialization to keep AppStateContext happy
+        setDrawerInitialized();
+        return;
+      }
+      
       // Only open drawer on mobile - desktop drawer starts closed until location selected
       if (isMobile) {
         if (drawerState === 'closed') {
@@ -395,6 +421,9 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             // Open the drawer
             setDrawerState('partial');
             
+            // Mark that we've completed the initial auto-open
+            initialAutoOpenCompletedRef.current = true;
+            
             // Signal that drawer has been initialized
             // This should happen after drawer state is updated
             setTimeout(() => {
@@ -406,26 +435,26 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setTimeout(() => {
               if (drawerState === 'closed') {
                 setDrawerState('partial');
+                initialAutoOpenCompletedRef.current = true;
                 setDrawerInitialized();
               }
             }, 300);
           }
         } else {
-          // Drawer is already open, just signal initialization
+          // Drawer is already open, just signal initialization and mark as completed
+          initialAutoOpenCompletedRef.current = true;
           setDrawerInitialized();
         }
       } else {
         // On desktop, still signal initialization even though drawer doesn't open
+        initialAutoOpenCompletedRef.current = true;
         setDrawerInitialized();
       }
     }
   }, [shouldOpenDrawer, isMobile, drawerState, setDrawerState, setDrawerInitialized]);
 
-  // Add a simple computed property to check if drawer is in partial state
-  const isPartialDrawer = drawerState === 'partial';
-  
-  // Track if a drawer state change is from user interaction or programmatic
-  const isProgrammaticChange = useRef(false);
+  // We don't need the drawerInitializedRef - it was causing the "unused variable" warning
+  // The other refs are now defined earlier in the file
 
   // Callback setter function
   const setLocationClearCallback = useCallback((callback: () => void) => {
@@ -462,12 +491,12 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setLocationClearCallback,
     isAllInteractionsBlocked
   }), [
-    drawerState,
+    drawerState, // isPartialDrawer is derived from drawerState, so we don't need it in deps
+    isPartialDrawer,
     setDrawerStateWrapper,
     isMapBlocked,
     isModalOpen,
     setModalOpen,
-    isPartialDrawer,
     isContentAtTop,
     setContentScrollPosition,
     handleTouchStart,
