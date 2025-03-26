@@ -286,7 +286,7 @@ const MapComponent: React.FC<MapProps> = () => {
     };
 
     fetchLocations();
-  }, [isMobile, setVisibleLocations, setLocationsLoaded, setLocationsProcessed, setLocationsLoading]);
+  }, [isMobile, setVisibleLocations, setLocationsLoaded, setLocationsProcessed, setLocationsLoading, visibleLocations.length]);
 
   // Get user location on component mount without a timeout to ensure we wait for user permission response
   useEffect(() => {
@@ -968,7 +968,7 @@ const MapComponent: React.FC<MapProps> = () => {
       // Using setTimeout to ensure the map is fully rendered
       map.setZoom(map.getZoom()!); // This triggers bounds_changed without changing the view
     }, 300);
-  }, [locations, isMobile, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation, centerMapOnLocation, setDrawerState, setMapReady]);
+  }, [locations, isMobile, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation, centerMapOnLocation, setDrawerState, setMapReady, drawerState, visibleLocations.length]);
 
   // Handle drawer close action 
   const handleDrawerClose = useCallback(() => {
@@ -1010,7 +1010,7 @@ const MapComponent: React.FC<MapProps> = () => {
         centerMapOnLocation(location.coordinates, 'marker-selection');
       }, 20);
     }
-  }, [map, isMobile, centerMapOnLocation, setSelectedLocation, setHoveredLocation, setVisibleLocations, setLocationsLoaded, setLocationsProcessed]);
+  }, [map, isMobile, centerMapOnLocation, setSelectedLocation]);
 
   const ageOptions = Array.from({ length: 19 }, (_, i) => i);
 
