@@ -8,6 +8,7 @@ import RatingDisplay from './RatingDisplay';
 import LocationTile from './LocationTile';
 import { useMobile } from '../../contexts/MobileContext';
 import { useTouch } from '../../contexts/TouchContext';
+import { useAppState } from '../../contexts/AppStateContext';
 
 interface DrawerProps {
   location: Location | null;
@@ -44,13 +45,18 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // Use TouchContext hook with all needed properties - moved before any conditional returns
   const { drawerState, setDrawerState, handleTouchStart, handleTouchMove, handleTouchEnd, isPartialDrawer, setContentScrollPosition, isModalOpen } = useTouch();
   
-  // Debug log to verify TouchContext is available (only in development)
+  // Use AppStateContext to coordinate with the app initialization sequence
+  const { isFullyInitialized, initState } = useAppState();
+  
+  // Debug log to verify context hooks are available (only in development)
   // Use a static check to ensure we only log once per component instance
   const hasLoggedRef = useRef(false);
   if (process.env.NODE_ENV === 'development' && !hasLoggedRef.current) {
-    console.groupCollapsed('TouchContext initialization');
+    console.groupCollapsed('Drawer component initialization');
     console.log('Initial drawer state:', drawerState);
     console.log('Modal open:', isModalOpen);
+    console.log('App init state:', initState);
+    console.log('Fully initialized:', isFullyInitialized);
     console.groupEnd();
     hasLoggedRef.current = true;
   }
@@ -78,12 +84,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
   const pullHandleRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const dragStartY = useRef<number | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const lastTouchY = useRef<number | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const touchStartTime = useRef<number>(0);
+  // We're still using these refs for now, will remove gradually in later steps
   const isDragging = useRef<boolean>(false);
   const isScrolling = useRef<boolean>(false);
 
@@ -140,7 +141,12 @@ const Drawer: React.FC<DrawerProps> = memo(({
     }
     isDragging.current = false;
     isScrolling.current = false;
-  }, [locationId]);
+    
+    // Optional debugging when location changes (only in development)
+    if (process.env.NODE_ENV === 'development' && locationId) {
+      console.log(`Drawer: Location changed to ${locationId}, app init state: ${initState}`);
+    }
+  }, [locationId, initState]);
 
   // Import the updateLocationPlaceData function at the top of the file
   // Add this import statement along with the other imports
@@ -228,6 +234,24 @@ const Drawer: React.FC<DrawerProps> = memo(({
       return () => clearTimeout(timer);
     }
   }, [location, mobileMode, isMobile]);
+  
+  // New effect to coordinate drawer behavior with app initialization state
+  useEffect(() => {
+    // Only proceed if the app is initialized beyond the initial loading states
+    if (initState === 'map-ready' || initState === 'drawer-initialized' || initState === 'fully-ready') {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Drawer responding to app init state: ${initState}`);
+      }
+      
+      // On mobile, ensure drawer is in proper state based on app initialization
+      if (isMobile && !location && mobileMode === 'list' && mobileDrawerOpen) {
+        // Make sure drawer has proper styling when app is fully initialized
+        if (drawerRef.current) {
+          drawerRef.current.style.pointerEvents = 'auto';
+        }
+      }
+    }
+  }, [initState, isMobile, location, mobileMode, mobileDrawerOpen]);
 
   // Handle drawer close action
   const handleCloseAction = () => {
@@ -281,6 +305,27 @@ const Drawer: React.FC<DrawerProps> = memo(({
       // and persists across view transitions
     }
   }, [location, mobileMode, mobileDrawerOpen, isMobile, drawerState]);
+  
+  // Coordinate drawer expansion with app initialization state
+  useEffect(() => {
+    // Only run on mobile when we're showing the list view (no specific location)
+    if (isMobile && !location && mobileMode === 'list') {
+      // When app has loaded locations or is in a later state
+      if (initState === 'locations-loaded' || initState === 'map-ready' ||
+          initState === 'drawer-initialized' || initState === 'fully-ready') {
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Drawer coordinating with app init state: ${initState}`);
+        }
+        
+        // Always ensure drawer is opened during these states, regardless of mobileDrawerOpen flag
+        if (drawerState === 'closed') {
+          console.log('Opening drawer based on app initialization state:', initState);
+          setDrawerState('partial');
+        }
+      }
+    }
+  }, [initState, isMobile, location, mobileMode, drawerState, setDrawerState]);
 
   // Add click handlers for the pull handle
   useEffect(() => {
@@ -561,16 +606,38 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // Limit to first 15 locations to prevent performance issues
   const displayedLocations = filteredLocations.slice(0, 15) || [];
 
-  // Simplified drawer rendering logic - no longer depends on visible locations
+  // Simplified drawer rendering logic to ensure it works during initialization
   const shouldRenderDrawer = isMobile
-    ? ((location !== null) || ((mobileMode === 'list') && (mobileDrawerOpen)))
+    ? ((location !== null) || (mobileMode === 'list' && (
+        // Handle app states - render drawer whenever the app is past the initial loading state
+        mobileDrawerOpen || initState === 'locations-loaded' || initState === 'map-ready' ||
+        initState === 'drawer-initialized' || initState === 'fully-ready'
+      )))
     : true;
   
   // If nothing to display on mobile, return null
-  if (!shouldRenderDrawer) return null;
+  if (!shouldRenderDrawer) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Drawer not rendering: shouldRenderDrawer=false', {
+        location: !!location,
+        mobileMode,
+        mobileDrawerOpen,
+        initState
+      });
+    }
+    return null;
+  }
 
   // Desktop location list view (when no location is selected)
   if (!location && !isMobile) {
+    // Enhanced debug logging for empty drawer situations
+    if (process.env.NODE_ENV === 'development' && displayedLocations.length === 0) {
+      console.log('Desktop drawer has no locations to display', {
+        visibleLocationsLength: visibleLocations?.length || 0,
+        initState
+      });
+    }
+    
     return (
       <div className="hidden md:block fixed z-drawer-container bg-white shadow-lg w-[533px] left-0 top-[calc(4rem+3.25rem)] rounded-r-lg bottom-0 overflow-hidden">
         <div className="p-6 border-b">
@@ -580,8 +647,19 @@ const Drawer: React.FC<DrawerProps> = memo(({
         <div className="overflow-y-auto h-[calc(100vh-4rem-3.25rem-76px)]">
           {displayedLocations.length === 0 ? (
             <div className="p-6 text-center text-gray-500">
-              <p>No locations in current view</p>
-              <p className="text-sm mt-2">Try zooming out or panning the map</p>
+              {initState === 'fully-ready' ? (
+                <>
+                  <p>No locations in current view</p>
+                  <p className="text-sm mt-2">Try zooming out or panning the map</p>
+                </>
+              ) : (
+                <>
+                  <p>Loading locations...</p>
+                  <div className="mt-4 flex justify-center">
+                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <div>
@@ -1165,8 +1243,19 @@ const Drawer: React.FC<DrawerProps> = memo(({
             >
               {displayedLocations.length === 0 ? (
                 <div className="p-6 text-center text-gray-500">
-                  <p>No locations in current view</p>
-                  <p className="text-sm mt-2">Try zooming out or panning the map</p>
+                  {initState === 'fully-ready' || initState === 'drawer-initialized' ? (
+                    <>
+                      <p>No locations in current view</p>
+                      <p className="text-sm mt-2">Try zooming out or panning the map</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="mb-2">Loading locations...</p>
+                      <div className="flex justify-center mt-4">
+                        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div>
