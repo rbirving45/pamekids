@@ -6,6 +6,7 @@ import { Search, ChevronDown } from 'lucide-react';
 import { trackMarkerClick, trackSearchQuery, trackSearchResultClick } from '../../utils/analytics';
 import { useMobile } from '../../contexts/MobileContext';
 import { useTouch } from '../../contexts/TouchContext';
+import { useAppState } from '../../contexts/AppStateContext';
 import MapBlockingOverlay from './MapBlockingOverlay';
 import { getLocations } from '../../utils/firebase-service';
 import { performEnhancedSearch, SearchMatch } from '../../utils/search-utils';
@@ -43,6 +44,11 @@ const MapComponent: React.FC<MapProps> = () => {
   // Get drawer state and map blocking state from TouchContext
   const { drawerState, setDrawerState, isMapBlocked, setLocationClearCallback } = useTouch();
   
+  // Get app state signals from AppStateContext
+  const { setLocationsLoaded, setMapReady, shouldOpenDrawer } = useAppState();
+  
+  // Add effect to log drawer state changes for debugging
+  
   // Add effect to log drawer state changes for debugging
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
@@ -74,7 +80,7 @@ const MapComponent: React.FC<MapProps> = () => {
     lng: 23.7275
   });
   const [visibleLocations, setVisibleLocations] = useState<Location[]>([]);
-  const [mapReady, setMapReady] = useState(false);
+  const [mapReadyState, setMapReadyState] = useState(false);
   // This ref was removed as we simplified the map initialization logic
 
   const searchRef = useRef<HTMLDivElement>(null);
@@ -89,7 +95,7 @@ const MapComponent: React.FC<MapProps> = () => {
     setLocationClearCallback(() => {
       // Only clear marker selection if map is already initialized
       // and there's an active selection to clear
-      if (mapReady && selectedLocation) {
+      if (mapReadyState && selectedLocation) {
         console.log('Clearing marker selection due to drawer gesture close');
         setSelectedLocation(null);
         setHoveredLocation(null);
@@ -99,31 +105,32 @@ const MapComponent: React.FC<MapProps> = () => {
         console.log('Drawer closed by gesture - allowing future reopening');
       }
     });
-  }, [setLocationClearCallback, setSelectedLocation, setHoveredLocation, mapReady, selectedLocation]);
+  }, [setLocationClearCallback, setSelectedLocation, setHoveredLocation, mapReadyState, selectedLocation]);
   
-  // Simplified drawer initialization - only depends on mobile detection
+  // Enhanced drawer initialization - respects AppStateContext
   useEffect(() => {
-    // Only run this effect once on initial load for mobile devices
-    if (isMobile && !drawerInitializedRef.current) {
-      console.log('Setting drawer to partial state on initial app load (simplified)');
+    // Only run this effect when shouldOpenDrawer changes to true
+    // and we haven't already initialized
+    if (shouldOpenDrawer && isMobile && !drawerInitializedRef.current) {
+      console.log('Opening drawer based on AppStateContext signal');
       // Set drawer to partial state
       setDrawerState('partial');
       // Mark as initialized so we don't re-open it after user closes
       drawerInitializedRef.current = true;
     }
-  }, [isMobile, setDrawerState]);
+  }, [shouldOpenDrawer, isMobile, setDrawerState]);
 
   // We no longer close the drawer based on visible locations
   // since we now always show the 10 closest locations even if not in viewport
   
   // Ensure desktop drawer has content on initial load
   useEffect(() => {
-    if (!isMobile && visibleLocations.length === 0 && locations.length > 0 && !isLoadingLocations && mapReady) {
+    if (!isMobile && visibleLocations.length === 0 && locations.length > 0 && !isLoadingLocations && mapReadyState) {
       // Fallback: use the first 15 locations for desktop drawer if no visible locations
       console.log('Populating fallback visible locations for desktop drawer');
       setVisibleLocations(locations.slice(0, 15));
     }
-  }, [isMobile, visibleLocations.length, locations, isLoadingLocations, mapReady, setVisibleLocations]);
+  }, [isMobile, visibleLocations.length, locations, isLoadingLocations, mapReadyState, setVisibleLocations]);
   
   // Fetch locations from Firebase on component mount
   useEffect(() => {
@@ -173,6 +180,9 @@ const MapComponent: React.FC<MapProps> = () => {
         
         // Cache the locations in session storage
         sessionStorage.setItem('cachedLocations', JSON.stringify(fetchedLocations));
+        
+        // Signal to AppStateContext that locations are loaded
+        setLocationsLoaded();
       } catch (error) {
         console.error('Error fetching locations:', error);
         setLoadError('Failed to load locations. Please try again later.');
@@ -182,14 +192,14 @@ const MapComponent: React.FC<MapProps> = () => {
     };
 
     fetchLocations();
-  }, [isMobile, setVisibleLocations]);
+  }, [isMobile, setVisibleLocations, setLocationsLoaded]);
 
   // Get user location on component mount without a timeout to ensure we wait for user permission response
   useEffect(() => {
     const defaultLocation = { lat: 37.9838, lng: 23.7275 }; // Athens center
     
     // Initially, set map as not ready until we get location
-    setMapReady(false);
+    setMapReadyState(false);
     
     if (navigator.geolocation) {
       // No timeout - we'll wait for an explicit response from the user
@@ -203,14 +213,14 @@ const MapComponent: React.FC<MapProps> = () => {
           
           // Store the raw location and signal map can render
           setUserLocation(rawLocation);
-          setMapReady(true);
+          setMapReadyState(true);
           console.log('Location permission granted, using user location');
         },
         (error) => {
           // User denied permission or there was an error
-          console.log('Geolocation error or denied:', error.message);
+          console.log('Geolocation not supported by browser, using default Athens location');
           setUserLocation(defaultLocation);
-          setMapReady(true);
+          setMapReadyState(true);
           console.log('Using default Athens location');
         },
         {
@@ -223,7 +233,7 @@ const MapComponent: React.FC<MapProps> = () => {
       // No geolocation support, use default immediately
       console.log('Geolocation not supported by browser, using default Athens location');
       setUserLocation(defaultLocation);
-      setMapReady(true);
+      setMapReadyState(true);
     }
   }, []);
   
@@ -288,7 +298,7 @@ const MapComponent: React.FC<MapProps> = () => {
   
   // Re-center when device type or user location changes while map is loaded
   useEffect(() => {
-    if (!map || !userLocation.lat || !userLocation.lng || !mapReady) return;
+    if (!map || !userLocation.lat || !userLocation.lng || !mapReadyState) return;
     
     // The map is already initialized, so we can center immediately
     if (process.env.NODE_ENV === 'development') {
@@ -298,7 +308,7 @@ const MapComponent: React.FC<MapProps> = () => {
     }
     centerMapOnLocation(userLocation, 'initial-load');
     
-  }, [map, userLocation, isMobile, centerMapOnLocation, mapReady]);
+  }, [map, userLocation, isMobile, centerMapOnLocation, mapReadyState]);
 
   // Handle InfoWindow for marker hovering
   useEffect(() => {
@@ -679,6 +689,9 @@ const MapComponent: React.FC<MapProps> = () => {
     // Mark as initialized
     mapInitializedRef.current = true;
     
+    // Signal to AppStateContext that map is ready
+    setMapReady();
+    
     if (process.env.NODE_ENV === 'development') {
       console.groupCollapsed('Map initialization');
       console.log('Map loaded successfully');
@@ -789,7 +802,7 @@ const MapComponent: React.FC<MapProps> = () => {
       // Using setTimeout to ensure the map is fully rendered
       map.setZoom(map.getZoom()!); // This triggers bounds_changed without changing the view
     }, 300);
-  }, [locations, isMobile, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation, centerMapOnLocation, setDrawerState]);
+  }, [locations, isMobile, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation, centerMapOnLocation, setDrawerState, setMapReady]);
 
   // Handle drawer close action 
   const handleDrawerClose = useCallback(() => {
@@ -1253,7 +1266,7 @@ const MapComponent: React.FC<MapProps> = () => {
           <MapBlockingOverlay />
 
         {/* Enhanced loading overlay */}
-        {!mapReady && (
+        {!mapReadyState && (
           <div
             style={{
               position: 'absolute',
@@ -1297,9 +1310,9 @@ const MapComponent: React.FC<MapProps> = () => {
               left: !isMobile ? '533px' : 0, // Position after drawer on desktop
               right: 0,
               bottom: 0,
-              opacity: mapReady ? 1 : 0, // Completely hide map until fully ready
+              opacity: mapReadyState ? 1 : 0, // Completely hide map until fully ready
               transition: 'opacity 0.5s ease-in-out',
-              pointerEvents: (mapReady && !isMapBlocked) ? 'auto' : 'none', // Prevent interaction when blocked
+              pointerEvents: (mapReadyState && !isMapBlocked) ? 'auto' : 'none', // Prevent interaction when blocked
               touchAction: isMapBlocked ? 'none' : 'auto' // Prevent touch actions when blocked
             }}
             mapContainerClassName={isMapBlocked ? 'map-blocked' : ''}
@@ -1638,7 +1651,7 @@ const MapComponent: React.FC<MapProps> = () => {
       )}
       
       {/* Custom My Location Button */}
-      {mapReady && (
+      {mapReadyState && (
         <div
           className="absolute z-mobile-button"
           style={{
