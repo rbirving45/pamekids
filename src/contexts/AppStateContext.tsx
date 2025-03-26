@@ -65,7 +65,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // New separate state for when locations are fully processed
   const setLocationsProcessed = useCallback(() => {
     setInitState(prev => {
-      if (prev === 'initial' || prev === 'loading-locations' || prev === 'locations-loaded') {
+      if (prev === 'initial' || prev === 'loading-locations' || prev === 'locations-loaded' || prev === 'map-ready') {
         logStateTransition('locations-processed');
         // Only NOW signal drawer to open (key timing fix)
         setShouldOpenDrawer(true);

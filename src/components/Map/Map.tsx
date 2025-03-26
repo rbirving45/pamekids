@@ -247,6 +247,27 @@ const MapComponent: React.FC<MapProps> = () => {
         // Cache the locations in session storage
         sessionStorage.setItem('cachedLocations', JSON.stringify(fetchedLocations));
         
+        // First ensure visibleLocations are populated BEFORE signaling processed
+        if (visibleLocations.length === 0) {
+          console.log('🚀 Pre-populating visibleLocations before locations-processed signal');
+          // For mobile, populate with closest locations to default center
+          const defaultCoords = { lat: 37.9838, lng: 23.7275 };
+          const locationsWithDistance = fetchedLocations.map((location: Location) => {
+            const distance = Math.sqrt(
+              Math.pow(location.coordinates.lat - defaultCoords.lat, 2) +
+              Math.pow(location.coordinates.lng - defaultCoords.lng, 2)
+            );
+            return { location, distance };
+          });
+          locationsWithDistance.sort((a: {location: Location, distance: number}, b: {location: Location, distance: number}) =>
+            a.distance - b.distance
+          );
+          const closestLocations = locationsWithDistance
+            .map((item: {location: Location, distance: number}) => item.location)
+            .slice(0, 15);
+          setVisibleLocations(closestLocations);
+        }
+        
         // CRITICAL: Signal that locations are loaded and then processed
         // First mark as loaded
         setLocationsLoaded();
@@ -255,7 +276,7 @@ const MapComponent: React.FC<MapProps> = () => {
         setTimeout(() => {
           console.log('🚀 Signaling locations are processed');
           setLocationsProcessed();
-        }, 100);
+        }, 200); // Increased delay to ensure visibleLocations are set
       } catch (error) {
         console.error('Error fetching locations:', error);
         setLoadError('Failed to load locations. Please try again later.');
@@ -369,45 +390,82 @@ const MapComponent: React.FC<MapProps> = () => {
     }
   }, [map, isMobile]);
   
+  // Create a ref to track the previous user location to prevent re-centering loops
+  const prevUserLocationRef = useRef({ lat: 0, lng: 0 });
+  const centeringInProgressRef = useRef(false);
+  
   // Re-center when device type or user location changes while map is loaded
   useEffect(() => {
+    // Exit early if map isn't ready or location is missing
     if (!map || !userLocation.lat || !userLocation.lng || !mapReadyState) return;
+    
+    // CRITICAL: Don't re-center if we're already in the middle of a centering operation
+    if (centeringInProgressRef.current) {
+      console.log('🔄 Skipping map re-centering - already in progress');
+      return;
+    }
+    
+    // CRITICAL: Check if location has changed significantly enough to re-center
+    // This prevents infinite loops when small floating-point differences occur
+    const prevLoc = prevUserLocationRef.current;
+    const locDiff = Math.sqrt(
+      Math.pow(userLocation.lat - prevLoc.lat, 2) +
+      Math.pow(userLocation.lng - prevLoc.lng, 2)
+    );
+    
+    // Only re-center if location has changed by more than a small threshold
+    // or if this is the first time we're centering (prevLoc is 0,0)
+    if (locDiff < 0.0001 && prevLoc.lat !== 0) {
+      console.log('🔄 Skipping map re-centering - location change too small');
+      return;
+    }
+    
+    // Mark that centering is in progress to prevent re-entry
+    centeringInProgressRef.current = true;
+    
+    // Save current location as previous for next comparison
+    prevUserLocationRef.current = { ...userLocation };
     
     // The map is already initialized, so we can center immediately
     if (process.env.NODE_ENV === 'development') {
-      console.groupCollapsed('Map re-centering');
-      console.log('Reason: device type or user location update');
-      console.groupEnd();
+      console.log('Map re-centering: significant location change detected');
     }
+    
+    // Center the map on user location
     centerMapOnLocation(userLocation, 'initial-load');
     
-    // After map is centered, ensure visibleLocations are populated if we haven't already
-    if (visibleLocations.length === 0 && locations.length > 0 && isMobile) {
-      console.log('🚀 Ensuring visibleLocations after map center (mobile)');
-      // Get 15 closest locations to user location
-      const locationsWithDistance = locations.map((location: Location) => {
-        const distance = Math.sqrt(
-          Math.pow(location.coordinates.lat - userLocation.lat, 2) +
-          Math.pow(location.coordinates.lng - userLocation.lng, 2)
-        );
-        return { location, distance };
-      });
-      locationsWithDistance.sort((a: {location: Location, distance: number}, b: {location: Location, distance: number}) =>
-        a.distance - b.distance
-      );
-      const closestLocations = locationsWithDistance
-        .map((item: {location: Location, distance: number}) => item.location)
-        .slice(0, 15);
-      setVisibleLocations(closestLocations);
+    // After centering, clear the in-progress flag
+    setTimeout(() => {
+      centeringInProgressRef.current = false;
       
-      // Signal when locations are processed (as a final safety check)
-      setLocationsLoaded();
-      setTimeout(() => {
-        console.log('🚀 Final signal - locations are processed');
-        setLocationsProcessed();
-      }, 100);
-    }
-  }, [map, userLocation, isMobile, centerMapOnLocation, mapReadyState, visibleLocations.length, locations, setVisibleLocations, setLocationsLoaded, setLocationsProcessed]);
+      // Only update locations if drawer is showing and we need to
+      if (drawerState !== 'closed' && visibleLocations.length === 0 && locations.length > 0) {
+        console.log('🚀 Repopulating locations in drawer after centering');
+        
+        // Only get closest locations if we need to
+        const locationsWithDistance = locations.map((location: Location) => {
+          const distance = Math.sqrt(
+            Math.pow(location.coordinates.lat - userLocation.lat, 2) +
+            Math.pow(location.coordinates.lng - userLocation.lng, 2)
+          );
+          return { location, distance };
+        });
+        
+        locationsWithDistance.sort((a: {location: Location, distance: number}, b: {location: Location, distance: number}) =>
+          a.distance - b.distance
+        );
+        
+        const closestLocations = locationsWithDistance
+          .map((item: {location: Location, distance: number}) => item.location)
+          .slice(0, 15);
+        
+        // Only update if we actually have locations to show
+        if (closestLocations.length > 0) {
+          setVisibleLocations(closestLocations);
+        }
+      }
+    }, 300); // Longer timeout to ensure centering completes
+  }, [map, userLocation, isMobile, centerMapOnLocation, mapReadyState, locations, visibleLocations.length, setVisibleLocations, drawerState]);
 
   // Handle InfoWindow for marker hovering
   useEffect(() => {
@@ -834,6 +892,15 @@ const MapComponent: React.FC<MapProps> = () => {
 
     // Add listener for bounds_changed to update visible locations
     map.addListener('bounds_changed', () => {
+      // CRITICAL: Don't update visible locations if the drawer is already open
+      // This prevents the list from being cleared when map moves after initial load
+      if (drawerState !== 'closed' && visibleLocations.length > 0) {
+        // Skip bounds_changed handling when drawer is open to prevent clearing locations
+        console.log('Skipping bounds_changed handling - drawer is open and locations are preserved');
+        return;
+      }
+
+      // Only update visible locations if drawer is closed or no locations yet
       const bounds = map.getBounds();
       if (bounds) {
         // Get the map center
@@ -943,7 +1010,7 @@ const MapComponent: React.FC<MapProps> = () => {
         centerMapOnLocation(location.coordinates, 'marker-selection');
       }, 20);
     }
-  }, [map, isMobile, setSelectedLocation, centerMapOnLocation]);
+  }, [map, isMobile, drawerState, visibleLocations.length, setSelectedLocation, setHoveredLocation, setVisibleLocations, setLocationsLoaded, setLocationsProcessed]);
 
   const ageOptions = Array.from({ length: 19 }, (_, i) => i);
 

@@ -535,9 +535,22 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // Only show loading state when actively fetching and don't have any photos yet
   const isLoadingPhotos = isLoading && !hasPhotos;
 
+  // Keep a backup of locations to use if visibleLocations is cleared
+  const [lastKnownLocations, setLastKnownLocations] = useState<Location[]>([]);
+  
+  // Update our backup whenever we have valid visibleLocations
+  useEffect(() => {
+    if (visibleLocations && visibleLocations.length > 0) {
+      setLastKnownLocations(visibleLocations);
+    }
+  }, [visibleLocations]);
+  
   // Filter locations based on active filters for the list view
   const filteredLocations = useMemo(() => {
-    return visibleLocations.filter(location => {
+    // Use visibleLocations if available, otherwise fall back to our backup
+    const locationsToUse = visibleLocations.length > 0 ? visibleLocations : lastKnownLocations;
+    
+    return locationsToUse.filter(location => {
       // Activity type filter
       if (activeFilters.length > 0 && !location.types.some(type => activeFilters.includes(type))) {
         return false;
@@ -603,12 +616,26 @@ const Drawer: React.FC<DrawerProps> = memo(({
       
       return true;
     });
-  }, [visibleLocations, activeFilters, selectedAge, openNowFilter]);
+  }, [visibleLocations, lastKnownLocations, activeFilters, selectedAge, openNowFilter]);
 
-  // Limit to first 15 locations to prevent performance issues
-  const displayedLocations = filteredLocations.slice(0, 15) || [];
+  // Wrap displayedLocations in its own useMemo to avoid dependency changes on every render
+  const displayedLocations = useMemo(() =>
+    filteredLocations.slice(0, 15) || []
+  , [filteredLocations]);
+  
+  // Add diagnostic logging for location data
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Drawer] visibleLocations: ${visibleLocations.length}, filteredLocations: ${filteredLocations.length}, displayedLocations: ${displayedLocations.length}`);
+      
+      // Log a sample location if available to verify data structure
+      if (visibleLocations.length > 0) {
+        console.log(`[Drawer] Sample location: ${visibleLocations[0].name}`);
+      }
+    }
+  }, [visibleLocations, filteredLocations, displayedLocations]);
 
-  // Improved drawer rendering logic based on app initialization state
+  // Enhanced drawer rendering logic based on app initialization state
   const shouldRenderDrawer = isMobile
     ? ((location !== null) || (mobileMode === 'list' && (
         // Only render when explicitly told to by AppStateContext or when a location is selected
@@ -621,6 +648,13 @@ const Drawer: React.FC<DrawerProps> = memo(({
         initState === 'fully-ready'
       )))
     : true; // Always render on desktop (visibility controlled by CSS)
+  
+  // Log when visibleLocations change
+  useEffect(() => {
+    if (visibleLocations.length > 0) {
+      console.log(`[Drawer] Locations updated: ${visibleLocations.length} locations available`);
+    }
+  }, [visibleLocations]);
   
   // If nothing to display on mobile, return null
   if (!shouldRenderDrawer) {
