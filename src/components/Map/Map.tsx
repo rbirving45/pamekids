@@ -1010,7 +1010,7 @@ const MapComponent: React.FC<MapProps> = () => {
         centerMapOnLocation(location.coordinates, 'marker-selection');
       }, 20);
     }
-  }, [map, isMobile, drawerState, visibleLocations.length, setSelectedLocation, setHoveredLocation, setVisibleLocations, setLocationsLoaded, setLocationsProcessed]);
+  }, [map, isMobile, centerMapOnLocation, setSelectedLocation, setHoveredLocation, setVisibleLocations, setLocationsLoaded, setLocationsProcessed]);
 
   const ageOptions = Array.from({ length: 19 }, (_, i) => i);
 
