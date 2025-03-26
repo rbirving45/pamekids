@@ -45,7 +45,7 @@ const MapComponent: React.FC<MapProps> = () => {
   const { drawerState, setDrawerState, isMapBlocked, setLocationClearCallback } = useTouch();
   
   // Get app state signals from AppStateContext
-  const { setLocationsLoaded, setLocationsProcessed, setMapReady, shouldOpenDrawer } = useAppState();
+  const { setLocationsLoading, setLocationsLoaded, setLocationsProcessed, setMapReady, shouldOpenDrawer } = useAppState();
   
   // Add effect to log drawer state changes for debugging
   
@@ -137,6 +137,8 @@ const MapComponent: React.FC<MapProps> = () => {
     const fetchLocations = async () => {
       setIsLoadingLocations(true);
       setLoadError(null);
+      // Signal to AppStateContext that we're loading locations
+      setLocationsLoading();
       try {
         // Try to get locations from the session storage cache first
         const cachedLocations = sessionStorage.getItem('cachedLocations');
@@ -245,8 +247,13 @@ const MapComponent: React.FC<MapProps> = () => {
         // Cache the locations in session storage
         sessionStorage.setItem('cachedLocations', JSON.stringify(fetchedLocations));
         
-        // Signal that locations are fully processed (ready for display)
+        // CRITICAL: Signal that locations are loaded and then processed
+        // First mark as loaded
+        setLocationsLoaded();
+        
+        // Then after a small delay, mark as processed to ensure proper state transition
         setTimeout(() => {
+          console.log('🚀 Signaling locations are processed');
           setLocationsProcessed();
         }, 100);
       } catch (error) {
@@ -258,7 +265,7 @@ const MapComponent: React.FC<MapProps> = () => {
     };
 
     fetchLocations();
-  }, [isMobile, setVisibleLocations, setLocationsLoaded, setLocationsProcessed]);
+  }, [isMobile, setVisibleLocations, setLocationsLoaded, setLocationsProcessed, setLocationsLoading]);
 
   // Get user location on component mount without a timeout to ensure we wait for user permission response
   useEffect(() => {
@@ -374,7 +381,33 @@ const MapComponent: React.FC<MapProps> = () => {
     }
     centerMapOnLocation(userLocation, 'initial-load');
     
-  }, [map, userLocation, isMobile, centerMapOnLocation, mapReadyState]);
+    // After map is centered, ensure visibleLocations are populated if we haven't already
+    if (visibleLocations.length === 0 && locations.length > 0 && isMobile) {
+      console.log('🚀 Ensuring visibleLocations after map center (mobile)');
+      // Get 15 closest locations to user location
+      const locationsWithDistance = locations.map((location: Location) => {
+        const distance = Math.sqrt(
+          Math.pow(location.coordinates.lat - userLocation.lat, 2) +
+          Math.pow(location.coordinates.lng - userLocation.lng, 2)
+        );
+        return { location, distance };
+      });
+      locationsWithDistance.sort((a: {location: Location, distance: number}, b: {location: Location, distance: number}) =>
+        a.distance - b.distance
+      );
+      const closestLocations = locationsWithDistance
+        .map((item: {location: Location, distance: number}) => item.location)
+        .slice(0, 15);
+      setVisibleLocations(closestLocations);
+      
+      // Signal when locations are processed (as a final safety check)
+      setLocationsLoaded();
+      setTimeout(() => {
+        console.log('🚀 Final signal - locations are processed');
+        setLocationsProcessed();
+      }, 100);
+    }
+  }, [map, userLocation, isMobile, centerMapOnLocation, mapReadyState, visibleLocations.length, locations, setVisibleLocations, setLocationsLoaded, setLocationsProcessed]);
 
   // Handle InfoWindow for marker hovering
   useEffect(() => {
