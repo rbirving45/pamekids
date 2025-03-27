@@ -455,12 +455,18 @@ const MapComponent: React.FC<MapProps> = () => {
         
         // Get center of map
         const mapCenter = map.getCenter();
-        const mapCenterPosition = mapCenter ? {
+        if (!mapCenter) {
+          console.log('Map center not available after centering, skipping location update');
+          return;
+        }
+        
+        const mapCenterPosition = {
           lat: mapCenter.lat(),
           lng: mapCenter.lng()
-        } : userLocation;
+        };
         
-        // Calculate locations with distance from current map center
+        // SIMPLIFIED APPROACH: Always show 15 closest locations to map center
+        // Calculate distance for all locations from the current map center
         const locationsWithDistance = locations.map((location: Location) => {
           const distance = Math.sqrt(
             Math.pow(location.coordinates.lat - mapCenterPosition.lat, 2) +
@@ -469,15 +475,17 @@ const MapComponent: React.FC<MapProps> = () => {
           return { location, distance };
         });
         
+        // Sort by distance (closest first)
         locationsWithDistance.sort((a: {location: Location, distance: number}, b: {location: Location, distance: number}) =>
           a.distance - b.distance
         );
         
+        // Get the 15 closest locations to map center
         const closestLocations = locationsWithDistance
           .map((item: {location: Location, distance: number}) => item.location)
           .slice(0, 15);
         
-        // Always update visible locations to reflect current map view
+        // Update visible locations with the 15 closest to map center
         if (closestLocations.length > 0) {
           setVisibleLocations(closestLocations);
         }
@@ -734,38 +742,26 @@ const MapComponent: React.FC<MapProps> = () => {
       lng: center.lng()
     };
     
-    // Get the current bounds
-    const bounds = map.getBounds();
+    // SIMPLIFIED APPROACH: Always show 15 closest locations to map center
+    // Calculate distance for all locations from the current map center
+    const locationsWithDistance = locations.map(location => {
+      const distance = Math.sqrt(
+        Math.pow(location.coordinates.lat - mapCenterPosition.lat, 2) +
+        Math.pow(location.coordinates.lng - mapCenterPosition.lng, 2)
+      );
+      return { location, distance };
+    });
     
-    // First get locations within current bounds
-    const locationsInView = bounds ? locations.filter(location => {
-      return bounds.contains(location.coordinates);
-    }) : [];
+    // Sort by distance (closest first)
+    locationsWithDistance.sort((a, b) => a.distance - b.distance);
     
-    // If we have fewer than 10 locations in view, add closest locations outside bounds
-    if (locationsInView.length < 10) {
-      // Calculate distance for all locations
-      const locationsWithDistance = locations.map(location => {
-        const distance = Math.sqrt(
-          Math.pow(location.coordinates.lat - mapCenterPosition.lat, 2) +
-          Math.pow(location.coordinates.lng - mapCenterPosition.lng, 2)
-        );
-        return { location, distance };
-      });
-      
-      // Sort by distance (closest first)
-      locationsWithDistance.sort((a, b) => a.distance - b.distance);
-      
-      // Get just the locations (without distance property)
-      const closestLocations = locationsWithDistance
-        .map(item => item.location)
-        .slice(0, 15); // Take top 15 closest locations
-      
-      setVisibleLocations(closestLocations);
-    } else {
-      // If we already have 10+ locations in view, just use those
-      setVisibleLocations(locationsInView.slice(0, 15));
-    }
+    // Get the 15 closest locations to map center
+    const closestLocations = locationsWithDistance
+      .map(item => item.location)
+      .slice(0, 15);
+    
+    // Update visible locations with the 15 closest to map center
+    setVisibleLocations(closestLocations);
   }, [map, locations, setVisibleLocations]);
 
   // Get marker icon based on location's primary type or first type in the array
@@ -967,69 +963,41 @@ const MapComponent: React.FC<MapProps> = () => {
         return;
       }
       
-      // After initialization, always update locations based on map bounds
-
-      // Only update visible locations if drawer is closed or no locations yet
-      const bounds = map.getBounds();
-      if (bounds) {
-        // Get the map center
-        const center = map.getCenter();
-        if (!center) {
-          // If center is undefined, fallback to visible locations only
-          const locationsInView = locations.filter(location => {
-            return bounds.contains(location.coordinates);
-          });
-          setVisibleLocations(locationsInView);
-          return;
-        }
-        
-        const mapCenterPosition = {
-          lat: center.lat(),
-          lng: center.lng()
-        };
-        
-        // First get locations within current bounds
-        const locationsInView = locations.filter(location => {
-          return bounds.contains(location.coordinates);
-        });
-        
-        // If we have fewer than 10 locations in view, add closest locations outside bounds
-        if (locationsInView.length < 10) {
-          // Calculate distance for all locations outside the current bounds
-          const locationsOutsideView = locations.filter(location => {
-            return !bounds.contains(location.coordinates);
-          });
-          
-          // Calculate distance from map center for each location outside view
-          const locationsWithDistance = locationsOutsideView.map(location => {
-            // Simple Euclidean distance (sufficient for sorting by relative distance)
-            const distance = Math.sqrt(
-              Math.pow(location.coordinates.lat - mapCenterPosition.lat, 2) +
-              Math.pow(location.coordinates.lng - mapCenterPosition.lng, 2)
-            );
-            return { location, distance };
-          });
-          
-          // Sort by distance (closest first)
-          locationsWithDistance.sort((a, b) => a.distance - b.distance);
-          
-          // Get just the locations (without distance property)
-          const closestOutsideLocations = locationsWithDistance
-            .map(item => item.location)
-            .slice(0, 10 - locationsInView.length); // Take just enough to reach 10 total
-          
-          // Combine in-view locations with closest outside locations
-          const combinedLocations = [
-            ...locationsInView,           // In-bounds locations first
-            ...closestOutsideLocations    // Then closest out-of-bounds locations
-          ];
-          
-          setVisibleLocations(combinedLocations);
-        } else {
-          // If we already have 10+ locations in view, just use those
-          setVisibleLocations(locationsInView);
-        }
+      // After initialization, always update locations based on map center
+      
+      // Get the map center
+      const center = map.getCenter();
+      if (!center) {
+        console.log('Cannot update locations: map center is undefined');
+        return;
       }
+      
+      const mapCenterPosition = {
+        lat: center.lat(),
+        lng: center.lng()
+      };
+      
+      // SIMPLIFIED APPROACH: Always show 15 closest locations to map center
+      // Calculate distance for all locations from the current map center
+      const locationsWithDistance = locations.map(location => {
+        // Simple Euclidean distance (sufficient for sorting by relative distance)
+        const distance = Math.sqrt(
+          Math.pow(location.coordinates.lat - mapCenterPosition.lat, 2) +
+          Math.pow(location.coordinates.lng - mapCenterPosition.lng, 2)
+        );
+        return { location, distance };
+      });
+      
+      // Sort by distance (closest first)
+      locationsWithDistance.sort((a, b) => a.distance - b.distance);
+      
+      // Get the 15 closest locations to map center
+      const closestLocations = locationsWithDistance
+        .map(item => item.location)
+        .slice(0, 15);
+      
+      // Update visible locations with the 15 closest to map center
+      setVisibleLocations(closestLocations);
     });
     
     // Force a bounds_changed event after initialization to populate visible locations
