@@ -1619,7 +1619,7 @@ const MapComponent: React.FC<MapProps> = () => {
               // Additional open now check logic...
             }
             return true;
-          }).length === 0 ? "No Matching Activities - Clear" : "Clear Filters"}
+          }).length === 0 ? "No Matching Locations - Clear Filters" : "Clear Filters"}
         </button>
       )}
       
