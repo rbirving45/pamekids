@@ -98,7 +98,7 @@ const HomePage: React.FC = () => {
       </div>
       
       {/* Hero section */}
-      <section className="bg-blue-50 py-12 md:py-20">
+      <section className="bg-blue-50 py-12 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-3xl md:text-5xl font-bold text-blue-500 mb-6">
             Discover the best activities for kids in your area
@@ -106,8 +106,8 @@ const HomePage: React.FC = () => {
           {/* Mobile-optimized scrollable grid for main category buttons */}
           <div
             className={`${isMobile
-              ? 'grid grid-rows-2 grid-flow-col auto-cols-[38%] gap-3 overflow-x-auto snap-x snap-mandatory pb-4 px-2 no-scrollbar'
-              : 'grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-6 md:gap-8 px-4'}
+              ? 'grid grid-rows-2 grid-flow-col auto-cols-[38%] gap-4 overflow-x-auto snap-x snap-mandatory pb-6 px-2 no-scrollbar'
+              : 'grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-8 md:gap-10 px-4'}
               max-w-5xl mx-auto`}
             style={{
               scrollbarWidth: 'none',
@@ -117,27 +117,28 @@ const HomePage: React.FC = () => {
             {mainCategories.map(category => (
               <div
                 key={category.id}
-                className={`flex items-center justify-center ${isMobile ? 'snap-start' : 'aspect-square'}`}
+                className={`flex items-center justify-center ${isMobile ? 'snap-start' : ''}`}
               >
+              <div className="flex flex-col items-center">
                 <Link
                   to={`/?filter=${category.id}`}
-                  className={`flex flex-col items-center justify-center transition-transform hover:scale-105 ${isMobile ? 'p-2 w-full h-full' : 'p-3 w-4/5 h-4/5'}`}
+                  className={`flex items-center justify-center transition-transform hover:scale-105 ${isMobile ? 'w-20 h-20' : 'w-28 h-28'}`}
                   style={{
                     backgroundColor: category.color,
-                    borderRadius: '24px',
+                    borderRadius: '50%',
                     boxShadow: '0 6px 12px rgba(0, 0, 0, 0.08)',
-                    aspectRatio: '1/1',
                     touchAction: 'manipulation'
                   }}
                 >
-                  <div className={`${isMobile ? 'mb-1' : 'mb-2'} text-white`}>
+                  <div className="text-white">
                     {React.createElement(category.icon, {
-                      size: isMobile ? 40 : 64,
+                      size: isMobile ? 40 : 54,
                       strokeWidth: 1.5
                     })}
                   </div>
-                  <span className="font-bold text-white text-center text-sm">{category.name}</span>
                 </Link>
+                <span className={`font-bold text-blue-800 text-center mt-2 ${isMobile ? 'text-sm' : 'text-base'}`}>{category.name}</span>
+              </div>
               </div>
             ))}
           </div>
