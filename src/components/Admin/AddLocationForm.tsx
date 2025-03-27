@@ -16,19 +16,56 @@ interface GooglePlacePhoto {
 
 // Map Google place types to our ActivityType
 const activityTypeMapping: Record<string, ActivityType> = {
+  // Entertainment venues
   'amusement_park': 'entertainment',
+  'movie_theater': 'movies',
+  'bowling_alley': 'entertainment',
+  'casino': 'entertainment',
+  'theme_park': 'theme-park',
+  
+  // Educational places
   'aquarium': 'education',
-  'art_gallery': 'arts',
   'museum': 'education',
+  'library': 'education',
+  'school': 'education',
+  'university': 'education',
+  'science_museum': 'stem',
+  'history_museum': 'history',
+  
+  // Arts and culture
+  'art_gallery': 'arts',
+  'theater': 'drama',
+  'dance_studio': 'dance',
+  
+  // Outdoor activities
   'zoo': 'outdoor-play',
   'park': 'outdoor-play',
   'playground': 'outdoor-play',
+  'campground': 'camp',
+  'beach': 'beach',
+  'hiking_area': 'hike',
+  
+  // Sports facilities
   'stadium': 'sports',
-  'library': 'education',
-  'school': 'education',
   'gym': 'sports',
+  'sports_complex': 'sports',
+  'tennis_court': 'tennis',
+  'basketball_court': 'basketball',
+  'soccer_field': 'soccer',
+  'swimming_pool': 'swim',
+  'martial_arts_school': 'martial-arts',
+  'horse_riding': 'horseback-riding',
+  
+  // Food establishments
   'restaurant': 'restaurant',
-  'cafe': 'cafe'
+  'cafe': 'cafe',
+  
+  // Event venues
+  'event_venue': 'event-space',
+  
+  // Other relevant places
+  'language_school': 'language',
+  'yoga_studio': 'yoga'
 };
 
 interface AddLocationFormProps {
