@@ -17,11 +17,12 @@
     --z-filter-buttons: 130;
     --z-filter-buttons-active: 135;
     
-    /* Dropdowns (200-299) */
-    --z-dropdown-base: 200;
-    --z-search-results-dropdown: 210;
-    --z-age-dropdown: 220;
-    --z-filter-dropdown: 230;
+  /* Dropdowns (200-299) */
+  --z-dropdown-base: 200;
+  --z-search-results-dropdown: 210;
+  --z-age-dropdown: 220;
+  --z-filter-dropdown: 230;
+  --z-group-filter-dropdown: 240;
     
   /* Map Interactive Elements (300-399) */
   --z-marker-normal: 300;
@@ -81,8 +82,12 @@
     z-index: var(--z-search-results-dropdown);
   }
   
-  .z-age-dropdown {
-    z-index: var(--z-age-dropdown);
+  .z-filter-dropdown {
+    z-index: var(--z-filter-dropdown);
+  }
+  
+  .z-group-filter-dropdown {
+    z-index: var(--z-group-filter-dropdown);
   }
   
   .z-drawer-backdrop {

@@ -8,6 +8,7 @@ import { useMobile } from '../../contexts/MobileContext';
 import { useTouch } from '../../contexts/TouchContext';
 import { useAppState } from '../../contexts/AppStateContext';
 import MapBlockingOverlay from './MapBlockingOverlay';
+import GroupFilterDropdown from './GroupFilterDropdown';
 import { getLocations } from '../../utils/firebase-service';
 import { performEnhancedSearch, SearchMatch } from '../../utils/search-utils';
 import { ACTIVITY_CATEGORIES, ACTIVITY_GROUPS } from '../../utils/metadata';
@@ -1338,31 +1339,17 @@ const MapComponent: React.FC<MapProps> = () => {
             }}
           >
             {Object.entries(ACTIVITY_GROUPS).map(([groupKey, group]) => (
-              <button
+              <GroupFilterDropdown
                 key={groupKey}
-                onClick={() => toggleGroupFilter(groupKey)}
-                onTouchStart={(e) => {
-                  // Prevent propagation while allowing the click
-                  e.stopPropagation();
-                }}
-                onTouchEnd={(e) => {
-                  e.stopPropagation();
-                }}
-                style={{
-                  backgroundColor: activeGroups.includes(groupKey)
-                    ? group.color
-                    : 'rgb(243 244 246)',
-                  color: activeGroups.includes(groupKey)
-                    ? 'white'
-                    : 'rgb(55 65 81)',
-                  borderWidth: '1.5px',
-                  borderColor: group.color,
-                  touchAction: 'manipulation', // Optimize for tap/click
-                }}
-                className="snap-start flex-shrink-0 px-3 py-1 rounded-full text-sm font-medium transition-colors hover:opacity-90"
-              >
-                {group.name}
-              </button>
+                groupKey={groupKey}
+                groupName={group.name}
+                groupColor={group.color}
+                groupTypes={group.types}
+                activeFilters={activeFilters}
+                activeGroups={activeGroups}
+                onToggleGroup={toggleGroupFilter}
+                onToggleFilter={toggleFilter}
+              />
             ))}
 
             {/* Age Filter */}
