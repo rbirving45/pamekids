@@ -69,8 +69,14 @@ export const TWITTER = {
   imageAlt: OPEN_GRAPH.imageAlt,
 };
 
-// App activity categories with colors (from your activityConfig in App.tsx)
-export const ACTIVITY_CATEGORIES = {
+// Define type for activity category structure
+export interface ActivityCategory {
+  name: string;
+  color: string;
+}
+
+// App activity categories with colors
+export const ACTIVITY_CATEGORIES: Record<string, ActivityCategory> = {
   'indoor-play': { name: 'Indoor Play', color: '#FF4444' },
   'outdoor-play': { name: 'Outdoor Play', color: '#33B679' },
   'sports': { name: 'Sports', color: '#FF8C00' },

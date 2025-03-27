@@ -1,8 +1,8 @@
 // src/types/location.ts
-export type ActivityType = 'indoor-play' | 'outdoor-play' | 'sports' | 'arts' | 'music' | 'education' | 'entertainment' |
-  'camp' | 'language' | 'drama' | 'history' | 'stem' | 'animals' | 'playground' | 'play-space' |
-  'martial-arts' | 'soccer' | 'basketball' | 'tennis' | 'horseback-riding' | 'dance' | 'gymnastics' |
-  'yoga' | 'swim' | 'movies' | 'theme-park' | 'event-space' | 'beach' | 'hike' | 'restaurant' | 'cafe';
+import { ACTIVITY_CATEGORIES } from '../utils/metadata';
+
+// Derive the ActivityType from the keys of ACTIVITY_CATEGORIES
+export type ActivityType = keyof typeof ACTIVITY_CATEGORIES;
 
 export interface Location {
   id: string;

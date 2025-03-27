@@ -2,7 +2,7 @@ import React from 'react';
 import { ActivityType } from '../../types/location';
 import { ACTIVITY_CATEGORIES } from '../../utils/metadata';
 
-// Activity type options for dropdowns - using central metadata.ts as source of truth
+// Activity type options for dropdowns - using centralized metadata as source of truth
 const activityTypes: { value: ActivityType; label: string }[] = Object.entries(ACTIVITY_CATEGORIES).map(
   ([value, data]) => ({
     value: value as ActivityType,

@@ -14,6 +14,7 @@ interface GooglePlacePhoto {
   html_attributions?: string[];
 }
 
+// Map Google place types to our ActivityType
 const activityTypeMapping: Record<string, ActivityType> = {
   'amusement_park': 'entertainment',
   'aquarium': 'education',
@@ -26,8 +27,8 @@ const activityTypeMapping: Record<string, ActivityType> = {
   'library': 'education',
   'school': 'education',
   'gym': 'sports',
-  'restaurant': 'entertainment',
-  'cafe': 'entertainment'
+  'restaurant': 'restaurant',
+  'cafe': 'cafe'
 };
 
 interface AddLocationFormProps {
