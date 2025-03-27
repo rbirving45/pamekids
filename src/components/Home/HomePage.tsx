@@ -27,11 +27,11 @@ const mainCategories = [
   { id: 'outdoor-play', name: 'Outdoor Play', icon: Trees, color: '#4F6490' },
   { id: 'indoor-play', name: 'Indoor Play', icon: Home, color: '#E893B2' },
   { id: 'sports', name: 'Sports', icon: Trophy, color: '#6BAAD4' },
-  { id: 'entertainment', name: 'Entertainment', icon: Popcorn, color: '#E893B2' },
+  { id: 'entertainment', name: 'Entertainment', icon: Popcorn, color: '#8BC34A' },
   { id: 'nature', name: 'Nature', icon: Leaf, color: '#4F6490' },
   { id: 'food', name: 'Food', icon: UtensilsCrossed, color: '#6BAAD4' },
   { id: 'accommodation', name: 'Accommodation', icon: Hotel, color: '#F9D056' },
-  { id: 'free-activities', name: 'Free Activities', icon: Sparkles, color: '#8BC34A' } // New green color
+  { id: 'free-activities', name: 'Free Activities', icon: Sparkles, color: '#E893B2' } // New green color
 ];
 
 const HomePage: React.FC = () => {
@@ -80,7 +80,7 @@ const HomePage: React.FC = () => {
               <div className="flex-1 ml-2 w-full">
                 <input
                   type="text"
-                  placeholder="Search for activities in Athens..."
+                  placeholder="Search for activities..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -90,7 +90,7 @@ const HomePage: React.FC = () => {
           </div>
           <Link
             to="/"
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium"
+            className="bg-blue-500 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium"
           >
             Search
           </Link>
@@ -103,13 +103,25 @@ const HomePage: React.FC = () => {
           <h1 className="text-3xl md:text-5xl font-bold text-blue-500 mb-6">
             Discover the best activities for kids in your area
           </h1>
-          {/* Main category buttons grid - replacing the "Explore Map" button */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-6 md:gap-8 max-w-5xl mx-auto px-4">
+          {/* Mobile-optimized scrollable grid for main category buttons */}
+          <div
+            className={`${isMobile
+              ? 'grid grid-rows-2 grid-flow-col auto-cols-[38%] gap-3 overflow-x-auto snap-x snap-mandatory pb-4 px-2 no-scrollbar'
+              : 'grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-6 md:gap-8 px-4'}
+              max-w-5xl mx-auto`}
+            style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
+            }}
+          >
             {mainCategories.map(category => (
-              <div key={category.id} className="flex items-center justify-center aspect-square">
+              <div
+                key={category.id}
+                className={`flex items-center justify-center ${isMobile ? 'snap-start' : 'aspect-square'}`}
+              >
                 <Link
                   to={`/?filter=${category.id}`}
-                  className="flex flex-col items-center justify-center p-3 transition-transform hover:scale-105 w-4/5 h-4/5"
+                  className={`flex flex-col items-center justify-center transition-transform hover:scale-105 ${isMobile ? 'p-2 w-full h-full' : 'p-3 w-4/5 h-4/5'}`}
                   style={{
                     backgroundColor: category.color,
                     borderRadius: '24px',
@@ -118,8 +130,11 @@ const HomePage: React.FC = () => {
                     touchAction: 'manipulation'
                   }}
                 >
-                  <div className="mb-2 text-white">
-                    {React.createElement(category.icon, { size: 64, strokeWidth: 1.5 })}
+                  <div className={`${isMobile ? 'mb-1' : 'mb-2'} text-white`}>
+                    {React.createElement(category.icon, {
+                      size: isMobile ? 40 : 64,
+                      strokeWidth: 1.5
+                    })}
                   </div>
                   <span className="font-bold text-white text-center text-sm">{category.name}</span>
                 </Link>
@@ -128,54 +143,116 @@ const HomePage: React.FC = () => {
           </div>
         </div>
       </section>
-      
-      {/* Activity Types section - styled similarly to filter buttons */}
-      <section className="py-12">
+            
+      {/* Featured Content section */}
+      <section className="py-12 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">Browse by Activity Type</h2>
+          <h2 className="text-3xl md:text-2xl font-bold text-blue-500 mb-6">Featured Activities</h2>
           
-          <div className="flex flex-wrap gap-3 mb-6">
-            {Object.entries(activityConfig).map(([type, config]) => (
-              <Link
-                key={type}
-                to={`/?filter=${type}`}
-                style={{
-                  backgroundColor: 'rgb(243 244 246)',
-                  color: 'rgb(55 65 81)',
-                  borderWidth: '1.5px',
-                  borderColor: config.color,
-                  touchAction: 'manipulation'
-                }}
-                className="flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium transition-colors hover:opacity-90"
-              >
-                <span className="text-xl">{config.icon}</span>
-                <span>{config.name}</span>
-              </Link>
-            ))}
-          </div>
-          
-          {/* Age filters - similar to the app's age filter */}
-          <div className="mt-8">
-            <h3 className="text-xl font-semibold text-gray-700 mb-4">Popular Age Groups</h3>
-            <div className="flex flex-wrap gap-2">
-              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16].map(age => (
-                <Link
-                  key={age}
-                  to={`/?age=${age}`}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-full text-sm font-medium transition-colors"
-                >
-                  {age === 0 ? 'Infants' : age < 2 ? `${age} year` : `${age} years`}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Featured Card 1 */}
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="h-48 bg-gray-200">
+                {/* Image placeholder */}
+                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                  <span className="text-6xl">🎨</span>
+                </div>
+              </div>
+              <div className="p-4">
+                <div className="flex gap-2 mb-2">
+                  <span
+                    className="inline-block px-2 py-1 text-xs font-medium rounded-full"
+                    style={{
+                      backgroundColor: `${activityConfig['arts'].color}20`,
+                      color: activityConfig['arts'].color
+                    }}
+                  >
+                    Arts
+                  </span>
+                  <span
+                    className="inline-block px-2 py-1 text-xs font-medium rounded-full"
+                    style={{
+                      backgroundColor: `${activityConfig['education'].color}20`,
+                      color: activityConfig['education'].color
+                    }}
+                  >
+                    Education
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold text-gray-800 mb-1">Athens Art Workshop for Kids</h3>
+                <p className="text-sm text-gray-600 mb-2">Ages 6-12 • Central Athens</p>
+                <p className="text-sm text-gray-700 mb-4">Creative workshops where children learn various art techniques in a fun environment.</p>
+                <Link to="/" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                  View Details →
                 </Link>
-              ))}
+              </div>
+            </div>
+            
+            {/* Featured Card 2 */}
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="h-48 bg-gray-200">
+                {/* Image placeholder */}
+                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                  <span className="text-6xl">🏊</span>
+                </div>
+              </div>
+              <div className="p-4">
+                <div className="flex gap-2 mb-2">
+                  <span
+                    className="inline-block px-2 py-1 text-xs font-medium rounded-full"
+                    style={{
+                      backgroundColor: `${activityConfig['sports'].color}20`,
+                      color: activityConfig['sports'].color
+                    }}
+                  >
+                    Sports
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold text-gray-800 mb-1">Summer Swimming Classes</h3>
+                <p className="text-sm text-gray-600 mb-2">Ages 3-16 • Multiple Locations</p>
+                <p className="text-sm text-gray-700 mb-4">Professional swimming instruction for kids of all skill levels.</p>
+                <Link to="/" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                  View Details →
+                </Link>
+              </div>
+            </div>
+            
+            {/* Featured Card 3 */}
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="h-48 bg-gray-200">
+                {/* Image placeholder */}
+                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                  <span className="text-6xl">🎵</span>
+                </div>
+              </div>
+              <div className="p-4">
+                <div className="flex gap-2 mb-2">
+                  <span
+                    className="inline-block px-2 py-1 text-xs font-medium rounded-full"
+                    style={{
+                      backgroundColor: `${activityConfig['music'].color}20`,
+                      color: activityConfig['music'].color
+                    }}
+                  >
+                    Music
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold text-gray-800 mb-1">Kid's Music Academy</h3>
+                <p className="text-sm text-gray-600 mb-2">Ages 4-14 • Kolonaki</p>
+                <p className="text-sm text-gray-700 mb-4">Instrument lessons and music theory for children in a supportive environment.</p>
+                <Link to="/" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                  View Details →
+                </Link>
+              </div>
             </div>
           </div>
         </div>
       </section>
-      
+
       {/* Featured Content section */}
       <section className="py-12 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">Featured Activities</h2>
+          <h2 className="text-3xl md:text-2xl font-bold text-blue-500 mb-6">Free Activities</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Featured Card 1 */}
