@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMobile } from '../../contexts/MobileContext';
-import { Search } from 'lucide-react';
+import { Search, Tent, BookOpen, Trees, Home, Trophy, Popcorn, Leaf, UtensilsCrossed } from 'lucide-react';
 // Import modal components from existing app
 import { NewsletterButton, NewsletterModal } from '../Newsletter';
 import SuggestActivityButton from '../SuggestActivity/SuggestActivityButton';
@@ -19,6 +19,18 @@ const activityConfig = {
   'education': { ...ACTIVITY_CATEGORIES['education'], icon: '📚' },
   'entertainment': { ...ACTIVITY_CATEGORIES['entertainment'], icon: '🎪' }
 };
+
+// Main category buttons for the hero section
+const mainCategories = [
+  { id: 'camps', name: 'Camps', icon: Tent, color: '#F9D056' },
+  { id: 'learning', name: 'Learning', icon: BookOpen, color: '#6BAAD4' },
+  { id: 'outdoor-play', name: 'Outdoor Play', icon: Trees, color: '#4F6490' },
+  { id: 'indoor-play', name: 'Indoor Play', icon: Home, color: '#E893B2' },
+  { id: 'sports', name: 'Sports', icon: Trophy, color: '#4F6490' },
+  { id: 'entertainment', name: 'Entertainment', icon: Popcorn, color: '#E893B2' },
+  { id: 'nature', name: 'Nature', icon: Leaf, color: '#6BAAD4' },
+  { id: 'food', name: 'Food', icon: UtensilsCrossed, color: '#F9D056' }
+];
 
 const HomePage: React.FC = () => {
   const { isMobile } = useMobile();
@@ -84,20 +96,34 @@ const HomePage: React.FC = () => {
       </div>
       
       {/* Hero section */}
-      <section className="bg-blue-50 py-12 md:py-16">
+      <section className="bg-blue-50 py-12 md:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-3xl md:text-5xl font-bold text-blue-600 mb-4">
-            Discover the best kids' activities in Athens
+          <h1 className="text-3xl md:text-5xl font-bold text-blue-500 mb-6">
+            Discover the best kids' activities in your neighborhood
           </h1>
-          <p className="text-lg md:text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Find perfect places for children of all ages
-          </p>
-          <Link
-            to="/"
-            className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200"
-          >
-            Explore Map
-          </Link>
+          {/* Main category buttons grid - replacing the "Explore Map" button */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 md:gap-8 max-w-4xl mx-auto px-4">
+            {mainCategories.map(category => (
+              <div key={category.id} className="flex items-center justify-center aspect-square">
+                <Link
+                  to={`/?filter=${category.id}`}
+                  className="flex flex-col items-center justify-center p-3 transition-transform hover:scale-105 w-4/5 h-4/5"
+                  style={{
+                    backgroundColor: category.color,
+                    borderRadius: '24px',
+                    boxShadow: '0 6px 12px rgba(0, 0, 0, 0.08)',
+                    aspectRatio: '1/1',
+                    touchAction: 'manipulation'
+                  }}
+                >
+                  <div className="mb-2 text-white">
+                    {React.createElement(category.icon, { size: 64, strokeWidth: 1.5 })}
+                  </div>
+                  <span className="font-bold text-white text-center text-sm">{category.name}</span>
+                </Link>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
       
