@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { GoogleMap, LoadScriptNext, Marker, Libraries } from '@react-google-maps/api';
+import { useLocation } from 'react-router-dom';
 import Drawer from './Drawer';
 import { ActivityType, Location } from '../../types/location';
 import { Search, ChevronDown } from 'lucide-react';
@@ -30,6 +31,9 @@ type SearchResult = SearchMatch;
 const activityConfig = ACTIVITY_CATEGORIES;
 
 const MapComponent: React.FC<MapProps> = () => {
+  // Get location for URL parameter access
+  const location = useLocation();
+  
   // Add state for locations, loading state, and error handling
   const [locations, setLocations] = useState<Location[]>([]);
   const [isLoadingLocations, setIsLoadingLocations] = useState(true);
@@ -64,6 +68,7 @@ const MapComponent: React.FC<MapProps> = () => {
   const [openNowFilter, setOpenNowFilter] = useState(false);
   const [activeFilters, setActiveFilters] = useState<ActivityType[]>([]);
   const [activeGroups, setActiveGroups] = useState<string[]>([]);
+  const [freeActivitiesFilter, setFreeActivitiesFilter] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -130,6 +135,77 @@ const MapComponent: React.FC<MapProps> = () => {
       setVisibleLocations(locations.slice(0, 15));
     }
   }, [isMobile, visibleLocations.length, locations, isLoadingLocations, mapReadyState, setVisibleLocations]);
+  
+  // Process URL parameters for filtering
+  useEffect(() => {
+    // Get filter parameters
+    const queryParams = new URLSearchParams(location.search);
+    
+    // Clear existing filters first
+    setActiveFilters([]);
+    setActiveGroups([]);
+    setFreeActivitiesFilter(false);
+    setSelectedAge(null);
+    setOpenNowFilter(false);
+    
+    // Process activity group filter or free activities filter
+    const filterParam = queryParams.get('filter');
+    if (filterParam) {
+      if (filterParam === 'free-activities') {
+        // Handle special case for free activities
+        console.log('Applying free activities filter from URL');
+        setFreeActivitiesFilter(true);
+      } else if (Object.keys(ACTIVITY_GROUPS).includes(filterParam)) {
+        // If the filter parameter matches an activity group, apply that filter
+        console.log(`Applying group filter from URL: ${filterParam}`);
+        
+        // Set the new filter group
+        const group = ACTIVITY_GROUPS[filterParam];
+        setActiveGroups([filterParam]);
+        
+        // Add all types from this group to active filters
+        const typesInGroup = group.types as ActivityType[];
+        setActiveFilters(typesInGroup);
+      }
+    }
+    
+    // Process price filter (alternative to free-activities)
+    const priceParam = queryParams.get('price');
+    if (priceParam === 'Free') {
+      console.log('Applying price=Free filter from URL');
+      setFreeActivitiesFilter(true);
+    }
+    
+    // Process age filter
+    const ageParam = queryParams.get('age');
+    if (ageParam && !isNaN(parseInt(ageParam))) {
+      const age = parseInt(ageParam);
+      console.log(`Applying age filter from URL: ${age}`);
+      setSelectedAge(age);
+    }
+    
+    // Process open now filter
+    const openNowParam = queryParams.get('open');
+    if (openNowParam === 'true') {
+      console.log('Applying open now filter from URL');
+      setOpenNowFilter(true);
+    }
+    
+    // Log all applied filters
+    if (process.env.NODE_ENV === 'development') {
+      const appliedFilters = [];
+      if (filterParam) appliedFilters.push(`filter=${filterParam}`);
+      if (priceParam) appliedFilters.push(`price=${priceParam}`);
+      if (ageParam) appliedFilters.push(`age=${ageParam}`);
+      if (openNowParam) appliedFilters.push(`open=${openNowParam}`);
+      
+      if (appliedFilters.length > 0) {
+        console.log('Applied URL filters:', appliedFilters.join(', '));
+      } else {
+        console.log('No URL filters applied');
+      }
+    }
+  }, [location.search]);
   
   // Fetch locations from Firebase on component mount
   useEffect(() => {
@@ -835,6 +911,7 @@ const MapComponent: React.FC<MapProps> = () => {
     setActiveGroups([]);
     setSelectedAge(null);
     setOpenNowFilter(false);
+    setFreeActivitiesFilter(false);
   };
   // Handle search select
   const handleSearchSelect = (location: Location, index: number = 0) => {
@@ -1552,7 +1629,7 @@ const MapComponent: React.FC<MapProps> = () => {
       </div>
 
       {/* Mobile-only floating Clear All button */}
-      {isMobile && (activeFilters.length > 0 || activeGroups.length > 0 || selectedAge !== null || openNowFilter) && (
+      {isMobile && (activeFilters.length > 0 || activeGroups.length > 0 || selectedAge !== null || openNowFilter || freeActivitiesFilter) && (
         <button
           onClick={clearFilters}
           className={`fixed z-mobile-button shadow-sm border rounded-full px-3 py-1.5 text-xs flex items-center gap-1 ${
@@ -1608,6 +1685,10 @@ const MapComponent: React.FC<MapProps> = () => {
                 return false;
               }
             }
+            // Check against free activities filter
+            if (freeActivitiesFilter && location.priceRange !== "Free") {
+              return false;
+            }
             // Check against open now filter
             if (openNowFilter) {
               const now = new Date();
@@ -1616,7 +1697,6 @@ const MapComponent: React.FC<MapProps> = () => {
               if (!hours || hours === 'Closed' || hours === 'Hours not available') {
                 return false;
               }
-              // Additional open now check logic...
             }
             return true;
           }).length === 0 ? "No Matching Locations - Clear Filters" : "Clear Filters"}
@@ -1737,6 +1817,12 @@ const MapComponent: React.FC<MapProps> = () => {
                     return false;
                   }
                 }
+                if (freeActivitiesFilter) {
+                  // Check if priceRange is "Free" for the free activities filter
+                  if (location.priceRange !== "Free") {
+                    return false;
+                  }
+                }
                 if (openNowFilter) {
                   const now = new Date();
                   const day = now.toLocaleDateString('en-US', { weekday: 'long' });
@@ -1834,7 +1920,7 @@ const MapComponent: React.FC<MapProps> = () => {
               />
             ))}
             // Close the useMemo callback and dependencies array
-            , [locations, activeFilters, selectedAge, openNowFilter, selectedLocation, hoveredLocation, getMarkerIcon, handleLocationSelect, isMobile, setDrawerState, setHoveredLocation, getZIndexValue])}
+            , [locations, activeFilters, selectedAge, openNowFilter, freeActivitiesFilter, selectedLocation, hoveredLocation, getMarkerIcon, handleLocationSelect, isMobile, setDrawerState, setHoveredLocation, getZIndexValue])}
 
             {/* User location marker */}
             {maps && (

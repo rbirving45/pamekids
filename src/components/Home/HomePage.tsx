@@ -31,7 +31,7 @@ const mainCategories = [
   { id: 'nature', name: 'Nature', icon: Leaf, color: '#4F6490' },
   { id: 'food', name: 'Food', icon: UtensilsCrossed, color: '#6BAAD4' },
   { id: 'accommodation', name: 'Accommodation', icon: Hotel, color: '#F9D056' },
-  { id: 'free-activities', name: 'Free Activities', icon: Sparkles, color: '#E893B2' } // New green color
+  { id: 'free-activities', name: 'Free Activities', icon: Sparkles, color: '#E893B2' } // Special filter for free activities
 ];
 
 const HomePage: React.FC = () => {

@@ -112,7 +112,8 @@ export const ACTIVITY_CATEGORIES: Record<string, ActivityCategory> = {
   'easter-camp': { name: 'Easter Camp', color: '#AFB42B' },
   'hotel': { name: 'Hotel', color: '#5D4037' },
   'resort': { name: 'Resort', color: '#00796B' },
-  'nature': { name: 'Nature', color: '#80DEEA' }
+  'nature': { name: 'Nature', color: '#80DEEA' },
+  'cooking': { name: 'Education', color: '#4285F4' }
 };
 
 // City information
