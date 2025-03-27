@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMobile } from '../../contexts/MobileContext';
-import { Search, Tent, BookOpen, Trees, Home, Trophy, Popcorn, Leaf, UtensilsCrossed } from 'lucide-react';
+import { Search, Tent, BookOpen, Trees, Home, Trophy, Popcorn, Leaf, UtensilsCrossed, Hotel, Sparkles } from 'lucide-react';
 // Import modal components from existing app
 import { NewsletterButton, NewsletterModal } from '../Newsletter';
 import SuggestActivityButton from '../SuggestActivity/SuggestActivityButton';
@@ -23,13 +23,15 @@ const activityConfig = {
 // Main category buttons for the hero section
 const mainCategories = [
   { id: 'camps', name: 'Camps', icon: Tent, color: '#F9D056' },
-  { id: 'learning', name: 'Learning', icon: BookOpen, color: '#6BAAD4' },
+  { id: 'learning', name: 'Learning', icon: BookOpen, color: '#8BC34A' },
   { id: 'outdoor-play', name: 'Outdoor Play', icon: Trees, color: '#4F6490' },
   { id: 'indoor-play', name: 'Indoor Play', icon: Home, color: '#E893B2' },
-  { id: 'sports', name: 'Sports', icon: Trophy, color: '#4F6490' },
+  { id: 'sports', name: 'Sports', icon: Trophy, color: '#6BAAD4' },
   { id: 'entertainment', name: 'Entertainment', icon: Popcorn, color: '#E893B2' },
-  { id: 'nature', name: 'Nature', icon: Leaf, color: '#6BAAD4' },
-  { id: 'food', name: 'Food', icon: UtensilsCrossed, color: '#F9D056' }
+  { id: 'nature', name: 'Nature', icon: Leaf, color: '#4F6490' },
+  { id: 'food', name: 'Food', icon: UtensilsCrossed, color: '#6BAAD4' },
+  { id: 'accommodation', name: 'Accommodation', icon: Hotel, color: '#F9D056' },
+  { id: 'free-activities', name: 'Free Activities', icon: Sparkles, color: '#8BC34A' } // New green color
 ];
 
 const HomePage: React.FC = () => {
@@ -99,10 +101,10 @@ const HomePage: React.FC = () => {
       <section className="bg-blue-50 py-12 md:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-3xl md:text-5xl font-bold text-blue-500 mb-6">
-            Discover the best kids' activities in your neighborhood
+            Discover the best activities for kids in your area
           </h1>
           {/* Main category buttons grid - replacing the "Explore Map" button */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 md:gap-8 max-w-4xl mx-auto px-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-6 md:gap-8 max-w-5xl mx-auto px-4">
             {mainCategories.map(category => (
               <div key={category.id} className="flex items-center justify-center aspect-square">
                 <Link
