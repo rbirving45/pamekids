@@ -10,7 +10,7 @@ import { useAppState } from '../../contexts/AppStateContext';
 import MapBlockingOverlay from './MapBlockingOverlay';
 import { getLocations } from '../../utils/firebase-service';
 import { performEnhancedSearch, SearchMatch } from '../../utils/search-utils';
-import { ACTIVITY_CATEGORIES } from '../../utils/metadata';
+import { ACTIVITY_CATEGORIES, ACTIVITY_GROUPS } from '../../utils/metadata';
 
 // Using MobileContext instead of local mobile detection
 
@@ -62,6 +62,7 @@ const MapComponent: React.FC<MapProps> = () => {
   const [hoveredLocation, setHoveredLocation] = useState<Location | null>(null);
   const [openNowFilter, setOpenNowFilter] = useState(false);
   const [activeFilters, setActiveFilters] = useState<ActivityType[]>([]);
+  const [activeGroups, setActiveGroups] = useState<string[]>([]);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -785,6 +786,8 @@ const MapComponent: React.FC<MapProps> = () => {
     };
   }, [maps]);
 
+  // Toggle for individual activity types
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const toggleFilter = (type: ActivityType) => {
     setActiveFilters(prev => 
       prev.includes(type) 
@@ -792,9 +795,38 @@ const MapComponent: React.FC<MapProps> = () => {
         : [...prev, type]
     );
   };
+  
+  // Toggle for activity groups
+  const toggleGroupFilter = (groupKey: string) => {
+    const group = ACTIVITY_GROUPS[groupKey];
+    if (!group) return;
+    
+    // Check if group is already active
+    const isGroupActive = activeGroups.includes(groupKey);
+    
+    // Update active groups
+    setActiveGroups(prev =>
+      isGroupActive
+        ? prev.filter(g => g !== groupKey)
+        : [...prev, groupKey]
+    );
+    
+    // Update active filters based on the group's types
+    setActiveFilters(prev => {
+      if (isGroupActive) {
+        // Remove all types in this group from active filters
+        return prev.filter(t => !group.types.includes(t));
+      } else {
+        // Add all types in this group to active filters (avoiding duplicates)
+        const newTypes = group.types.filter(t => !prev.includes(t as ActivityType));
+        return [...prev, ...newTypes as ActivityType[]];
+      }
+    });
+  };
 
   const clearFilters = () => {
     setActiveFilters([]);
+    setActiveGroups([]);
     setSelectedAge(null);
     setOpenNowFilter(false);
   };
@@ -1285,7 +1317,7 @@ const MapComponent: React.FC<MapProps> = () => {
           {/* Vertical divider */}
           <div className="h-6 w-px bg-gray-200"></div>
 
-          {/* Activity Filters */}
+          {/* Activity Group Filters */}
           <div
             className="flex gap-2 snap-x snap-mandatory overflow-x-auto"
             onTouchStart={(e) => {
@@ -1305,10 +1337,10 @@ const MapComponent: React.FC<MapProps> = () => {
               pointerEvents: 'auto'
             }}
           >
-            {Object.entries(activityConfig).map(([type, config]) => (
+            {Object.entries(ACTIVITY_GROUPS).map(([groupKey, group]) => (
               <button
-                key={type}
-                onClick={() => toggleFilter(type as ActivityType)}
+                key={groupKey}
+                onClick={() => toggleGroupFilter(groupKey)}
                 onTouchStart={(e) => {
                   // Prevent propagation while allowing the click
                   e.stopPropagation();
@@ -1317,19 +1349,19 @@ const MapComponent: React.FC<MapProps> = () => {
                   e.stopPropagation();
                 }}
                 style={{
-                  backgroundColor: activeFilters.includes(type as ActivityType)
-                    ? config.color
+                  backgroundColor: activeGroups.includes(groupKey)
+                    ? group.color
                     : 'rgb(243 244 246)',
-                  color: activeFilters.includes(type as ActivityType)
+                  color: activeGroups.includes(groupKey)
                     ? 'white'
                     : 'rgb(55 65 81)',
                   borderWidth: '1.5px',
-                  borderColor: config.color,
+                  borderColor: group.color,
                   touchAction: 'manipulation', // Optimize for tap/click
                 }}
                 className="snap-start flex-shrink-0 px-3 py-1 rounded-full text-sm font-medium transition-colors hover:opacity-90"
               >
-                {config.name}
+                {group.name}
               </button>
             ))}
 
@@ -1414,7 +1446,7 @@ const MapComponent: React.FC<MapProps> = () => {
             </button>
 
             {/* Clear Filters - visible only on desktop when filters are active */}
-            {!isMobile && (activeFilters.length > 0 || selectedAge !== null || openNowFilter) && (
+            {!isMobile && (activeFilters.length > 0 || activeGroups.length > 0 || selectedAge !== null || openNowFilter) && (
               <button
                 onClick={clearFilters}
                 onTouchStart={(e) => {
@@ -1436,7 +1468,7 @@ const MapComponent: React.FC<MapProps> = () => {
       </div>
 
       {/* Mobile-only floating Clear All button */}
-      {isMobile && (activeFilters.length > 0 || selectedAge !== null || openNowFilter) && (
+      {isMobile && (activeFilters.length > 0 || activeGroups.length > 0 || selectedAge !== null || openNowFilter) && (
         <button
           onClick={clearFilters}
           className="fixed z-mobile-button bg-white bg-opacity-75 shadow-sm border border-gray-200 rounded-full px-3 py-1.5 text-xs font-medium text-red-600 flex items-center gap-1"

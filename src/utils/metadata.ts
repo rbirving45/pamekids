@@ -107,7 +107,11 @@ export const ACTIVITY_CATEGORIES: Record<string, ActivityCategory> = {
   'beach': { name: 'Beaches', color: '#80DEEA' },
   'hike': { name: 'Hiking', color: '#66BB6A' },
   'restaurant': { name: 'Restaurants', color: '#EF5350' },
-  'cafe': { name: 'Cafes', color: '#D4E157' }
+  'cafe': { name: 'Cafes', color: '#D4E157' },
+  'summer-camp': { name: 'Summer Camp', color: '#8BC34A' },
+  'easter-camp': { name: 'Easter Camp', color: '#AFB42B' },
+  'hotel': { name: 'Hotel', color: '#5D4037' },
+  'resort': { name: 'Resort', color: '#00796B' }
 };
 
 // City information
@@ -121,4 +125,60 @@ export const CITY = {
 // Analytics configuration
 export const ANALYTICS = {
   GA_MEASUREMENT_ID: 'G-0JSE2646NP',
+};
+
+// Define interface for activity group structure
+export interface ActivityGroup {
+  name: string;      // Display name for the group
+  color: string;     // Color for the group button
+  types: string[];   // Array of activity type keys that belong to this group
+}
+
+// Activity groups for filter organization
+export const ACTIVITY_GROUPS: Record<string, ActivityGroup> = {
+  'camps': {
+    name: 'Camps',
+    color: '#8BC34A',
+    types: ['camp', 'summer-camp', 'easter-camp']
+  },
+  'learning': {
+    name: 'Learning',
+    color: '#4285F4',
+    types: ['music', 'language', 'arts', 'drama', 'history', 'stem', 'animals', 'education']
+  },
+  'outdoor-play': {
+    name: 'Outdoor Play',
+    color: '#33B679',
+    types: ['outdoor-play', 'playground']
+  },
+  'indoor-play': {
+    name: 'Indoor Play',
+    color: '#FF4444',
+    types: ['indoor-play', 'play-space']
+  },
+  'sports': {
+    name: 'Sports',
+    color: '#FF8C00',
+    types: ['sports', 'martial-arts', 'soccer', 'basketball', 'tennis', 'horseback-riding', 'dance', 'gymnastics', 'yoga', 'swim']
+  },
+  'entertainment': {
+    name: 'Entertainment',
+    color: '#FFB300',
+    types: ['movies', 'theme-park', 'event-space', 'entertainment']
+  },
+  'nature': {
+    name: 'Nature',
+    color: '#66BB6A',
+    types: ['beach', 'hike']
+  },
+  'food': {
+    name: 'Food',
+    color: '#EF5350',
+    types: ['restaurant', 'cafe']
+  },
+  'accommodation': {
+    name: 'Accommodation',
+    color: '#5D4037',
+    types: ['hotel', 'resort']
+  }
 };
