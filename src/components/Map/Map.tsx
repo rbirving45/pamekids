@@ -87,6 +87,8 @@ const MapComponent: React.FC<MapProps> = () => {
   const ageDropdownRef = useRef<HTMLDivElement>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const drawerInitializedRef = useRef<boolean>(false);
+  // Add a ref to track when initial loading is complete (to allow drawer updates during map panning)
+  const initializationCompleteRef = useRef<boolean>(false);
 
   // This function has been removed as we now use a simpler approach for map positioning
   
@@ -439,15 +441,30 @@ const MapComponent: React.FC<MapProps> = () => {
     setTimeout(() => {
       centeringInProgressRef.current = false;
       
-      // Only update locations if drawer is showing and we need to
-      if (drawerState !== 'closed' && visibleLocations.length === 0 && locations.length > 0) {
-        console.log('🚀 Repopulating locations in drawer after centering');
+      // IMPORTANT: Mark initialization as complete after first centering
+      // This will allow the drawer to update on subsequent map movements
+      if (!initializationCompleteRef.current) {
+        console.log('🚀 Map initialization complete - enabling drawer updates on map moves');
+        initializationCompleteRef.current = true;
+      }
+      
+      // Always update visible locations after centering, regardless of drawer state
+      // This ensures locations reflect the current map view
+      if (locations.length > 0) {
+        console.log('🚀 Updating visible locations after map centering');
         
-        // Only get closest locations if we need to
+        // Get center of map
+        const mapCenter = map.getCenter();
+        const mapCenterPosition = mapCenter ? {
+          lat: mapCenter.lat(),
+          lng: mapCenter.lng()
+        } : userLocation;
+        
+        // Calculate locations with distance from current map center
         const locationsWithDistance = locations.map((location: Location) => {
           const distance = Math.sqrt(
-            Math.pow(location.coordinates.lat - userLocation.lat, 2) +
-            Math.pow(location.coordinates.lng - userLocation.lng, 2)
+            Math.pow(location.coordinates.lat - mapCenterPosition.lat, 2) +
+            Math.pow(location.coordinates.lng - mapCenterPosition.lng, 2)
           );
           return { location, distance };
         });
@@ -460,7 +477,7 @@ const MapComponent: React.FC<MapProps> = () => {
           .map((item: {location: Location, distance: number}) => item.location)
           .slice(0, 15);
         
-        // Only update if we actually have locations to show
+        // Always update visible locations to reflect current map view
         if (closestLocations.length > 0) {
           setVisibleLocations(closestLocations);
         }
@@ -702,6 +719,55 @@ const MapComponent: React.FC<MapProps> = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, locations]);
 
+  // Function to force update visible locations based on current map position
+  const updateVisibleLocations = useCallback(() => {
+    if (!map || locations.length === 0) return;
+    
+    console.log('🔄 Force updating visible locations based on current map view');
+    
+    // Get the map center
+    const center = map.getCenter();
+    if (!center) return;
+    
+    const mapCenterPosition = {
+      lat: center.lat(),
+      lng: center.lng()
+    };
+    
+    // Get the current bounds
+    const bounds = map.getBounds();
+    
+    // First get locations within current bounds
+    const locationsInView = bounds ? locations.filter(location => {
+      return bounds.contains(location.coordinates);
+    }) : [];
+    
+    // If we have fewer than 10 locations in view, add closest locations outside bounds
+    if (locationsInView.length < 10) {
+      // Calculate distance for all locations
+      const locationsWithDistance = locations.map(location => {
+        const distance = Math.sqrt(
+          Math.pow(location.coordinates.lat - mapCenterPosition.lat, 2) +
+          Math.pow(location.coordinates.lng - mapCenterPosition.lng, 2)
+        );
+        return { location, distance };
+      });
+      
+      // Sort by distance (closest first)
+      locationsWithDistance.sort((a, b) => a.distance - b.distance);
+      
+      // Get just the locations (without distance property)
+      const closestLocations = locationsWithDistance
+        .map(item => item.location)
+        .slice(0, 15); // Take top 15 closest locations
+      
+      setVisibleLocations(closestLocations);
+    } else {
+      // If we already have 10+ locations in view, just use those
+      setVisibleLocations(locationsInView.slice(0, 15));
+    }
+  }, [map, locations, setVisibleLocations]);
+
   // Get marker icon based on location's primary type or first type in the array
   const getMarkerIcon = useCallback((location: Location) => {
     // Use primary type if available, otherwise use first type in the array
@@ -893,13 +959,15 @@ const MapComponent: React.FC<MapProps> = () => {
 
     // Add listener for bounds_changed to update visible locations
     map.addListener('bounds_changed', () => {
-      // CRITICAL: Don't update visible locations if the drawer is already open
-      // This prevents the list from being cleared when map moves after initial load
-      if (drawerState !== 'closed' && visibleLocations.length > 0) {
-        // Skip bounds_changed handling when drawer is open to prevent clearing locations
-        console.log('Skipping bounds_changed handling - drawer is open and locations are preserved');
+      // Only skip updating visible locations during the initialization phase
+      // After initialization is complete, we should update locations even when drawer is open
+      if (!initializationCompleteRef.current && drawerState !== 'closed' && visibleLocations.length > 0) {
+        // Skip bounds_changed handling only during initialization to prevent clearing locations
+        console.log('Skipping bounds_changed handling - still in initialization phase');
         return;
       }
+      
+      // After initialization, always update locations based on map bounds
 
       // Only update visible locations if drawer is closed or no locations yet
       const bounds = map.getBounds();
@@ -987,6 +1055,15 @@ const MapComponent: React.FC<MapProps> = () => {
       setSelectedLocation(null);
     }
   }, [isMobile, setDrawerState, setSelectedLocation]);
+  
+  // Handle back to list functionality - ensure locations are updated
+  const handleBackToList = useCallback(() => {
+    // Update visible locations when going back to the list view
+    updateVisibleLocations();
+    
+    // Clear selected location but keep drawer open
+    setSelectedLocation(null);
+  }, [updateVisibleLocations, setSelectedLocation]);
 
   // Handle location selection from tile or marker
   const handleLocationSelect = useCallback((location: Location, source: 'map_click' | 'list_item' = 'map_click') => {
@@ -1756,7 +1833,7 @@ const MapComponent: React.FC<MapProps> = () => {
               mobileDrawerOpen={drawerState !== 'closed'}
               backToList={() => {
                 // Transition to list view on mobile while preserving drawer state
-                setSelectedLocation(null);
+                handleBackToList();
                 
                 // Ensure drawer state is preserved in TouchContext
                 // When going back to list from detail, always keep the drawer visible
@@ -1784,6 +1861,9 @@ const MapComponent: React.FC<MapProps> = () => {
             // Reset initialization flag so drawer opens consistently
             drawerInitializedRef.current = true;
             console.log('Floating button clicked - opening drawer');
+            
+            // Force update visible locations when reopening drawer
+            updateVisibleLocations();
           }}
           onTouchStart={(e) => {
             // Prevent touch events from reaching the map
