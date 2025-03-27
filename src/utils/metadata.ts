@@ -111,7 +111,8 @@ export const ACTIVITY_CATEGORIES: Record<string, ActivityCategory> = {
   'summer-camp': { name: 'Summer Camp', color: '#8BC34A' },
   'easter-camp': { name: 'Easter Camp', color: '#AFB42B' },
   'hotel': { name: 'Hotel', color: '#5D4037' },
-  'resort': { name: 'Resort', color: '#00796B' }
+  'resort': { name: 'Resort', color: '#00796B' },
+  'nature': { name: 'Nature', color: '#80DEEA' }
 };
 
 // City information
@@ -169,7 +170,7 @@ export const ACTIVITY_GROUPS: Record<string, ActivityGroup> = {
   'nature': {
     name: 'Nature',
     color: '#66BB6A',
-    types: ['beach', 'hike']
+    types: ['nature', 'beach', 'hike']
   },
   'food': {
     name: 'Food',
