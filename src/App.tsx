@@ -10,6 +10,7 @@ import { MobileProvider, useMobile } from './contexts/MobileContext';
 import { TouchProvider, useTouch } from './contexts/TouchContext';
 import { AppStateProvider } from './contexts/AppStateContext';
 import SEO from './components/SEO';
+import HomePage from './components/Home/HomePage';
 
 import MapComponent from './components/Map/Map';
 import MapBlockingOverlay from './components/Map/MapBlockingOverlay';
@@ -222,6 +223,7 @@ function App() {
           >
             <Routes>
               <Route path="/" element={<MainApp />} />
+              <Route path="/home" element={<HomePage />} />
               <Route
                 path="/admin"
                 element={
