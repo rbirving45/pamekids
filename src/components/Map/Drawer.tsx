@@ -648,7 +648,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
         initState === 'locations-processed' ||
         initState === 'drawer-initialized' ||
         initState === 'fully-ready'
-      )))
+      ) && displayedLocations.length > 0)) // Only render list drawer if we have visible locations
     : true; // Always render on desktop (visibility controlled by CSS)
   
   // Log when visibleLocations change

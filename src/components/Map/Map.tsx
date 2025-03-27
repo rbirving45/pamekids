@@ -1555,11 +1555,40 @@ const MapComponent: React.FC<MapProps> = () => {
       {isMobile && (activeFilters.length > 0 || activeGroups.length > 0 || selectedAge !== null || openNowFilter) && (
         <button
           onClick={clearFilters}
-          className="fixed z-mobile-button bg-white bg-opacity-75 shadow-sm border border-gray-200 rounded-full px-3 py-1.5 text-xs font-medium text-red-600 flex items-center gap-1"
+          className={`fixed z-mobile-button shadow-sm border rounded-full px-3 py-1.5 text-xs flex items-center gap-1 ${
+            locations.filter(location => {
+              // Check against active filters
+              if (activeFilters.length > 0 && !location.types.some(type => activeFilters.includes(type))) {
+                return false;
+              }
+              // Check against age filter
+              if (selectedAge !== null) {
+                if (selectedAge < location.ageRange.min || selectedAge > location.ageRange.max) {
+                  return false;
+                }
+              }
+              // Check against open now filter
+              if (openNowFilter) {
+                const now = new Date();
+                const day = now.toLocaleDateString('en-US', { weekday: 'long' });
+                const hours = location.openingHours[day];
+                if (!hours || hours === 'Closed' || hours === 'Hours not available') {
+                  return false;
+                }
+              }
+              return true;
+            }).length === 0
+              ? "bg-red-50 border-red-200 text-red-600 font-bold"
+              : "bg-white bg-opacity-75 border-gray-200 text-red-600 font-medium"
+          }`}
           style={{
             top: '120px', // Increased position to ensure it's below filter bar (header 64px + filter bar 42px)
             left: '8px', // Align to the left with some padding
-            transition: 'opacity 0.2s ease-in-out'
+            transition: 'opacity 0.2s ease-in-out',
+            maxWidth: 'min(calc(100vw - 20px), 260px)', // Wider with less constraint
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
           }}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1567,7 +1596,30 @@ const MapComponent: React.FC<MapProps> = () => {
             <line x1="15" y1="9" x2="9" y2="15"></line>
             <line x1="9" y1="9" x2="15" y2="15"></line>
           </svg>
-          Clear Filters
+          {/* Check if the filtered locations list is empty */}
+          {locations.filter(location => {
+            // Check against active filters
+            if (activeFilters.length > 0 && !location.types.some(type => activeFilters.includes(type))) {
+              return false;
+            }
+            // Check against age filter
+            if (selectedAge !== null) {
+              if (selectedAge < location.ageRange.min || selectedAge > location.ageRange.max) {
+                return false;
+              }
+            }
+            // Check against open now filter
+            if (openNowFilter) {
+              const now = new Date();
+              const day = now.toLocaleDateString('en-US', { weekday: 'long' });
+              const hours = location.openingHours[day];
+              if (!hours || hours === 'Closed' || hours === 'Hours not available') {
+                return false;
+              }
+              // Additional open now check logic...
+            }
+            return true;
+          }).length === 0 ? "No Matching Activities - Clear" : "Clear Filters"}
         </button>
       )}
       
