@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ActivityType } from '../../types/location';
 import { ACTIVITY_CATEGORIES } from '../../utils/metadata';
+import { useTouch } from '../../contexts/TouchContext';
+import { useMobile } from '../../contexts/MobileContext';
 
 interface GroupFilterDropdownProps {
   groupKey: string;
@@ -27,6 +29,8 @@ const GroupFilterDropdown: React.FC<GroupFilterDropdownProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { setFilterDropdownOpen } = useTouch();
+  const { isMobile } = useMobile();
 
   // Determine group status and count of active types
   const isGroupActive = activeGroups.includes(groupKey);
@@ -47,7 +51,13 @@ const GroupFilterDropdown: React.FC<GroupFilterDropdownProps> = ({
     if (target.closest('.chevron-area')) {
       // If clicked on chevron, toggle dropdown without affecting selection
       e.stopPropagation();
-      setIsExpanded(!isExpanded);
+      const newExpandedState = !isExpanded;
+      setIsExpanded(newExpandedState);
+      
+      // Only update filter dropdown state on mobile
+      if (isMobile) {
+        setFilterDropdownOpen(newExpandedState);
+      }
     } else {
       // Otherwise, toggle the group selection
       e.stopPropagation();
@@ -67,6 +77,11 @@ const GroupFilterDropdown: React.FC<GroupFilterDropdownProps> = ({
       if (buttonRef.current && !buttonRef.current.contains(event.target as Node) &&
           dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsExpanded(false);
+        
+        // Only update filter dropdown state on mobile
+        if (isMobile) {
+          setFilterDropdownOpen(false);
+        }
       }
     };
 
@@ -77,7 +92,7 @@ const GroupFilterDropdown: React.FC<GroupFilterDropdownProps> = ({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isExpanded]);
+  }, [isExpanded, isMobile, setFilterDropdownOpen]);
   
   // Get dropdown position
   const getDropdownPosition = () => {
@@ -150,6 +165,15 @@ const GroupFilterDropdown: React.FC<GroupFilterDropdownProps> = ({
             overflowY: 'auto',
             minWidth: buttonRef.current ? buttonRef.current.offsetWidth : 100
           }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+          }}
+          onTouchMove={(e) => {
+            e.stopPropagation();
+          }}
+          onTouchEnd={(e) => {
+            e.stopPropagation();
+          }}
         >
           {/* Group select all option */}
           <button
@@ -204,7 +228,13 @@ const GroupFilterDropdown: React.FC<GroupFilterDropdownProps> = ({
           {/* Close button */}
           <div className="border-t border-gray-100 mt-1 pt-1 px-2">
             <button
-              onClick={() => setIsExpanded(false)}
+              onClick={() => {
+                setIsExpanded(false);
+                // Only update filter dropdown state on mobile
+                if (isMobile) {
+                  setFilterDropdownOpen(false);
+                }
+              }}
               className="w-full py-1.5 text-sm text-center text-gray-500 hover:bg-gray-50 rounded"
             >
               Close

@@ -37,7 +37,7 @@ const MapComponent: React.FC<MapProps> = () => {
   // Use context hooks for mobile detection and UI state
   const { isMobile } = useMobile();
   // Get drawer state and map blocking state from TouchContext
-  const { drawerState, setDrawerState, isMapBlocked, setLocationClearCallback } = useTouch();
+  const { drawerState, setDrawerState, isMapBlocked, setLocationClearCallback, setFilterDropdownOpen } = useTouch();
   
   // Get app state signals from AppStateContext
   const { setLocationsLoading, setLocationsLoaded, setLocationsProcessed, setMapReady, shouldOpenDrawer } = useAppState();
@@ -647,12 +647,17 @@ const MapComponent: React.FC<MapProps> = () => {
       
       if (ageDropdownRef.current && !ageDropdownRef.current.contains(event.target as Node)) {
         setIsAgeDropdownOpen(false);
+        
+        // Update filter dropdown state in TouchContext
+        if (isMobile) {
+          setFilterDropdownOpen(false);
+        }
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [setSearchExpanded, setIsAgeDropdownOpen]);
+  }, [setSearchExpanded, setIsAgeDropdownOpen, isMobile, setFilterDropdownOpen]);
 
   // Track the last search term that was actually sent to analytics
   const lastTrackedSearchTermRef = useRef<string>("");
@@ -917,6 +922,10 @@ const MapComponent: React.FC<MapProps> = () => {
   const handleAgeSelect = (age: number | null) => {
     setSelectedAge(age);
     setIsAgeDropdownOpen(false);
+    // Update filter dropdown state in TouchContext
+    if (isMobile) {
+      setFilterDropdownOpen(false);
+    }
   };
 
   // Reference to track if map has been initialized
@@ -1271,20 +1280,35 @@ const MapComponent: React.FC<MapProps> = () => {
         onTouchStart={(e) => {
           // Prevent touch events from reaching the map
           e.stopPropagation();
+          
+          // When drawer is open, prevent all interaction with the filter bar
+          if (isMobile && drawerState !== 'closed') {
+            e.preventDefault();
+          }
         }}
         onTouchMove={(e) => {
-          // Allow horizontal scrolling for filters but prevent propagation
+          // Always stop propagation to prevent map interaction
           e.stopPropagation();
-          // Don't prevent default here to allow horizontal scrolling of filters
+          
+          // When drawer is open, prevent all interaction with the filter bar
+          if (isMobile && drawerState !== 'closed') {
+            e.preventDefault();
+          }
+          // Otherwise, allow horizontal scrolling for filters (don't prevent default)
         }}
         onTouchEnd={(e) => {
           // Prevent touch events from reaching the map
           e.stopPropagation();
+          
+          // When drawer is open, prevent all interaction with the filter bar
+          if (isMobile && drawerState !== 'closed') {
+            e.preventDefault();
+          }
         }}
         style={{
-          touchAction: 'pan-x', // Allow horizontal scrolling only
+          touchAction: drawerState !== 'closed' ? 'none' : 'pan-x', // Disable all touch actions when drawer is open
           pointerEvents: 'auto', // Ensure all pointer events are captured
-          zIndex: 110 // Ensure filter bar is above map and properly stacked
+          zIndex: 'var(--z-filter-bar)' // Use CSS variable for z-index
         }}
       >
         <div className="flex items-center gap-2">
@@ -1294,8 +1318,31 @@ const MapComponent: React.FC<MapProps> = () => {
               searchExpanded ? 'w-64' : 'w-10'
             }`}>
               <button
-                onClick={() => setSearchExpanded(!searchExpanded)}
+                onClick={() => {
+                  const newExpandedState = !searchExpanded;
+                  setSearchExpanded(newExpandedState);
+                  
+                  // Update filter dropdown state in TouchContext for mobile
+                  if (isMobile) {
+                    setFilterDropdownOpen(newExpandedState);
+                  }
+                }}
                 className="p-2 rounded-full bg-gray-100 hover:bg-gray-200"
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  // When drawer is open, prevent all interaction
+                  if (isMobile && drawerState !== 'closed') {
+                    e.preventDefault();
+                  }
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  // When drawer is open, prevent all interaction
+                  if (isMobile && drawerState !== 'closed') {
+                    e.preventDefault();
+                  }
+                }}
+                disabled={isMobile && drawerState !== 'closed'} // Disable when drawer is open
               >
                 <Search size={20} className="text-gray-600" />
               </button>
@@ -1309,6 +1356,27 @@ const MapComponent: React.FC<MapProps> = () => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     autoFocus
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                      // When drawer is open, prevent all interaction
+                      if (isMobile && drawerState !== 'closed') {
+                        e.preventDefault();
+                      }
+                    }}
+                    onTouchMove={(e) => {
+                      e.stopPropagation();
+                      // When drawer is open, prevent all interaction
+                      if (isMobile && drawerState !== 'closed') {
+                        e.preventDefault();
+                      }
+                    }}
+                    onTouchEnd={(e) => {
+                      e.stopPropagation();
+                      // When drawer is open, prevent all interaction
+                      if (isMobile && drawerState !== 'closed') {
+                        e.preventDefault();
+                      }
+                    }}
                   />
                 </div>
               )}
@@ -1358,21 +1426,48 @@ const MapComponent: React.FC<MapProps> = () => {
               className="relative"
               onTouchStart={(e) => {
                 e.stopPropagation();
+                // When drawer is open, prevent all interaction
+                if (isMobile && drawerState !== 'closed') {
+                  e.preventDefault();
+                }
               }}
               onTouchMove={(e) => {
                 e.stopPropagation();
+                // When drawer is open, prevent all interaction
+                if (isMobile && drawerState !== 'closed') {
+                  e.preventDefault();
+                }
               }}
               onTouchEnd={(e) => {
                 e.stopPropagation();
+                // When drawer is open, prevent all interaction
+                if (isMobile && drawerState !== 'closed') {
+                  e.preventDefault();
+                }
               }}
             >
               <button
-                onClick={() => setIsAgeDropdownOpen(!isAgeDropdownOpen)}
+                onClick={() => {
+                  const newDropdownState = !isAgeDropdownOpen;
+                  setIsAgeDropdownOpen(newDropdownState);
+                  // Update filter dropdown state in TouchContext
+                  if (isMobile) {
+                    setFilterDropdownOpen(newDropdownState);
+                  }
+                }}
                 onTouchStart={(e) => {
                   e.stopPropagation();
+                  // When drawer is open, prevent all interaction
+                  if (isMobile && drawerState !== 'closed') {
+                    e.preventDefault();
+                  }
                 }}
                 onTouchEnd={(e) => {
                   e.stopPropagation();
+                  // When drawer is open, prevent all interaction
+                  if (isMobile && drawerState !== 'closed') {
+                    e.preventDefault();
+                  }
                 }}
                 className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium transition-colors
                   ${selectedAge !== null
@@ -1380,8 +1475,10 @@ const MapComponent: React.FC<MapProps> = () => {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 style={{
-                  touchAction: 'manipulation' // Optimize for tap/click
+                  touchAction: 'manipulation', // Optimize for tap/click
+                  pointerEvents: drawerState !== 'closed' ? 'none' : 'auto' // Disable pointer events when drawer is open
                 }}
+                disabled={isMobile && drawerState !== 'closed'} // Disable button when drawer is open
               >
                 {selectedAge !== null ? `Age ${selectedAge}` : 'Age'}
                 <ChevronDown size={16} className={`transform transition-transform ${isAgeDropdownOpen ? 'rotate-180' : ''}`} />

@@ -14,6 +14,8 @@ interface TouchContextType {
   isMapBlocked: boolean;
   isModalOpen: boolean;
   setModalOpen: (open: boolean) => void;
+  isFilterDropdownOpen: boolean; // Track filter dropdown state
+  setFilterDropdownOpen: (open: boolean) => void; // Set filter dropdown state
   isPartialDrawer: boolean; // Helper to check if drawer is in partial state
   isAllInteractionsBlocked: boolean; // Helper to check if all interactions should be blocked
   
@@ -56,6 +58,7 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Core state
   const [drawerState, setDrawerState] = useState<DrawerState>(initialDrawerState);
   const [isModalOpen, setModalOpen] = useState(false);
+  const [isFilterDropdownOpen, setFilterDropdownOpen] = useState(false); // New state for filter dropdowns
   const [isContentAtTop, setIsContentAtTop] = useState(true);
   
   // Callback reference for clearing selection when drawer is closed
@@ -89,12 +92,15 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Block when drawer is in any state other than closed
     if (drawerState !== 'closed') return true;
     
+    // Block when filter dropdowns are open
+    if (isFilterDropdownOpen) return true;
+    
     // If any of these special conditions apply, block the map
     // This ensures map doesn't interfere with critical user interactions
     if (touchState.current.isDragging) return true;
     
     return false;
-  }, [isMobile, isModalOpen, drawerState]);
+  }, [isMobile, isModalOpen, drawerState, isFilterDropdownOpen]);
 
   // Add a more specific check for completely blocking all interactions
   const isAllInteractionsBlocked = useMemo(() => {
@@ -482,6 +488,8 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     isMapBlocked,
     isModalOpen,
     setModalOpen,
+    isFilterDropdownOpen,
+    setFilterDropdownOpen,
     isPartialDrawer,
     isContentAtTop,
     setContentScrollPosition,
@@ -497,6 +505,8 @@ export const TouchProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     isMapBlocked,
     isModalOpen,
     setModalOpen,
+    isFilterDropdownOpen,
+    setFilterDropdownOpen,
     isContentAtTop,
     setContentScrollPosition,
     handleTouchStart,
