@@ -6,6 +6,7 @@ import LocationsList from './LocationsList';
 import AddLocationForm from './AddLocationForm';
 import BatchAddLocations from './BatchAddLocations';
 import CacheManager from './CacheManager';
+import { ACTIVITY_CATEGORIES } from '../../utils/metadata';
 
 interface Subscription {
   id: string;

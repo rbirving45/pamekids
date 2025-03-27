@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getLocations, deleteLocation } from '../../utils/firebase-service';
 import { Location } from '../../types/location';
 import LocationEditor from './LocationEditor';
+import { ACTIVITY_CATEGORIES } from '../../utils/metadata';
 
 // Define supported sort options
 type SortField = 'name' | 'created_at' | 'updated_at';
@@ -187,16 +188,13 @@ const LocationsList: React.FC = () => {
     setRefreshKey(prev => prev + 1); // Refresh the list
   };
   
-  // Activity type options for filter dropdown
+  // Activity type options for filter dropdown - using central metadata.ts as source of truth
   const activityTypeOptions = [
     { value: 'all', label: 'All Types' },
-    { value: 'indoor-play', label: 'Indoor Play' },
-    { value: 'outdoor-play', label: 'Outdoor Play' },
-    { value: 'sports', label: 'Sports' },
-    { value: 'arts', label: 'Arts' },
-    { value: 'music', label: 'Music' },
-    { value: 'education', label: 'Education' },
-    { value: 'entertainment', label: 'Entertainment' }
+    ...Object.entries(ACTIVITY_CATEGORIES).map(([value, data]) => ({
+      value,
+      label: data.name
+    }))
   ];
 
   if (isLoading) {

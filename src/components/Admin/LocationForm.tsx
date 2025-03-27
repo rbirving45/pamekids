@@ -1,16 +1,14 @@
 import React from 'react';
 import { ActivityType } from '../../types/location';
+import { ACTIVITY_CATEGORIES } from '../../utils/metadata';
 
-// Activity type options for dropdowns
-const activityTypes: { value: ActivityType; label: string }[] = [
-  { value: 'indoor-play', label: 'Indoor Play' },
-  { value: 'outdoor-play', label: 'Outdoor Play' },
-  { value: 'sports', label: 'Sports' },
-  { value: 'arts', label: 'Arts' },
-  { value: 'music', label: 'Music' },
-  { value: 'education', label: 'Education' },
-  { value: 'entertainment', label: 'Entertainment' }
-];
+// Activity type options for dropdowns - using central metadata.ts as source of truth
+const activityTypes: { value: ActivityType; label: string }[] = Object.entries(ACTIVITY_CATEGORIES).map(
+  ([value, data]) => ({
+    value: value as ActivityType,
+    label: data.name
+  })
+);
 
 // Form field interface
 export interface LocationFormData {
