@@ -1353,7 +1353,7 @@ const MapComponent: React.FC<MapProps> = () => {
         </div>
       )}
       <div
-        className={`bg-white p-2 overflow-x-auto shadow-sm z-filter-bar ${isMobile ? 'fixed top-16 left-0 right-0 w-full' : 'relative'}`}
+        className={`bg-white p-2 overflow-x-auto shadow-sm z-filter-bar no-scrollbar ${isMobile ? 'fixed top-16 left-0 right-0 w-full' : 'relative'}`}
         onTouchStart={(e) => {
           // Prevent touch events from reaching the map
           e.stopPropagation();
@@ -1465,7 +1465,7 @@ const MapComponent: React.FC<MapProps> = () => {
 
           {/* Activity Group Filters */}
           <div
-            className="flex gap-2 snap-x snap-mandatory overflow-x-auto"
+            className="flex gap-2 snap-x snap-mandatory overflow-x-auto no-scrollbar"
             onTouchStart={(e) => {
               // Allow the scroll to happen but prevent propagation
               e.stopPropagation();
