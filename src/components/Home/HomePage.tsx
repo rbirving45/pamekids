@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import Header from '../Layout/Header';
 import { useMobile } from '../../contexts/MobileContext';
 import { Search } from 'lucide-react';
+// Import modal components from existing app
+import { NewsletterButton, NewsletterModal } from '../Newsletter';
+import SuggestActivityButton from '../SuggestActivity/SuggestActivityButton';
+import SuggestActivityModal from '../SuggestActivity/SuggestActivityModal';
+// Import metadata for activity types
+import { ACTIVITY_CATEGORIES } from '../../utils/metadata';
 
-// Use the same activity config from the Map component
+// Extend the ACTIVITY_CATEGORIES with icons for the homepage
 const activityConfig = {
-  'indoor-play': { name: 'Indoor Play', color: '#FF4444', icon: '🏠' },
-  'outdoor-play': { name: 'Outdoor Play', color: '#33B679', icon: '🌳' },
-  'sports': { name: 'Sports', color: '#FF8C00', icon: '⚽' },
-  'arts': { name: 'Arts', color: '#9C27B0', icon: '🎨' },
-  'music': { name: 'Music', color: '#3F51B5', icon: '🎵' },
-  'education': { name: 'Education', color: '#4285F4', icon: '📚' },
-  'entertainment': { name: 'Entertainment', color: '#FFB300', icon: '🎪' }
+  'indoor-play': { ...ACTIVITY_CATEGORIES['indoor-play'], icon: '🏠' },
+  'outdoor-play': { ...ACTIVITY_CATEGORIES['outdoor-play'], icon: '🌳' },
+  'sports': { ...ACTIVITY_CATEGORIES['sports'], icon: '⚽' },
+  'arts': { ...ACTIVITY_CATEGORIES['arts'], icon: '🎨' },
+  'music': { ...ACTIVITY_CATEGORIES['music'], icon: '🎵' },
+  'education': { ...ACTIVITY_CATEGORIES['education'], icon: '📚' },
+  'entertainment': { ...ACTIVITY_CATEGORIES['entertainment'], icon: '🎪' }
 };
 
 const HomePage: React.FC = () => {
@@ -23,26 +28,55 @@ const HomePage: React.FC = () => {
   
   return (
     <div className="homepage-container min-h-screen flex flex-col">
-      {/* Reuse the Header component */}
-      <Header
-        onNewsletterClick={() => setNewsLetterOpen(true)}
-        onSuggestActivityClick={() => setSuggestActivityOpen(true)}
-      />
+      {/* Sticky header with styling to match main app */}
+      <header
+        className={`bg-white shadow-md z-header ${isMobile ? 'fixed top-0 left-0 right-0' : 'relative'}`}
+        style={{
+          position: isMobile ? 'fixed' : 'sticky',
+          top: 0,
+          zIndex: 100 // Use z-index value from z-index.css
+        }}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="relative inline-flex items-baseline">
+              {/* Main logo text */}
+              <span className="font-logo text-4xl md:text-4xl font-bold text-blue-500">Pame</span>
+              
+              {/* Sub-brand text */}
+              <span className="font-logo text-3xl md:text-3xl font-semibold text-orange-500">Kids</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <NewsletterButton onClick={() => setNewsLetterOpen(true)} />
+              <SuggestActivityButton onClick={() => setSuggestActivityOpen(true)} />
+            </div>
+          </div>
+        </div>
+      </header>
       
-      {/* Search Bar - styled similarly to the app's existing search */}
-      <div className={`bg-white p-4 shadow-sm ${isMobile ? 'mt-16' : ''}`}>
-        <div className="max-w-3xl mx-auto flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
-          <Search size={20} className="text-gray-500" />
-          <input
-            type="text"
-            placeholder="Search for activities in Athens..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 outline-none text-gray-700"
-          />
+      {/* Search Bar - styled to match main app search */}
+      <div className={`bg-white p-4 shadow-sm z-filter-bar ${isMobile ? 'mt-16' : ''}`} style={{ zIndex: 110 }}>
+        <div className="max-w-3xl mx-auto flex items-center gap-2 rounded-lg">
+          <div className="relative z-search-container flex-1">
+            <div className="flex items-center w-full">
+              <div className="p-2 rounded-full bg-gray-100">
+                <Search size={20} className="text-gray-600" />
+              </div>
+              
+              <div className="flex-1 ml-2 w-full">
+                <input
+                  type="text"
+                  placeholder="Search for activities in Athens..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
           <Link
             to="/"
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-1.5 text-sm font-medium"
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium"
           >
             Search
           </Link>
@@ -78,14 +112,15 @@ const HomePage: React.FC = () => {
                 key={type}
                 to={`/?filter=${type}`}
                 style={{
-                  backgroundColor: `${config.color}15`,
-                  color: config.color,
+                  backgroundColor: 'rgb(243 244 246)',
+                  color: 'rgb(55 65 81)',
                   borderWidth: '1.5px',
                   borderColor: config.color,
+                  touchAction: 'manipulation'
                 }}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl text-base font-medium transition-colors hover:opacity-90"
+                className="flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium transition-colors hover:opacity-90"
               >
-                <span className="text-2xl">{config.icon}</span>
+                <span className="text-xl">{config.icon}</span>
                 <span>{config.name}</span>
               </Link>
             ))}
@@ -245,7 +280,17 @@ const HomePage: React.FC = () => {
         </div>
       </footer>
       
-      {/* TODO: Add modal components for newsletter and suggest activity */}
+      {/* Add modal components for newsletter and suggest activity */}
+      <NewsletterModal
+        isOpen={newsLetterOpen}
+        onClose={() => setNewsLetterOpen(false)}
+      />
+      
+      <SuggestActivityModal
+        isOpen={suggestActivityOpen}
+        onClose={() => setSuggestActivityOpen(false)}
+        activityTypes={ACTIVITY_CATEGORIES}
+      />
     </div>
   );
 };
