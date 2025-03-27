@@ -10,6 +10,7 @@ import { useAppState } from '../../contexts/AppStateContext';
 import MapBlockingOverlay from './MapBlockingOverlay';
 import { getLocations } from '../../utils/firebase-service';
 import { performEnhancedSearch, SearchMatch } from '../../utils/search-utils';
+import { ACTIVITY_CATEGORIES } from '../../utils/metadata';
 
 // Using MobileContext instead of local mobile detection
 
@@ -24,15 +25,8 @@ interface MapProps {
 // Using our enhanced SearchMatch type from search-utils.ts
 type SearchResult = SearchMatch;
 
-const activityConfig = {
-  'indoor-play': { name: 'Indoor Play', color: '#FF4444' },
-  'outdoor-play': { name: 'Outdoor Play', color: '#33B679' },
-  'sports': { name: 'Sports', color: '#FF8C00' },
-  'arts': { name: 'Arts', color: '#9C27B0' },
-  'music': { name: 'Music', color: '#3F51B5' },
-  'education': { name: 'Education', color: '#4285F4' },
-  'entertainment': { name: 'Entertainment', color: '#FFB300' }
-};
+// Use activity categories from centralized metadata
+const activityConfig = ACTIVITY_CATEGORIES;
 
 const MapComponent: React.FC<MapProps> = () => {
   // Add state for locations, loading state, and error handling

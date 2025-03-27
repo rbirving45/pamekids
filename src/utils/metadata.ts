@@ -77,7 +77,31 @@ export const ACTIVITY_CATEGORIES = {
   'arts': { name: 'Arts', color: '#9C27B0' },
   'music': { name: 'Music', color: '#3F51B5' },
   'education': { name: 'Education', color: '#4285F4' },
-  'entertainment': { name: 'Entertainment', color: '#FFB300' }
+  'entertainment': { name: 'Entertainment', color: '#FFB300' },
+  'camp': { name: 'Camps', color: '#8BC34A' },
+  'language': { name: 'Language', color: '#009688' },
+  'drama': { name: 'Drama', color: '#E91E63' },
+  'history': { name: 'History', color: '#795548' },
+  'stem': { name: 'STEM', color: '#00BCD4' },
+  'animals': { name: 'Animals', color: '#607D8B' },
+  'playground': { name: 'Playground', color: '#4CAF50' },
+  'play-space': { name: 'Play Space', color: '#FF5722' },
+  'martial-arts': { name: 'Martial Arts', color: '#F44336' },
+  'soccer': { name: 'Soccer', color: '#7CB342' },
+  'basketball': { name: 'Basketball', color: '#FF9800' },
+  'tennis': { name: 'Tennis', color: '#CDDC39' },
+  'horseback-riding': { name: 'Horseback Riding', color: '#8D6E63' },
+  'dance': { name: 'Dance', color: '#BA68C8' },
+  'gymnastics': { name: 'Gymnastics', color: '#26A69A' },
+  'yoga': { name: 'Yoga', color: '#9575CD' },
+  'swim': { name: 'Swimming', color: '#29B6F6' },
+  'movies': { name: 'Movies', color: '#EC407A' },
+  'theme-park': { name: 'Theme Parks', color: '#FFA726' },
+  'event-space': { name: 'Event Spaces', color: '#78909C' },
+  'beach': { name: 'Beaches', color: '#80DEEA' },
+  'hike': { name: 'Hiking', color: '#66BB6A' },
+  'restaurant': { name: 'Restaurants', color: '#EF5350' },
+  'cafe': { name: 'Cafes', color: '#D4E157' }
 };
 
 // City information

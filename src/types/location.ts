@@ -1,5 +1,8 @@
 // src/types/location.ts
-export type ActivityType = 'indoor-play' | 'outdoor-play' | 'sports' | 'arts' | 'music' | 'education' | 'entertainment';
+export type ActivityType = 'indoor-play' | 'outdoor-play' | 'sports' | 'arts' | 'music' | 'education' | 'entertainment' |
+  'camp' | 'language' | 'drama' | 'history' | 'stem' | 'animals' | 'playground' | 'play-space' |
+  'martial-arts' | 'soccer' | 'basketball' | 'tennis' | 'horseback-riding' | 'dance' | 'gymnastics' |
+  'yoga' | 'swim' | 'movies' | 'theme-park' | 'event-space' | 'beach' | 'hike' | 'restaurant' | 'cafe';
 
 export interface Location {
   id: string;

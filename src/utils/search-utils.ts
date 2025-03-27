@@ -22,7 +22,31 @@ const activityKeywords: Record<ActivityType, string[]> = {
   'arts': ['art', 'arts', 'craft', 'crafts', 'drawing', 'painting', 'pottery', 'ceramics', 'sculpture', 'theater', 'theatre', 'drama', 'creative'],
   'music': ['music', 'musical', 'instrument', 'piano', 'guitar', 'violin', 'drums', 'singing', 'choir', 'band', 'orchestra'],
   'education': ['education', 'educational', 'learning', 'learn', 'school', 'class', 'classes', 'workshop', 'academic', 'science', 'stem', 'math', 'reading', 'language', 'coding', 'robotic', 'robotics', 'museum', 'history'],
-  'entertainment': ['entertainment', 'fun', 'movie', 'cinema', 'theatre', 'theater', 'show', 'performance', 'amusement', 'arcade', 'game', 'laser tag', 'bowling']
+  'entertainment': ['entertainment', 'fun', 'movie', 'cinema', 'theatre', 'theater', 'show', 'performance', 'amusement', 'arcade', 'game', 'laser tag', 'bowling'],
+  'camp': ['camp', 'summer camp', 'easter camp', 'day camp', 'holiday camp', 'vacation camp', 'sleepaway camp', 'overnight camp'],
+  'language': ['language', 'languages', 'english', 'greek', 'spanish', 'french', 'german', 'italian', 'chinese', 'multilingual', 'bilingual', 'foreign language'],
+  'drama': ['drama', 'theatre', 'theater', 'acting', 'performance', 'stage', 'play', 'improv', 'improvisation'],
+  'history': ['history', 'historical', 'museum', 'ancient', 'archaeology', 'civilization', 'culture', 'heritage', 'mythology'],
+  'stem': ['stem', 'science', 'technology', 'engineering', 'math', 'mathematics', 'coding', 'programming', 'robotics', 'experiment'],
+  'animals': ['animal', 'animals', 'zoo', 'farm', 'pet', 'wildlife', 'aquarium', 'horse', 'pony', 'riding'],
+  'playground': ['playground', 'slide', 'swing', 'play structure', 'jungle gym', 'climbing frame', 'play area', 'park'],
+  'play-space': ['play space', 'play area', 'playroom', 'soft play', 'indoor play', 'play center', 'play centre'],
+  'martial-arts': ['martial art', 'martial arts', 'karate', 'judo', 'taekwondo', 'kung fu', 'jiu jitsu', 'aikido', 'boxing'],
+  'soccer': ['soccer', 'football', 'futsal', 'goal', 'goalkeeper', 'striker', 'kick'],
+  'basketball': ['basketball', 'hoop', 'dribble', 'shooting', 'court', 'nba'],
+  'tennis': ['tennis', 'racket', 'racquet', 'court', 'serve', 'volley'],
+  'horseback-riding': ['horse', 'horseback', 'riding', 'equestrian', 'pony', 'stable', 'dressage', 'trot', 'gallop'],
+  'dance': ['dance', 'dancing', 'ballet', 'jazz', 'hip hop', 'contemporary', 'ballroom', 'choreography'],
+  'gymnastics': ['gymnastics', 'gymnast', 'acrobatics', 'tumbling', 'balance beam', 'bars', 'vault', 'floor exercise'],
+  'yoga': ['yoga', 'mindfulness', 'meditation', 'stretch', 'poses', 'asana', 'breathing', 'relaxation'],
+  'swim': ['swim', 'swimming', 'pool', 'aquatic', 'water', 'lessons', 'freestyle', 'breaststroke', 'backstroke'],
+  'movies': ['movie', 'cinema', 'film', 'screening', 'theater', 'theatre'],
+  'theme-park': ['theme park', 'amusement park', 'ride', 'roller coaster', 'attraction', 'water park'],
+  'event-space': ['event space', 'venue', 'birthday party', 'celebration', 'party room', 'function room'],
+  'beach': ['beach', 'coast', 'seaside', 'shore', 'bay', 'sand', 'ocean', 'sea'],
+  'hike': ['hike', 'hiking', 'trail', 'trek', 'walking', 'mountain', 'path', 'nature walk'],
+  'restaurant': ['restaurant', 'dining', 'eatery', 'food', 'family restaurant', 'kid-friendly restaurant'],
+  'cafe': ['cafe', 'coffee shop', 'bakery', 'patisserie', 'snack', 'brunch', 'breakfast']
 };
 
 /**
