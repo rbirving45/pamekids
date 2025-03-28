@@ -87,11 +87,29 @@ const GroupFilterDropdown: React.FC<GroupFilterDropdownProps> = ({
 
     if (isExpanded) {
       document.addEventListener('mousedown', handleClickOutside);
+      
+      // Ensure that clicking outside a filter dropdown doesn't inadvertently trigger map or drawer interactions
+      const preventMapInteraction = (e: Event) => {
+        if (!buttonRef.current?.contains(e.target as Node) &&
+            !dropdownRef.current?.contains(e.target as Node)) {
+          e.stopPropagation();
+        }
+      };
+      
+      // Add capture phase listener to intercept events before they reach the map
+      document.addEventListener('touchstart', preventMapInteraction, true);
+      document.addEventListener('touchmove', preventMapInteraction, true);
+      
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('touchstart', preventMapInteraction, true);
+        document.removeEventListener('touchmove', preventMapInteraction, true);
+      };
+    } else {
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
     }
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
   }, [isExpanded, isMobile, setFilterDropdownOpen]);
   
   // Get dropdown position
