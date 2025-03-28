@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useMobile } from '../../contexts/MobileContext';
 import { Search, Tent, BookOpen, Trees, Home, Trophy, Popcorn, Leaf, UtensilsCrossed, Hotel, Sparkles } from 'lucide-react';
 // Import modal components from existing app
@@ -8,19 +8,13 @@ import SuggestActivityButton from '../SuggestActivity/SuggestActivityButton';
 import SuggestActivityModal from '../SuggestActivity/SuggestActivityModal';
 // Import metadata for activity types
 import { ACTIVITY_CATEGORIES } from '../../utils/metadata';
+// Import firebase services and types
+import { getLocations } from '../../utils/firebase-service';
+import { Location } from '../../types/location';
+// Import the new FeaturedLocationTile component
+import FeaturedLocationTile from './FeaturedLocationTile';
 
-// Extend the ACTIVITY_CATEGORIES with icons for the homepage
-const activityConfig = {
-  'indoor-play': { ...ACTIVITY_CATEGORIES['indoor-play'], icon: '🏠' },
-  'outdoor-play': { ...ACTIVITY_CATEGORIES['outdoor-play'], icon: '🌳' },
-  'sports': { ...ACTIVITY_CATEGORIES['sports'], icon: '⚽' },
-  'arts': { ...ACTIVITY_CATEGORIES['arts'], icon: '🎨' },
-  'music': { ...ACTIVITY_CATEGORIES['music'], icon: '🎵' },
-  'education': { ...ACTIVITY_CATEGORIES['education'], icon: '📚' },
-  'entertainment': { ...ACTIVITY_CATEGORIES['entertainment'], icon: '🎪' }
-};
-
-// Main category buttons for the hero section
+// Main categories with icons for the homepage
 const mainCategories = [
   { id: 'camps', name: 'Camps', icon: Tent, color: '#F9D056' },
   { id: 'learning', name: 'Learning', icon: BookOpen, color: '#8BC34A' },
@@ -31,14 +25,72 @@ const mainCategories = [
   { id: 'nature', name: 'Nature', icon: Leaf, color: '#4F6490' },
   { id: 'food', name: 'Food', icon: UtensilsCrossed, color: '#6BAAD4' },
   { id: 'accommodation', name: 'Accommodation', icon: Hotel, color: '#F9D056' },
-  { id: 'free-activities', name: 'Free Activities', icon: Sparkles, color: '#E893B2' } // Special filter for free activities
+  { id: 'free-activities', name: 'Free Activities', icon: Sparkles, color: '#E893B2' }
 ];
+
+// Main category buttons defined above
 
 const HomePage: React.FC = () => {
   const { isMobile } = useMobile();
+  const navigate = useNavigate();
   const [newsLetterOpen, setNewsLetterOpen] = useState(false);
   const [suggestActivityOpen, setSuggestActivityOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [allLocations, setAllLocations] = useState<Location[]>([]);
+  const [featuredLocations, setFeaturedLocations] = useState<Location[]>([]);
+  const [freeActivities, setFreeActivities] = useState<Location[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch locations from Firestore
+  useEffect(() => {
+    const fetchLocationsData = async () => {
+      try {
+        setIsLoading(true);
+        const locationsData = await getLocations();
+        setAllLocations(locationsData);
+        
+        // Filter for featured locations (up to 3)
+        const featured = locationsData
+          .filter(loc => loc.featured === true)
+          .slice(0, 3);
+          
+        // If we don't have enough featured locations, add some more based on rating
+        if (featured.length < 3) {
+          const highestRated = locationsData
+            .filter(loc => !loc.featured) // Exclude already featured locations
+            .filter(loc => loc.placeData?.rating && loc.placeData.rating >= 4.5) // Only high ratings
+            .filter(loc => loc.placeData?.storedPhotoUrls?.length) // Only locations with images
+            .sort((a, b) => (b.placeData?.rating || 0) - (a.placeData?.rating || 0)) // Sort by rating
+            .slice(0, 3 - featured.length); // Take only what we need
+            
+          setFeaturedLocations([...featured, ...highestRated]);
+        } else {
+          setFeaturedLocations(featured);
+        }
+        
+        // Get free activities
+        const free = locationsData
+          .filter(loc => loc.priceRange?.toLowerCase().includes('free'))
+          .slice(0, 3);
+          
+        setFreeActivities(free);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Error fetching locations:', err);
+        setError('Failed to load activities. Please try again later.');
+        setIsLoading(false);
+      }
+    };
+    
+    fetchLocationsData();
+  }, []);
+  
+  // Handle featured location selection
+  const handleLocationSelect = (locationId: string) => {
+    // Navigate to map view with selected location
+    navigate(`/?locationId=${locationId}`);
+  };
   
   return (
     <div className="homepage-container min-h-screen flex flex-col">
@@ -89,7 +141,7 @@ const HomePage: React.FC = () => {
             </div>
           </div>
           <Link
-            to="/"
+            to={`/?search=${encodeURIComponent(searchTerm)}`}
             className="bg-blue-500 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium"
           >
             Search
@@ -151,206 +203,105 @@ const HomePage: React.FC = () => {
           <h2 className="text-3xl md:text-2xl font-bold text-blue-500 mb-6">Featured Activities</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Featured Card 1 */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="h-48 bg-gray-200">
-                {/* Image placeholder */}
-                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                  <span className="text-6xl">🎨</span>
+            {isLoading ? (
+              // Loading skeleton for featured locations
+              Array(3).fill(0).map((_, i) => (
+                <div key={`skeleton-${i}`} className="bg-white rounded-lg shadow-md overflow-hidden animate-pulse">
+                  <div className="h-48 bg-gray-200"></div>
+                  <div className="p-4">
+                    <div className="flex gap-2 mb-2">
+                      <div className="h-6 w-16 bg-gray-200 rounded-full"></div>
+                      <div className="h-6 w-20 bg-gray-200 rounded-full"></div>
+                    </div>
+                    <div className="h-6 w-3/4 bg-gray-200 mb-2 rounded"></div>
+                    <div className="h-4 w-1/2 bg-gray-200 mb-2 rounded"></div>
+                    <div className="h-4 w-full bg-gray-200 mb-2 rounded"></div>
+                    <div className="h-4 w-full bg-gray-200 mb-4 rounded"></div>
+                    <div className="h-4 w-24 bg-gray-200 rounded"></div>
+                  </div>
                 </div>
+              ))
+            ) : error ? (
+              // Error state
+              <div className="col-span-3 p-6 text-center">
+                <p className="text-red-500">{error}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                >
+                  Retry
+                </button>
               </div>
-              <div className="p-4">
-                <div className="flex gap-2 mb-2">
-                  <span
-                    className="inline-block px-2 py-1 text-xs font-medium rounded-full"
-                    style={{
-                      backgroundColor: `${activityConfig['arts'].color}20`,
-                      color: activityConfig['arts'].color
-                    }}
-                  >
-                    Arts
-                  </span>
-                  <span
-                    className="inline-block px-2 py-1 text-xs font-medium rounded-full"
-                    style={{
-                      backgroundColor: `${activityConfig['education'].color}20`,
-                      color: activityConfig['education'].color
-                    }}
-                  >
-                    Education
-                  </span>
-                </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-1">Athens Art Workshop for Kids</h3>
-                <p className="text-sm text-gray-600 mb-2">Ages 6-12 • Central Athens</p>
-                <p className="text-sm text-gray-700 mb-4">Creative workshops where children learn various art techniques in a fun environment.</p>
-                <Link to="/" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                  View Details →
-                </Link>
+            ) : featuredLocations.length === 0 ? (
+              // Empty state
+              <div className="col-span-3 p-6 text-center text-gray-500">
+                <p>No featured activities available at this time.</p>
               </div>
-            </div>
-            
-            {/* Featured Card 2 */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="h-48 bg-gray-200">
-                {/* Image placeholder */}
-                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                  <span className="text-6xl">🏊</span>
-                </div>
-              </div>
-              <div className="p-4">
-                <div className="flex gap-2 mb-2">
-                  <span
-                    className="inline-block px-2 py-1 text-xs font-medium rounded-full"
-                    style={{
-                      backgroundColor: `${activityConfig['sports'].color}20`,
-                      color: activityConfig['sports'].color
-                    }}
-                  >
-                    Sports
-                  </span>
-                </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-1">Summer Swimming Classes</h3>
-                <p className="text-sm text-gray-600 mb-2">Ages 3-16 • Multiple Locations</p>
-                <p className="text-sm text-gray-700 mb-4">Professional swimming instruction for kids of all skill levels.</p>
-                <Link to="/" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                  View Details →
-                </Link>
-              </div>
-            </div>
-            
-            {/* Featured Card 3 */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="h-48 bg-gray-200">
-                {/* Image placeholder */}
-                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                  <span className="text-6xl">🎵</span>
-                </div>
-              </div>
-              <div className="p-4">
-                <div className="flex gap-2 mb-2">
-                  <span
-                    className="inline-block px-2 py-1 text-xs font-medium rounded-full"
-                    style={{
-                      backgroundColor: `${activityConfig['music'].color}20`,
-                      color: activityConfig['music'].color
-                    }}
-                  >
-                    Music
-                  </span>
-                </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-1">Kid's Music Academy</h3>
-                <p className="text-sm text-gray-600 mb-2">Ages 4-14 • Kolonaki</p>
-                <p className="text-sm text-gray-700 mb-4">Instrument lessons and music theory for children in a supportive environment.</p>
-                <Link to="/" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                  View Details →
-                </Link>
-              </div>
-            </div>
+            ) : (
+              // Render actual featured locations
+              featuredLocations.map(location => (
+                <FeaturedLocationTile
+                  key={location.id}
+                  location={location}
+                  activityConfig={ACTIVITY_CATEGORIES}
+                  onSelect={() => handleLocationSelect(location.id)}
+                />
+              ))
+            )}
           </div>
         </div>
       </section>
 
-      {/* Featured Content section */}
+      {/* Free Activities section */}
       <section className="py-12 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl md:text-2xl font-bold text-blue-500 mb-6">Free Activities</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Featured Card 1 */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="h-48 bg-gray-200">
-                {/* Image placeholder */}
-                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                  <span className="text-6xl">🎨</span>
+            {isLoading ? (
+              // Loading skeleton for free activities
+              Array(3).fill(0).map((_, i) => (
+                <div key={`skeleton-free-${i}`} className="bg-white rounded-lg shadow-md overflow-hidden animate-pulse">
+                  <div className="h-48 bg-gray-200"></div>
+                  <div className="p-4">
+                    <div className="flex gap-2 mb-2">
+                      <div className="h-6 w-16 bg-gray-200 rounded-full"></div>
+                      <div className="h-6 w-20 bg-gray-200 rounded-full"></div>
+                    </div>
+                    <div className="h-6 w-3/4 bg-gray-200 mb-2 rounded"></div>
+                    <div className="h-4 w-1/2 bg-gray-200 mb-2 rounded"></div>
+                    <div className="h-4 w-full bg-gray-200 mb-2 rounded"></div>
+                    <div className="h-4 w-full bg-gray-200 mb-4 rounded"></div>
+                    <div className="h-4 w-24 bg-gray-200 rounded"></div>
+                  </div>
                 </div>
+              ))
+            ) : error ? (
+              // Error state
+              <div className="col-span-3 p-6 text-center">
+                <p className="text-red-500">{error}</p>
               </div>
-              <div className="p-4">
-                <div className="flex gap-2 mb-2">
-                  <span
-                    className="inline-block px-2 py-1 text-xs font-medium rounded-full"
-                    style={{
-                      backgroundColor: `${activityConfig['arts'].color}20`,
-                      color: activityConfig['arts'].color
-                    }}
-                  >
-                    Arts
-                  </span>
-                  <span
-                    className="inline-block px-2 py-1 text-xs font-medium rounded-full"
-                    style={{
-                      backgroundColor: `${activityConfig['education'].color}20`,
-                      color: activityConfig['education'].color
-                    }}
-                  >
-                    Education
-                  </span>
-                </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-1">Athens Art Workshop for Kids</h3>
-                <p className="text-sm text-gray-600 mb-2">Ages 6-12 • Central Athens</p>
-                <p className="text-sm text-gray-700 mb-4">Creative workshops where children learn various art techniques in a fun environment.</p>
-                <Link to="/" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                  View Details →
-                </Link>
-              </div>
-            </div>
-            
-            {/* Featured Card 2 */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="h-48 bg-gray-200">
-                {/* Image placeholder */}
-                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                  <span className="text-6xl">🏊</span>
-                </div>
-              </div>
-              <div className="p-4">
-                <div className="flex gap-2 mb-2">
-                  <span
-                    className="inline-block px-2 py-1 text-xs font-medium rounded-full"
-                    style={{
-                      backgroundColor: `${activityConfig['sports'].color}20`,
-                      color: activityConfig['sports'].color
-                    }}
-                  >
-                    Sports
-                  </span>
-                </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-1">Summer Swimming Classes</h3>
-                <p className="text-sm text-gray-600 mb-2">Ages 3-16 • Multiple Locations</p>
-                <p className="text-sm text-gray-700 mb-4">Professional swimming instruction for kids of all skill levels.</p>
-                <Link to="/" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                  View Details →
-                </Link>
-              </div>
-            </div>
-            
-            {/* Featured Card 3 */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="h-48 bg-gray-200">
-                {/* Image placeholder */}
-                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                  <span className="text-6xl">🎵</span>
-                </div>
-              </div>
-              <div className="p-4">
-                <div className="flex gap-2 mb-2">
-                  <span
-                    className="inline-block px-2 py-1 text-xs font-medium rounded-full"
-                    style={{
-                      backgroundColor: `${activityConfig['music'].color}20`,
-                      color: activityConfig['music'].color
-                    }}
-                  >
-                    Music
-                  </span>
-                </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-1">Kid's Music Academy</h3>
-                <p className="text-sm text-gray-600 mb-2">Ages 4-14 • Kolonaki</p>
-                <p className="text-sm text-gray-700 mb-4">Instrument lessons and music theory for children in a supportive environment.</p>
-                <Link to="/" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                  View Details →
-                </Link>
-              </div>
-            </div>
+            ) : freeActivities.length === 0 ? (
+              // Empty state - fetch some standard activities if no free ones
+              allLocations.slice(0, 3).map(location => (
+                <FeaturedLocationTile
+                  key={location.id}
+                  location={location}
+                  activityConfig={ACTIVITY_CATEGORIES}
+                  onSelect={() => handleLocationSelect(location.id)}
+                />
+              ))
+            ) : (
+              // Render actual free activities
+              freeActivities.map(location => (
+                <FeaturedLocationTile
+                  key={location.id}
+                  location={location}
+                  activityConfig={ACTIVITY_CATEGORIES}
+                  onSelect={() => handleLocationSelect(location.id)}
+                />
+              ))
+            )}
           </div>
           
           <div className="mt-8 text-center">
