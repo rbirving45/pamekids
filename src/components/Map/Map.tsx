@@ -1325,29 +1325,14 @@ const MapComponent: React.FC<MapProps> = () => {
         return;
       }
       
-      // CRITICAL CHANGE: Don't override locations when filter update is pending
-      if (pendingUpdateRef.current && lastUpdateSourceRef.current === 'filter_change') {
-        console.log('Skipping bounds_changed handling - filter update in progress');
-        return;
-      }
-      
-      // Don't update locations if a filter update has happened very recently
-      const filterUpdateRecently = lastUpdateSourceRef.current === 'filter_change' &&
-                                 (Date.now() - lastValidationTimeRef.current < 500);
-      if (filterUpdateRecently) {
-        console.log('Skipping bounds_changed handling - recent filter update');
-        return;
-      }
-      
-      // Log message for which approach we're using
+      // CRITICAL: We now use a different approach for bounds_changed with filters
+      // When filters are active, we still update visibleLocations but use the current filters
+      // This prevents confusing the user with conflicting results
       let logMessage = activeFilters.length > 0 || selectedAge !== null || openNowFilter || freeActivitiesFilter
         ? '🔍 LOCATION SOURCE 6: bounds_changed applying current filters'
         : '🔍 LOCATION SOURCE 6: bounds_changed updating visible locations (no active filters)';
         
       console.log(logMessage);
-      
-      // Mark that we're starting a bounds-based update
-      lastUpdateSourceRef.current = 'bounds_changed';
       
       // Get the map center
       const center = map.getCenter();
@@ -1389,21 +1374,10 @@ const MapComponent: React.FC<MapProps> = () => {
       // Sort by distance (closest first)
       locationsWithDistance.sort((a, b) => a.distance - b.distance);
       
-      // CRITICAL CHANGE: When filters are active and return fewer than 15 results,
-      // use all filtered locations instead of taking a subset
-      let closestLocations: Location[];
-      
-      // If we have active filters and fewer than 15 filtered locations, use all of them
-      if ((activeFilters.length > 0 || selectedAge !== null || openNowFilter || freeActivitiesFilter) &&
-          filteredLocations.length < 15) {
-        console.log(`🔍 Bounds changed: Using ALL ${filteredLocations.length} filtered locations`);
-        closestLocations = filteredLocations;
-      } else {
-        // Otherwise get up to 15 closest filtered locations to map center
-        closestLocations = locationsWithDistance
-          .map(item => item.location)
-          .slice(0, 15);
-      }
+      // Get up to 15 closest filtered locations to map center
+      const closestLocations = locationsWithDistance
+        .map(item => item.location)
+        .slice(0, 15);
       
       // To prevent update loops, only update if there's a meaningful change
       const currentLocIds = new Set(visibleLocations.map(loc => loc.id));
@@ -1416,7 +1390,6 @@ const MapComponent: React.FC<MapProps> = () => {
       
       if (needsUpdate) {
         // Update visible locations with the closest filtered locations
-        console.log(`🔍 Setting ${closestLocations.length} locations from bounds_changed`);
         setVisibleLocations(closestLocations);
       } else {
         console.log('Skipping redundant visibleLocations update - no meaningful change');
