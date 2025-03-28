@@ -637,18 +637,14 @@ const Drawer: React.FC<DrawerProps> = memo(({
     }
   }, [visibleLocations, filteredLocations, displayedLocations]);
 
-  // Enhanced drawer rendering logic based on app initialization state
+  // Simplified drawer rendering logic - make it more strict about when to render on mobile
   const shouldRenderDrawer = isMobile
-    ? ((location !== null) || (mobileMode === 'list' && (
-        // Only render when explicitly told to by AppStateContext or when a location is selected
-        mobileDrawerOpen ||
-        // Use shouldOpenDrawer from AppStateContext which is only true when locations are processed
-        shouldOpenDrawer ||
-        // For backward compatibility, also check specific states
-        initState === 'locations-processed' ||
-        initState === 'drawer-initialized' ||
-        initState === 'fully-ready'
-      ) && displayedLocations.length > 0)) // Only render list drawer if we have visible locations
+    ? (
+        // Case 1: We have a selected location - always show the detail drawer
+        (location !== null) ||
+        // Case 2: List view and explicitly told to show drawer (no auto-opening based on app state)
+        (mobileMode === 'list' && mobileDrawerOpen === true && displayedLocations.length > 0)
+      )
     : true; // Always render on desktop (visibility controlled by CSS)
   
   // Log when visibleLocations change
