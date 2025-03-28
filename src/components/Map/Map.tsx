@@ -81,6 +81,7 @@ const MapComponent: React.FC<MapProps> = () => {
     lng: 23.7275
   });
   const [visibleLocations, setVisibleLocations] = useState<Location[]>([]);
+  const [drawerLocations, setDrawerLocations] = useState<Location[]>([]);
   const [mapReadyState, setMapReadyState] = useState(false);
   // This ref was removed as we simplified the map initialization logic
 
@@ -304,8 +305,12 @@ const MapComponent: React.FC<MapProps> = () => {
     const filteredLocations = filterLocations(locations);
     console.log(`Filter change: ${locations.length} locations filtered to ${filteredLocations.length} matching current filters`);
     
-    // CRITICAL: If we have fewer than 15 filtered locations, use them ALL
-    // This is the key change to prevent the drawer showing incorrect locations
+    // IMPORTANT: Update drawer locations with ALL matching filtered locations
+    // This ensures the drawer always shows the correct filtered content
+    setDrawerLocations(filteredLocations.slice(0, Math.min(filteredLocations.length, 15)));
+    console.log(`🔍 Setting drawerLocations to ${Math.min(filteredLocations.length, 15)} filtered locations`);
+    
+    // For map markers, find the closest ones to the current view
     let closestLocations: Location[] = [];
     
     // Get the current map center for distance calculation
@@ -347,27 +352,24 @@ const MapComponent: React.FC<MapProps> = () => {
     // Log what we're about to set
     console.log(`🔍 Setting visibleLocations to ${closestLocations.length} locations from filter_change`);
     
-    // Directly set visible locations with a small delay to ensure it takes effect
-    // This helps avoid race conditions with other effects
+    // Set visible locations for map markers
+    setVisibleLocations(closestLocations);
+    
+    // Set a flag to indicate that visible locations should not be overwritten
+    // by other effects for a short period
+    pendingUpdateRef.current = true;
+    
+    // Reset validation result to force a fresh validation after update
+    lastValidationResultRef.current = '';
+    
+    // Clear pending update flag after a reasonable delay
     setTimeout(() => {
-      setVisibleLocations(closestLocations);
+      pendingUpdateRef.current = false;
       
-      // Set a flag to indicate that visible locations should not be overwritten
-      // by other effects for a short period
-      pendingUpdateRef.current = true;
-      
-      // Reset validation result to force a fresh validation after update
-      lastValidationResultRef.current = '';
-      
-      // Clear pending update flag after a reasonable delay
-      setTimeout(() => {
-        pendingUpdateRef.current = false;
-        
-        // Force a validation run after updating is complete
-        console.log(`🔍 Filter update complete - forcing validation`);
-        lastValidationTimeRef.current = 0;
-      }, 100);
-    }, 0);
+      // Force a validation run after updating is complete
+      console.log(`🔍 Filter update complete - forcing validation`);
+      lastValidationTimeRef.current = 0;
+    }, 100);
     
   }, [activeFilters, selectedAge, openNowFilter, freeActivitiesFilter, map, mapReadyState, locations, filterLocations]);
   
@@ -472,6 +474,8 @@ const MapComponent: React.FC<MapProps> = () => {
           // This avoids having different loading paths for mobile vs desktop
           console.log('🔍 LOCATION SOURCE 1: Pre-populating filtered visibleLocations for drawer (no active filters)');
           setVisibleLocations(filteredLocations.slice(0, 15));
+          // Also initialize drawerLocations with the same content
+          setDrawerLocations(filteredLocations.slice(0, 15));
           }
           
           setIsLoadingLocations(false);
@@ -488,13 +492,50 @@ const MapComponent: React.FC<MapProps> = () => {
             sessionStorage.setItem('cachedLocations', JSON.stringify(freshLocations));
             setLocations(freshLocations);
             
-            // Update visibleLocations with fresh data
+            // Apply filters to fresh data
+            const filteredLocations = freshLocations.filter((location: Location) => {
+              // Filter by activity type
+              if (activeFilters.length > 0 && !location.types.some(type => activeFilters.includes(type))) {
+                return false;
+              }
+              
+              // Filter by age
+              if (selectedAge !== null) {
+                if (selectedAge < location.ageRange.min || selectedAge > location.ageRange.max) {
+                  return false;
+                }
+              }
+              
+              // Filter by price (free activities)
+              if (freeActivitiesFilter && location.priceRange !== "Free") {
+                return false;
+              }
+              
+              // Filter by open now
+              if (openNowFilter) {
+                const now = new Date();
+                const day = now.toLocaleDateString('en-US', { weekday: 'long' });
+                const hours = location.openingHours[day];
+                
+                if (!hours || hours === 'Closed' || hours === 'Hours not available') {
+                  return false;
+                }
+                // Additional open now logic omitted for brevity
+              }
+              
+              return true;
+            });
+            
+            // Update drawerLocations with filtered fresh data
+            setDrawerLocations(filteredLocations.slice(0, 15));
+            
+            // Update visibleLocations (map markers) with fresh data
             if (!isMobile) {
-              setVisibleLocations(freshLocations.slice(0, 15));
+              setVisibleLocations(filteredLocations.slice(0, 15));
             } else {
               // Update mobile locations too
               const defaultCoords = { lat: 37.9838, lng: 23.7275 };
-              const locationsWithDistance = freshLocations.map((location: Location) => {
+              const locationsWithDistance = filteredLocations.map((location: Location) => {
                 const distance = Math.sqrt(
                   Math.pow(location.coordinates.lat - defaultCoords.lat, 2) +
                   Math.pow(location.coordinates.lng - defaultCoords.lng, 2)
@@ -627,10 +668,10 @@ const MapComponent: React.FC<MapProps> = () => {
         
         // First ensure visibleLocations are populated BEFORE signaling processed
         if (visibleLocations.length === 0) {
-          console.log('🚀 Pre-populating visibleLocations before locations-processed signal');
-          // For mobile, populate with closest locations to default center
+          // For mobile, populate with closest FILTERED locations to default center
+          console.log('Pre-populating filtered visibleLocations for mobile');
           const defaultCoords = { lat: 37.9838, lng: 23.7275 };
-          const locationsWithDistance = fetchedLocations.map((location: Location) => {
+          const locationsWithDistance = filteredLocations.map((location: Location) => {
             const distance = Math.sqrt(
               Math.pow(location.coordinates.lat - defaultCoords.lat, 2) +
               Math.pow(location.coordinates.lng - defaultCoords.lng, 2)
@@ -644,6 +685,8 @@ const MapComponent: React.FC<MapProps> = () => {
             .map((item: {location: Location, distance: number}) => item.location)
             .slice(0, 15);
           setVisibleLocations(closestLocations);
+          // Also initialize drawerLocations with the same content
+          setDrawerLocations(closestLocations);
         }
         
         // CRITICAL: Signal that locations are loaded and then processed
@@ -1075,19 +1118,51 @@ const MapComponent: React.FC<MapProps> = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, locations]);
 
-  // Function to force update visible locations based on current map position
-  // Note: This is now an internal helper and should only be called when necessary
+  // Function to force update both drawer locations and map markers based on current filters and map position
+  // This is a helper function that manually triggers updates when needed
   const updateVisibleLocations = useCallback(() => {
     if (!map || locations.length === 0) return;
     
-    // Check if we're already in a validation cycle - avoid adding more updates
     if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 HELPER: Using existing validation logic instead of force-updating locations');
+      console.log('🔍 HELPER: Force-updating both drawer locations and map markers');
     }
     
-    // Simply trigger the filter change effect by relying on our validation logic
-    // This prevents duplicate state updates that could cause render loops
-  }, [map, locations]);
+    // Apply all active filters to the entire locations dataset
+    const filteredLocations = filterLocations(locations);
+    
+    // First update drawerLocations with filtered results (limited to 15)
+    setDrawerLocations(filteredLocations.slice(0, 15));
+    
+    // Then update visibleLocations for map markers based on proximity
+    const mapCenter = map.getCenter();
+    if (mapCenter) {
+      const mapCenterPosition = {
+        lat: mapCenter.lat(),
+        lng: mapCenter.lng()
+      };
+      
+      // Calculate distance for filtered locations from the current map center
+      const locationsWithDistance = filteredLocations.map(location => {
+        const distance = Math.sqrt(
+          Math.pow(location.coordinates.lat - mapCenterPosition.lat, 2) +
+          Math.pow(location.coordinates.lng - mapCenterPosition.lng, 2)
+        );
+        return { location, distance };
+      });
+      
+      // Sort by distance and get closest locations
+      locationsWithDistance.sort((a, b) => a.distance - b.distance);
+      const closestLocations = locationsWithDistance
+        .map(item => item.location)
+        .slice(0, 15);
+      
+      // Update map markers
+      setVisibleLocations(closestLocations);
+    } else {
+      // No map center, use the same locations for both states
+      setVisibleLocations(filteredLocations.slice(0, 15));
+    }
+  }, [map, locations, filterLocations, setVisibleLocations, setDrawerLocations]);
 
   // Get marker icon based on location's primary type or first type in the array
   const getMarkerIcon = useCallback((location: Location) => {
@@ -1316,7 +1391,7 @@ const MapComponent: React.FC<MapProps> = () => {
       setHoveredLocation(null);
     });
 
-    // Add listener for bounds_changed to update visible locations
+    // Add listener for bounds_changed to update visible locations (map markers only)
     map.addListener('bounds_changed', () => {
       // Only skip updating visible locations during the initialization phase
       if (!initializationCompleteRef.current && drawerState !== 'closed' && visibleLocations.length > 0) {
@@ -1325,12 +1400,12 @@ const MapComponent: React.FC<MapProps> = () => {
         return;
       }
       
-      // CRITICAL: We now use a different approach for bounds_changed with filters
-      // When filters are active, we still update visibleLocations but use the current filters
-      // This prevents confusing the user with conflicting results
+      // CRITICAL CHANGE: The bounds_changed event now ONLY affects map markers (visibleLocations)
+      // and no longer impacts the drawer content (drawerLocations)
+      
       let logMessage = activeFilters.length > 0 || selectedAge !== null || openNowFilter || freeActivitiesFilter
-        ? '🔍 LOCATION SOURCE 6: bounds_changed applying current filters'
-        : '🔍 LOCATION SOURCE 6: bounds_changed updating visible locations (no active filters)';
+        ? '🔍 LOCATION SOURCE 6: bounds_changed applying current filters to MAP MARKERS ONLY'
+        : '🔍 LOCATION SOURCE 6: bounds_changed updating map markers only (no active filters)';
         
       console.log(logMessage);
       
@@ -1390,6 +1465,8 @@ const MapComponent: React.FC<MapProps> = () => {
       
       if (needsUpdate) {
         // Update visible locations with the closest filtered locations
+        // IMPORTANT: We now ONLY update visibleLocations (map markers) here
+        // drawerLocations remain unchanged when map bounds change
         setVisibleLocations(closestLocations);
       } else {
         console.log('Skipping redundant visibleLocations update - no meaningful change');
@@ -1426,13 +1503,18 @@ const MapComponent: React.FC<MapProps> = () => {
     // Skip during initial load or if no map is available
     if (!map || !mapReadyState || locations.length === 0) return;
     
-    console.log('🔍 LOCATION SOURCE 4: Filter change detected - updating visible locations');
+    console.log('🔍 LOCATION SOURCE 4: Back to list - updating both map markers and drawer content');
     
     // Apply all active filters to the entire locations dataset
     const filteredLocations = filterLocations(locations);
     console.log(`Filtered ${locations.length} locations down to ${filteredLocations.length} matching current filters`);
     
-    // If map has a center point, calculate distances from there
+    // IMPORTANT: First update drawerLocations with filtered results (limited to 15)
+    // This ensures the drawer shows the correct filtered content immediately
+    setDrawerLocations(filteredLocations.slice(0, 15));
+    console.log(`Setting drawerLocations to ${Math.min(filteredLocations.length, 15)} filtered locations`);
+    
+    // Then update visibleLocations for map markers based on proximity to map center
     const mapCenter = map.getCenter();
     if (mapCenter) {
       const mapCenterPosition = {
@@ -1457,16 +1539,18 @@ const MapComponent: React.FC<MapProps> = () => {
         .map(item => item.location)
         .slice(0, 15);
       
-      // Update visible locations
+      // Update map markers
       setVisibleLocations(closestLocations);
+      console.log(`Setting visibleLocations to ${closestLocations.length} map-centered locations`);
     } else {
-      // If no map center available, just take the first 15 filtered locations
+      // If no map center available, just take the first 15 filtered locations for map markers too
       setVisibleLocations(filteredLocations.slice(0, 15));
     }
     
-  }, [map, mapReadyState, locations, filterLocations, setVisibleLocations]);
+  }, [map, mapReadyState, locations, filterLocations, setVisibleLocations, setDrawerLocations]);
 
-  // Add validation effect to both monitor and FIX visibleLocations
+  // Add validation effect to monitor and fix map markers only (visibleLocations)
+  // In our new architecture, drawerLocations are independently managed and don't need validation
   useEffect(() => {
     // Record the timing of this validation run
     const currentTime = Date.now();
@@ -1474,7 +1558,7 @@ const MapComponent: React.FC<MapProps> = () => {
     
     // Simple debounce - if we've validated within the last 200ms, skip this run
     if (timeSinceLastValidation < 200) {
-      console.log(`🔄 Skipping validation - too soon after last run (${timeSinceLastValidation}ms)`);
+      console.log(`🔄 Skipping map markers validation - too soon after last run (${timeSinceLastValidation}ms)`);
       return;
     }
     
@@ -1483,11 +1567,11 @@ const MapComponent: React.FC<MapProps> = () => {
     
     // Check if an update is already pending
     if (pendingUpdateRef.current) {
-      console.log(`🔄 Skipping validation - update already pending from ${lastUpdateSourceRef.current}`);
+      console.log(`🔄 Skipping map markers validation - update already pending from ${lastUpdateSourceRef.current}`);
       return;
     }
     
-    console.log(`🔍 VISIBLE LOCATIONS CHANGED: ${visibleLocations.length} locations from ${lastUpdateSourceRef.current || 'unknown source'}`);
+    console.log(`🔍 MAP MARKERS CHANGED: ${visibleLocations.length} locations from ${lastUpdateSourceRef.current || 'unknown source'}`);
     
     if (visibleLocations.length > 0) {
       // Only validate when filters are active (no need otherwise)
@@ -1502,7 +1586,7 @@ const MapComponent: React.FC<MapProps> = () => {
           // Filter by activity type
           if (activeFilters.length > 0 && !location.types.some(type => activeFilters.includes(type))) {
             if (process.env.NODE_ENV === 'development') {
-              console.log(`🔴 Location doesn't match activity filters: ${location.name}`);
+              console.log(`🔴 Map marker doesn't match activity filters: ${location.name}`);
             }
             isValid = false;
             invalidCount++;
@@ -1512,7 +1596,7 @@ const MapComponent: React.FC<MapProps> = () => {
           if (selectedAge !== null && isValid) {
             if (selectedAge < location.ageRange.min || selectedAge > location.ageRange.max) {
               if (process.env.NODE_ENV === 'development') {
-                console.log(`🔴 Location doesn't match age filter: ${location.name}`);
+                console.log(`🔴 Map marker doesn't match age filter: ${location.name}`);
               }
               isValid = false;
               invalidCount++;
@@ -1522,7 +1606,7 @@ const MapComponent: React.FC<MapProps> = () => {
           // Filter by price (free activities)
           if (freeActivitiesFilter && location.priceRange !== "Free" && isValid) {
             if (process.env.NODE_ENV === 'development') {
-              console.log(`🔴 Location doesn't match free filter: ${location.name}`);
+              console.log(`🔴 Map marker doesn't match free filter: ${location.name}`);
             }
             isValid = false;
             invalidCount++;
@@ -1535,7 +1619,7 @@ const MapComponent: React.FC<MapProps> = () => {
             const hours = location.openingHours[day];
             if (!hours || hours === 'Closed' || hours === 'Hours not available') {
               if (process.env.NODE_ENV === 'development') {
-                console.log(`🔴 Location doesn't match open now filter: ${location.name}`);
+                console.log(`🔴 Map marker doesn't match open now filter: ${location.name}`);
               }
               isValid = false;
               invalidCount++;
@@ -1548,7 +1632,7 @@ const MapComponent: React.FC<MapProps> = () => {
         });
         
         if (hasInvalidLocation) {
-          console.log(`🔴 WARNING: ${invalidCount}/${visibleLocations.length} locations don't match current filters - ENFORCING FILTERS`);
+          console.log(`🔴 WARNING: ${invalidCount}/${visibleLocations.length} map markers don't match current filters - ENFORCING FILTERS`);
           
           // Get properly filtered locations
           const properlyFilteredLocations = filterLocations(locations);
@@ -1571,7 +1655,7 @@ const MapComponent: React.FC<MapProps> = () => {
             }
           }
           
-          console.log(`🛠️ Fixing visible locations: Filtered ${locations.length} locations down to ${properlyFilteredLocations.length} matching filters`);
+          console.log(`🛠️ Fixing map markers: Filtered ${locations.length} locations down to ${properlyFilteredLocations.length} matching filters`);
           
           // Mark that we're starting an update
           pendingUpdateRef.current = true;
@@ -1601,6 +1685,7 @@ const MapComponent: React.FC<MapProps> = () => {
               .map(item => item.location)
               .slice(0, 15);
             
+            // IMPORTANT: Only update visibleLocations (map markers), not drawerLocations
             setVisibleLocations(closestLocations);
           } else {
             // No map center available, just take first 15 filtered locations (or fewer)
@@ -1613,11 +1698,11 @@ const MapComponent: React.FC<MapProps> = () => {
           }, 50);
         } else {
           // Everything is valid
-          console.log(`✅ All visible locations match current filters`);
+          console.log(`✅ All map markers match current filters`);
           lastValidationResultRef.current = 'valid';
         }
       } else {
-        console.log(`✅ No filters active - locations don't need validation`);
+        console.log(`✅ No filters active - map markers don't need validation`);
         lastValidationResultRef.current = '';
       }
     }
@@ -2519,6 +2604,7 @@ const MapComponent: React.FC<MapProps> = () => {
               onClose={handleDrawerClose}
               activityConfig={activityConfig}
               visibleLocations={visibleLocations}
+              drawerLocations={drawerLocations} /* New prop for drawer-specific locations */
               activeFilters={activeFilters}
               selectedAge={selectedAge}
               openNowFilter={openNowFilter}

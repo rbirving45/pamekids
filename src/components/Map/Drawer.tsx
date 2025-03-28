@@ -15,6 +15,7 @@ interface DrawerProps {
   onClose: () => void;
   activityConfig: Record<ActivityType, { name: string; color: string }>;
   visibleLocations?: Location[];
+  drawerLocations?: Location[]; // New prop specifically for drawer content
   onLocationSelect?: (location: Location) => void;
   activeFilters?: ActivityType[];
   selectedAge?: number | null;
@@ -29,6 +30,7 @@ const Drawer: React.FC<DrawerProps> = memo(({
   onClose,
   activityConfig,
   visibleLocations = [],
+  drawerLocations = [], // New prop for drawer-specific locations
   onLocationSelect,
   activeFilters = [],
   selectedAge = null,
@@ -540,20 +542,24 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // We directly use visibleLocations from Map component
   // No need for a backup anymore as this is properly handled by the Map component
   
-  // Simply use visibleLocations that are already filtered by the Map component
-  // No need for lastKnownLocations backup as Map component handles empty states
+  // Use drawerLocations if available, otherwise fall back to visibleLocations for compatibility
+  // This ensures proper separation of drawer content from map markers
   const filteredLocations = useMemo(() => {
+    // Prefer drawerLocations if available and non-empty
+    const locationsToUse = (drawerLocations && drawerLocations.length > 0)
+      ? drawerLocations
+      : visibleLocations;
+      
     if (process.env.NODE_ENV === 'development') {
-      console.log(`Drawer: Using ${visibleLocations.length} locations from Map component`);
+      console.log(`Drawer: Using ${locationsToUse.length} locations${(drawerLocations && drawerLocations.length > 0) ? ' from drawerLocations' : ' from visibleLocations (fallback)'}`);
     }
     
-    return visibleLocations;
-  }, [visibleLocations]);
+    return locationsToUse;
+  }, [drawerLocations, visibleLocations]);
 
   // Wrap displayedLocations in its own useMemo to avoid dependency changes on every render
-  const displayedLocations = useMemo(() =>
-    filteredLocations.slice(0, 15) || []
-  , [filteredLocations]);
+  // We no longer limit to 15 since drawerLocations is already limited
+  const displayedLocations = useMemo(() => filteredLocations || [], [filteredLocations]);
   
   // Add diagnostic logging for location data
   React.useEffect(() => {
