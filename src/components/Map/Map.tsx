@@ -90,6 +90,12 @@ const MapComponent: React.FC<MapProps> = () => {
   const drawerInitializedRef = useRef<boolean>(false);
   // Add a ref to track when initial loading is complete (to allow drawer updates during map panning)
   const initializationCompleteRef = useRef<boolean>(false);
+  
+  // Add refs to track validation timing and update sources
+  const lastValidationTimeRef = useRef<number>(0);
+  const pendingUpdateRef = useRef<boolean>(false);
+  const lastUpdateSourceRef = useRef<string>('');
+  const lastValidationResultRef = useRef<'valid' | 'invalid' | 'fixed' | ''>('');
 
   // Utility function to filter locations based on all active filters
   const filterLocations = useCallback((locationsToFilter: Location[]) => {
@@ -276,6 +282,94 @@ const MapComponent: React.FC<MapProps> = () => {
       }
     }
   }, [location.search]);
+  
+  // Add dedicated effect to handle filter changes
+  useEffect(() => {
+    // Skip during initial render or if no map is available yet
+    if (!map || !mapReadyState || locations.length === 0) return;
+    
+    // Log the filter change with clearer formatting
+    console.log(`🔍 FILTER CHANGE DETECTED - activeFilters: ${activeFilters.length}, age: ${selectedAge}, openNow: ${openNowFilter}, freeActivities: ${freeActivitiesFilter}`);
+    
+    // Reset the debounce timer to ensure validation runs after this update
+    lastValidationTimeRef.current = 0;
+    
+    // Force cancel any pending updates
+    pendingUpdateRef.current = false;
+    
+    // Mark this as a high-priority filter-based update
+    lastUpdateSourceRef.current = 'filter_change';
+    
+    // Apply all active filters to get the filtered locations
+    const filteredLocations = filterLocations(locations);
+    console.log(`Filter change: ${locations.length} locations filtered to ${filteredLocations.length} matching current filters`);
+    
+    // CRITICAL: If we have fewer than 15 filtered locations, use them ALL
+    // This is the key change to prevent the drawer showing incorrect locations
+    let closestLocations: Location[] = [];
+    
+    // Get the current map center for distance calculation
+    const mapCenter = map.getCenter();
+    if (mapCenter) {
+      const mapCenterPosition = {
+        lat: mapCenter.lat(),
+        lng: mapCenter.lng()
+      };
+      
+      // Calculate distance for filtered locations from the current map center
+      const locationsWithDistance = filteredLocations.map(location => {
+        const distance = Math.sqrt(
+          Math.pow(location.coordinates.lat - mapCenterPosition.lat, 2) +
+          Math.pow(location.coordinates.lng - mapCenterPosition.lng, 2)
+        );
+        return { location, distance };
+      });
+      
+      // Sort by distance (closest first)
+      locationsWithDistance.sort((a, b) => a.distance - b.distance);
+      
+      // If we have very few filtered locations (< 15), use all of them
+      // This ensures we don't mix filtered and unfiltered locations
+      if (filteredLocations.length < 15) {
+        console.log(`🔍 Using ALL ${filteredLocations.length} filtered locations instead of limiting to 15`);
+        closestLocations = filteredLocations;
+      } else {
+        // We have plenty of filtered locations, take the closest 15
+        closestLocations = locationsWithDistance
+          .map(item => item.location)
+          .slice(0, 15);
+      }
+    } else {
+      // No map center available, just use all filtered locations (up to 15)
+      closestLocations = filteredLocations.slice(0, Math.min(filteredLocations.length, 15));
+    }
+    
+    // Log what we're about to set
+    console.log(`🔍 Setting visibleLocations to ${closestLocations.length} locations from filter_change`);
+    
+    // Directly set visible locations with a small delay to ensure it takes effect
+    // This helps avoid race conditions with other effects
+    setTimeout(() => {
+      setVisibleLocations(closestLocations);
+      
+      // Set a flag to indicate that visible locations should not be overwritten
+      // by other effects for a short period
+      pendingUpdateRef.current = true;
+      
+      // Reset validation result to force a fresh validation after update
+      lastValidationResultRef.current = '';
+      
+      // Clear pending update flag after a reasonable delay
+      setTimeout(() => {
+        pendingUpdateRef.current = false;
+        
+        // Force a validation run after updating is complete
+        console.log(`🔍 Filter update complete - forcing validation`);
+        lastValidationTimeRef.current = 0;
+      }, 100);
+    }, 0);
+    
+  }, [activeFilters, selectedAge, openNowFilter, freeActivitiesFilter, map, mapReadyState, locations, filterLocations]);
   
   // Fetch locations from Firebase on component mount
   useEffect(() => {
@@ -1231,14 +1325,29 @@ const MapComponent: React.FC<MapProps> = () => {
         return;
       }
       
-      // CRITICAL: We now use a different approach for bounds_changed with filters
-      // When filters are active, we still update visibleLocations but use the current filters
-      // This prevents confusing the user with conflicting results
+      // CRITICAL CHANGE: Don't override locations when filter update is pending
+      if (pendingUpdateRef.current && lastUpdateSourceRef.current === 'filter_change') {
+        console.log('Skipping bounds_changed handling - filter update in progress');
+        return;
+      }
+      
+      // Don't update locations if a filter update has happened very recently
+      const filterUpdateRecently = lastUpdateSourceRef.current === 'filter_change' &&
+                                 (Date.now() - lastValidationTimeRef.current < 500);
+      if (filterUpdateRecently) {
+        console.log('Skipping bounds_changed handling - recent filter update');
+        return;
+      }
+      
+      // Log message for which approach we're using
       let logMessage = activeFilters.length > 0 || selectedAge !== null || openNowFilter || freeActivitiesFilter
         ? '🔍 LOCATION SOURCE 6: bounds_changed applying current filters'
         : '🔍 LOCATION SOURCE 6: bounds_changed updating visible locations (no active filters)';
         
       console.log(logMessage);
+      
+      // Mark that we're starting a bounds-based update
+      lastUpdateSourceRef.current = 'bounds_changed';
       
       // Get the map center
       const center = map.getCenter();
@@ -1280,10 +1389,21 @@ const MapComponent: React.FC<MapProps> = () => {
       // Sort by distance (closest first)
       locationsWithDistance.sort((a, b) => a.distance - b.distance);
       
-      // Get up to 15 closest filtered locations to map center
-      const closestLocations = locationsWithDistance
-        .map(item => item.location)
-        .slice(0, 15);
+      // CRITICAL CHANGE: When filters are active and return fewer than 15 results,
+      // use all filtered locations instead of taking a subset
+      let closestLocations: Location[];
+      
+      // If we have active filters and fewer than 15 filtered locations, use all of them
+      if ((activeFilters.length > 0 || selectedAge !== null || openNowFilter || freeActivitiesFilter) &&
+          filteredLocations.length < 15) {
+        console.log(`🔍 Bounds changed: Using ALL ${filteredLocations.length} filtered locations`);
+        closestLocations = filteredLocations;
+      } else {
+        // Otherwise get up to 15 closest filtered locations to map center
+        closestLocations = locationsWithDistance
+          .map(item => item.location)
+          .slice(0, 15);
+      }
       
       // To prevent update loops, only update if there's a meaningful change
       const currentLocIds = new Set(visibleLocations.map(loc => loc.id));
@@ -1296,6 +1416,7 @@ const MapComponent: React.FC<MapProps> = () => {
       
       if (needsUpdate) {
         // Update visible locations with the closest filtered locations
+        console.log(`🔍 Setting ${closestLocations.length} locations from bounds_changed`);
         setVisibleLocations(closestLocations);
       } else {
         console.log('Skipping redundant visibleLocations update - no meaningful change');
@@ -1374,55 +1495,115 @@ const MapComponent: React.FC<MapProps> = () => {
 
   // Add validation effect to both monitor and FIX visibleLocations
   useEffect(() => {
-    console.log(`🔍 VISIBLE LOCATIONS CHANGED: ${visibleLocations.length} locations`);
+    // Record the timing of this validation run
+    const currentTime = Date.now();
+    const timeSinceLastValidation = currentTime - lastValidationTimeRef.current;
+    
+    // Simple debounce - if we've validated within the last 200ms, skip this run
+    if (timeSinceLastValidation < 200) {
+      console.log(`🔄 Skipping validation - too soon after last run (${timeSinceLastValidation}ms)`);
+      return;
+    }
+    
+    // Update validation timing
+    lastValidationTimeRef.current = currentTime;
+    
+    // Check if an update is already pending
+    if (pendingUpdateRef.current) {
+      console.log(`🔄 Skipping validation - update already pending from ${lastUpdateSourceRef.current}`);
+      return;
+    }
+    
+    console.log(`🔍 VISIBLE LOCATIONS CHANGED: ${visibleLocations.length} locations from ${lastUpdateSourceRef.current || 'unknown source'}`);
     
     if (visibleLocations.length > 0) {
       // Only validate when filters are active (no need otherwise)
       if (activeFilters.length > 0 || selectedAge !== null || freeActivitiesFilter || openNowFilter) {
         // Check if all visible locations match filters
         let hasInvalidLocation = false;
+        let invalidCount = 0;
         
         visibleLocations.forEach(location => {
+          let isValid = true;
+          
           // Filter by activity type
           if (activeFilters.length > 0 && !location.types.some(type => activeFilters.includes(type))) {
-            console.log(`🔴 Location doesn't match activity filters: ${location.name}`);
-            hasInvalidLocation = true;
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`🔴 Location doesn't match activity filters: ${location.name}`);
+            }
+            isValid = false;
+            invalidCount++;
           }
           
           // Filter by age
-          if (selectedAge !== null) {
+          if (selectedAge !== null && isValid) {
             if (selectedAge < location.ageRange.min || selectedAge > location.ageRange.max) {
-              console.log(`🔴 Location doesn't match age filter: ${location.name}`);
-              hasInvalidLocation = true;
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`🔴 Location doesn't match age filter: ${location.name}`);
+              }
+              isValid = false;
+              invalidCount++;
             }
           }
           
           // Filter by price (free activities)
-          if (freeActivitiesFilter && location.priceRange !== "Free") {
-            console.log(`🔴 Location doesn't match free filter: ${location.name}`);
-            hasInvalidLocation = true;
+          if (freeActivitiesFilter && location.priceRange !== "Free" && isValid) {
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`🔴 Location doesn't match free filter: ${location.name}`);
+            }
+            isValid = false;
+            invalidCount++;
           }
           
           // Filter by open now
-          if (openNowFilter) {
+          if (openNowFilter && isValid) {
             const now = new Date();
             const day = now.toLocaleDateString('en-US', { weekday: 'long' });
             const hours = location.openingHours[day];
             if (!hours || hours === 'Closed' || hours === 'Hours not available') {
-              console.log(`🔴 Location doesn't match open now filter: ${location.name}`);
-              hasInvalidLocation = true;
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`🔴 Location doesn't match open now filter: ${location.name}`);
+              }
+              isValid = false;
+              invalidCount++;
             }
+          }
+          
+          if (!isValid) {
+            hasInvalidLocation = true;
           }
         });
         
         if (hasInvalidLocation) {
-          console.log(`🔴 WARNING: Some visible locations don't match current filters - ENFORCING FILTERS`);
+          console.log(`🔴 WARNING: ${invalidCount}/${visibleLocations.length} locations don't match current filters - ENFORCING FILTERS`);
           
-          // CRITICAL FIX: Force update visibleLocations to only contain filtered locations
-          // This ensures the drawer always shows properly filtered locations
+          // Get properly filtered locations
           const properlyFilteredLocations = filterLocations(locations);
           
+          // CRITICAL: Check if the new set would be SUBSTANTIALLY different
+          // If the filtered count is the same as our current valid count, it's likely we're just
+          // seeing a conflict between different update sources
+          const currentValidCount = visibleLocations.length - invalidCount;
+          
+          // If the number of properly filtered locations is similar to our current valid locations,
+          // it suggests our current set is already mostly correct and we might be in a loop
+          if (properlyFilteredLocations.length > 0 && Math.abs(properlyFilteredLocations.length - currentValidCount) <= 2) {
+            console.log(`⚠️ Filtered count (${properlyFilteredLocations.length}) similar to current valid count (${currentValidCount}) - possible update conflict`);
+            
+            // Check if we already fixed this recently - avoid ping-ponging between states
+            if (lastValidationResultRef.current === 'fixed') {
+              console.log(`🛑 Breaking potential update loop - skipping validation fix`);
+              lastValidationResultRef.current = 'invalid';
+              return;
+            }
+          }
+          
           console.log(`🛠️ Fixing visible locations: Filtered ${locations.length} locations down to ${properlyFilteredLocations.length} matching filters`);
+          
+          // Mark that we're starting an update
+          pendingUpdateRef.current = true;
+          lastUpdateSourceRef.current = 'validation_fix';
+          lastValidationResultRef.current = 'fixed';
           
           // Sort by distance if map center is available
           const mapCenter = map?.getCenter();
@@ -1441,7 +1622,7 @@ const MapComponent: React.FC<MapProps> = () => {
               return { location, distance };
             });
             
-            // Sort by distance and take 15 closest
+            // Sort by distance and take 15 closest (or fewer if that's all we have)
             locationsWithDistance.sort((a, b) => a.distance - b.distance);
             const closestLocations = locationsWithDistance
               .map(item => item.location)
@@ -1449,14 +1630,22 @@ const MapComponent: React.FC<MapProps> = () => {
             
             setVisibleLocations(closestLocations);
           } else {
-            // No map center available, just take first 15 filtered locations
+            // No map center available, just take first 15 filtered locations (or fewer)
             setVisibleLocations(properlyFilteredLocations.slice(0, 15));
           }
+          
+          // Clear pending update after a small delay to allow state to settle
+          setTimeout(() => {
+            pendingUpdateRef.current = false;
+          }, 50);
         } else {
+          // Everything is valid
           console.log(`✅ All visible locations match current filters`);
+          lastValidationResultRef.current = 'valid';
         }
       } else {
         console.log(`✅ No filters active - locations don't need validation`);
+        lastValidationResultRef.current = '';
       }
     }
   }, [visibleLocations, activeFilters, selectedAge, freeActivitiesFilter, openNowFilter, filterLocations, locations, map, setVisibleLocations]);
