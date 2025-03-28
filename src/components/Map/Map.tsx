@@ -91,6 +91,82 @@ const MapComponent: React.FC<MapProps> = () => {
   // Add a ref to track when initial loading is complete (to allow drawer updates during map panning)
   const initializationCompleteRef = useRef<boolean>(false);
 
+  // Utility function to filter locations based on all active filters
+  const filterLocations = useCallback((locationsToFilter: Location[]) => {
+    return locationsToFilter.filter(location => {
+      // Filter by activity type
+      if (activeFilters.length > 0 && !location.types.some(type => activeFilters.includes(type))) {
+        return false;
+      }
+      
+      // Filter by age
+      if (selectedAge !== null) {
+        if (selectedAge < location.ageRange.min || selectedAge > location.ageRange.max) {
+          return false;
+        }
+      }
+      
+      // Filter by price (free activities)
+      if (freeActivitiesFilter && location.priceRange !== "Free") {
+        return false;
+      }
+      
+      // Filter by open now
+      if (openNowFilter) {
+        const now = new Date();
+        const day = now.toLocaleDateString('en-US', { weekday: 'long' });
+        const hours = location.openingHours[day];
+
+        if (!hours || hours === 'Closed' || hours === 'Hours not available') {
+          return false;
+        }
+        if (hours === 'Open 24 hours') {
+          return true;
+        }
+
+        try {
+          const timeParts = hours.split(/[–-]/).map(t => t.trim());
+          if (timeParts.length !== 2) return false;
+          const [start, end] = timeParts;
+          
+          const parseTime = (timeStr: string) => {
+            if (!timeStr) return 0;
+            const parts = timeStr.split(' ');
+            if (parts.length !== 2) return 0;
+            
+            const [time, period] = parts;
+            if (!time || !period) return 0;
+            
+            const [hours, minutes] = time.split(':').map(Number);
+            if (isNaN(hours)) return 0;
+            
+            let totalHours = hours;
+            if (period === 'PM' && hours !== 12) totalHours += 12;
+            if (period === 'AM' && hours === 12) totalHours = 0;
+            
+            return totalHours * 60 + (minutes || 0);
+          };
+
+          const startMinutes = parseTime(start);
+          const endMinutes = parseTime(end);
+          const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+          if (endMinutes < startMinutes) {
+            return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+          }
+
+          return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+        } catch (error) {
+          // Silent error in production
+          return false;
+        }
+      }
+      
+      // If location passes all active filters, include it
+      return true;
+    });
+  }, [activeFilters, selectedAge, freeActivitiesFilter, openNowFilter]);
+
   // This function has been removed as we now use a simpler approach for map positioning
   
   // Register callback to clear selected location when drawer is closed by gestures
@@ -130,11 +206,17 @@ const MapComponent: React.FC<MapProps> = () => {
   // Ensure desktop drawer has content on initial load
   useEffect(() => {
     if (!isMobile && visibleLocations.length === 0 && locations.length > 0 && !isLoadingLocations && mapReadyState) {
-      // Fallback: use the first 15 locations for desktop drawer if no visible locations
-      console.log('Populating fallback visible locations for desktop drawer');
-      setVisibleLocations(locations.slice(0, 15));
+      // IMPROVED: Filter locations before using as fallback
+      console.log('Populating fallback filtered visible locations for desktop drawer');
+      
+      // First filter locations based on active filters
+      const filteredLocations = filterLocations(locations);
+      console.log(`Filtered ${locations.length} locations down to ${filteredLocations.length} matching current filters for fallback`);
+      
+      // Use filtered locations for the drawer
+      setVisibleLocations(filteredLocations.slice(0, 15));
     }
-  }, [isMobile, visibleLocations.length, locations, isLoadingLocations, mapReadyState, setVisibleLocations]);
+  }, [isMobile, visibleLocations.length, locations, isLoadingLocations, mapReadyState, setVisibleLocations, filterLocations]);
   
   // Process URL parameters for filtering
   useEffect(() => {
@@ -222,17 +304,92 @@ const MapComponent: React.FC<MapProps> = () => {
           const parsedLocations = JSON.parse(cachedLocations);
           setLocations(parsedLocations);
           
-          // Immediately populate visibleLocations with initial locations on desktop
+          // IMPROVED APPROACH: Filter cached locations before selecting closest ones
+          // Apply all active filters to entire locations dataset (same as non-cached logic)
+          const filteredLocations = parsedLocations.filter((location: Location) => {
+            // Filter by activity type
+            if (activeFilters.length > 0 && !location.types.some(type => activeFilters.includes(type))) {
+              return false;
+            }
+            
+            // Filter by age
+            if (selectedAge !== null) {
+              if (selectedAge < location.ageRange.min || selectedAge > location.ageRange.max) {
+                return false;
+              }
+            }
+            
+            // Filter by price (free activities)
+            if (freeActivitiesFilter && location.priceRange !== "Free") {
+              return false;
+            }
+            
+            // Filter by open now
+            if (openNowFilter) {
+              const now = new Date();
+              const day = now.toLocaleDateString('en-US', { weekday: 'long' });
+              const hours = location.openingHours[day];
+              
+              if (!hours || hours === 'Closed' || hours === 'Hours not available') {
+                return false;
+              }
+              if (hours === 'Open 24 hours') {
+                return true;
+              }
+              
+              try {
+                const timeParts = hours.split(/[–-]/).map(t => t.trim());
+                if (timeParts.length !== 2) return false;
+                const [start, end] = timeParts;
+                
+                const parseTime = (timeStr: string) => {
+                  if (!timeStr) return 0;
+                  const parts = timeStr.split(' ');
+                  if (parts.length !== 2) return 0;
+                  
+                  const [time, period] = parts;
+                  if (!time || !period) return 0;
+                  
+                  const [hours, minutes] = time.split(':').map(Number);
+                  if (isNaN(hours)) return 0;
+                  
+                  let totalHours = hours;
+                  if (period === 'PM' && hours !== 12) totalHours += 12;
+                  if (period === 'AM' && hours === 12) totalHours = 0;
+                  
+                  return totalHours * 60 + (minutes || 0);
+                };
+                
+                const startMinutes = parseTime(start);
+                const endMinutes = parseTime(end);
+                const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                
+                if (endMinutes < startMinutes) {
+                  return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+                }
+                
+                return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+              } catch (error) {
+                return false;
+              }
+            }
+            
+            return true;
+          });
+          
+          console.log(`Filtered ${parsedLocations.length} cached locations down to ${filteredLocations.length} matching current filters`);
+          
+          // Immediately populate visibleLocations with filtered locations on desktop
           // This ensures the drawer has content before map initialization
           if (!isMobile) {
-            console.log('Pre-populating visibleLocations for desktop drawer');
-            setVisibleLocations(parsedLocations.slice(0, 15));
+            console.log('Pre-populating filtered visibleLocations for desktop drawer');
+            setVisibleLocations(filteredLocations.slice(0, 15));
           } else {
-            // For mobile, also populate visible locations
-            console.log('Pre-populating visibleLocations for mobile');
-            // Get 15 closest locations to default Athens center
+            // For mobile, also populate visible locations with filtered results
+            console.log('Pre-populating filtered visibleLocations for mobile');
+            // Get 15 closest filtered locations to default Athens center
             const defaultCoords = { lat: 37.9838, lng: 23.7275 };
-            const locationsWithDistance = parsedLocations.map((location: Location) => {
+            const locationsWithDistance = filteredLocations.map((location: Location) => {
               const distance = Math.sqrt(
                 Math.pow(location.coordinates.lat - defaultCoords.lat, 2) +
                 Math.pow(location.coordinates.lng - defaultCoords.lng, 2)
@@ -295,15 +452,92 @@ const MapComponent: React.FC<MapProps> = () => {
         // Signal locations are loaded (but not yet processed)
         setLocationsLoaded();
         
+        // IMPROVED APPROACH: Filter locations before selecting closest ones
+        // 1. Apply all active filters to entire locations dataset
+        // Note: filterLocations isn't available yet since it's defined by useCallback
+        // So we'll inline the filtering logic here
+        const filteredLocations = fetchedLocations.filter(location => {
+          // Filter by activity type
+          if (activeFilters.length > 0 && !location.types.some(type => activeFilters.includes(type))) {
+            return false;
+          }
+          
+          // Filter by age
+          if (selectedAge !== null) {
+            if (selectedAge < location.ageRange.min || selectedAge > location.ageRange.max) {
+              return false;
+            }
+          }
+          
+          // Filter by price (free activities)
+          if (freeActivitiesFilter && location.priceRange !== "Free") {
+            return false;
+          }
+          
+          // Filter by open now
+          if (openNowFilter) {
+            const now = new Date();
+            const day = now.toLocaleDateString('en-US', { weekday: 'long' });
+            const hours = location.openingHours[day];
+            
+            if (!hours || hours === 'Closed' || hours === 'Hours not available') {
+              return false;
+            }
+            if (hours === 'Open 24 hours') {
+              return true;
+            }
+            
+            try {
+              const timeParts = hours.split(/[–-]/).map(t => t.trim());
+              if (timeParts.length !== 2) return false;
+              const [start, end] = timeParts;
+              
+              const parseTime = (timeStr: string) => {
+                if (!timeStr) return 0;
+                const parts = timeStr.split(' ');
+                if (parts.length !== 2) return 0;
+                
+                const [time, period] = parts;
+                if (!time || !period) return 0;
+                
+                const [hours, minutes] = time.split(':').map(Number);
+                if (isNaN(hours)) return 0;
+                
+                let totalHours = hours;
+                if (period === 'PM' && hours !== 12) totalHours += 12;
+                if (period === 'AM' && hours === 12) totalHours = 0;
+                
+                return totalHours * 60 + (minutes || 0);
+              };
+              
+              const startMinutes = parseTime(start);
+              const endMinutes = parseTime(end);
+              const currentMinutes = now.getHours() * 60 + now.getMinutes();
+              
+              if (endMinutes < startMinutes) {
+                return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+              }
+              
+              return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+            } catch (error) {
+              return false;
+            }
+          }
+          
+          return true;
+        });
+        
+        console.log(`Filtered ${fetchedLocations.length} locations down to ${filteredLocations.length} matching current filters`);
+        
         // Populate visibleLocations for both desktop and mobile
         if (!isMobile) {
-          console.log('Pre-populating visibleLocations for desktop drawer');
-          setVisibleLocations(fetchedLocations.slice(0, 15));
+          console.log('Pre-populating filtered visibleLocations for desktop drawer');
+          setVisibleLocations(filteredLocations.slice(0, 15));
         } else {
-          // For mobile, populate with closest locations to default center
-          console.log('Pre-populating visibleLocations for mobile');
+          // For mobile, populate with closest FILTERED locations to default center
+          console.log('Pre-populating filtered visibleLocations for mobile');
           const defaultCoords = { lat: 37.9838, lng: 23.7275 };
-          const locationsWithDistance = fetchedLocations.map((location: Location) => {
+          const locationsWithDistance = filteredLocations.map((location: Location) => {
             const distance = Math.sqrt(
               Math.pow(location.coordinates.lat - defaultCoords.lat, 2) +
               Math.pow(location.coordinates.lng - defaultCoords.lng, 2)
@@ -361,7 +595,7 @@ const MapComponent: React.FC<MapProps> = () => {
     };
 
     fetchLocations();
-  }, [isMobile, setVisibleLocations, setLocationsLoaded, setLocationsProcessed, setLocationsLoading, visibleLocations.length]);
+  }, [isMobile, setVisibleLocations, setLocationsLoaded, setLocationsProcessed, setLocationsLoading, visibleLocations.length, activeFilters, selectedAge, freeActivitiesFilter, openNowFilter]);
 
   // Get user location on component mount without a timeout to ensure we wait for user permission response
   useEffect(() => {
@@ -819,9 +1053,14 @@ const MapComponent: React.FC<MapProps> = () => {
       lng: center.lng()
     };
     
-    // SIMPLIFIED APPROACH: Always show 15 closest locations to map center
-    // Calculate distance for all locations from the current map center
-    const locationsWithDistance = locations.map(location => {
+    // IMPROVED APPROACH: First filter all locations, THEN find 15 closest
+    // 1. Apply all active filters to entire locations dataset
+    const filteredLocations = filterLocations(locations);
+    
+    console.log(`Filtered ${locations.length} locations down to ${filteredLocations.length} matching current filters`);
+    
+    // 2. Calculate distance for filtered locations from the current map center
+    const locationsWithDistance = filteredLocations.map(location => {
       const distance = Math.sqrt(
         Math.pow(location.coordinates.lat - mapCenterPosition.lat, 2) +
         Math.pow(location.coordinates.lng - mapCenterPosition.lng, 2)
@@ -829,17 +1068,17 @@ const MapComponent: React.FC<MapProps> = () => {
       return { location, distance };
     });
     
-    // Sort by distance (closest first)
+    // 3. Sort by distance (closest first)
     locationsWithDistance.sort((a, b) => a.distance - b.distance);
     
-    // Get the 15 closest locations to map center
+    // 4. Get up to 15 closest filtered locations to map center
     const closestLocations = locationsWithDistance
       .map(item => item.location)
       .slice(0, 15);
     
-    // Update visible locations with the 15 closest to map center
+    // 5. Update visible locations with the closest filtered locations
     setVisibleLocations(closestLocations);
-  }, [map, locations, setVisibleLocations]);
+  }, [map, locations, setVisibleLocations, filterLocations]);
 
   // Get marker icon based on location's primary type or first type in the array
   const getMarkerIcon = useCallback((location: Location) => {
@@ -867,6 +1106,8 @@ const MapComponent: React.FC<MapProps> = () => {
       strokeWeight: 2
     };
   }, [maps]);
+
+
 
   // Toggle for individual activity types
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1090,9 +1331,16 @@ const MapComponent: React.FC<MapProps> = () => {
         lng: center.lng()
       };
       
-      // SIMPLIFIED APPROACH: Always show 15 closest locations to map center
-      // Calculate distance for all locations from the current map center
-      const locationsWithDistance = locations.map(location => {
+      // IMPROVED APPROACH: First filter all locations, THEN find 15 closest
+      // 1. Apply all active filters to entire locations dataset
+      const filteredLocations = filterLocations(locations);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Filtered ${locations.length} locations down to ${filteredLocations.length} matching current filters`);
+      }
+      
+      // 2. Calculate distance for filtered locations from the current map center
+      const locationsWithDistance = filteredLocations.map(location => {
         // Simple Euclidean distance (sufficient for sorting by relative distance)
         const distance = Math.sqrt(
           Math.pow(location.coordinates.lat - mapCenterPosition.lat, 2) +
@@ -1101,15 +1349,15 @@ const MapComponent: React.FC<MapProps> = () => {
         return { location, distance };
       });
       
-      // Sort by distance (closest first)
+      // 3. Sort by distance (closest first)
       locationsWithDistance.sort((a, b) => a.distance - b.distance);
       
-      // Get the 15 closest locations to map center
+      // 4. Get up to 15 closest filtered locations to map center
       const closestLocations = locationsWithDistance
         .map(item => item.location)
         .slice(0, 15);
       
-      // Update visible locations with the 15 closest to map center
+      // 5. Update visible locations with the closest filtered locations
       setVisibleLocations(closestLocations);
     });
     
@@ -1118,7 +1366,7 @@ const MapComponent: React.FC<MapProps> = () => {
       // Using setTimeout to ensure the map is fully rendered
       map.setZoom(map.getZoom()!); // This triggers bounds_changed without changing the view
     }, 300);
-  }, [locations, isMobile, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation, centerMapOnLocation, setDrawerState, setMapReady, drawerState, visibleLocations.length]);
+  }, [locations, isMobile, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation, centerMapOnLocation, setDrawerState, setMapReady, drawerState, visibleLocations.length, filterLocations]);
 
   // Handle drawer close action 
   const handleDrawerClose = useCallback(() => {

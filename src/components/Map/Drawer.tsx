@@ -548,77 +548,20 @@ const Drawer: React.FC<DrawerProps> = memo(({
   }, [visibleLocations]);
   
   // Filter locations based on active filters for the list view
+  // NOTE: Filtering is now handled in the Map component, so this just passes through the visibleLocations
+  // We keep this structure to avoid breaking dependencies
   const filteredLocations = useMemo(() => {
     // Use visibleLocations if available, otherwise fall back to our backup
     const locationsToUse = visibleLocations.length > 0 ? visibleLocations : lastKnownLocations;
     
-    return locationsToUse.filter(location => {
-      // Activity type filter
-      if (activeFilters.length > 0 && !location.types.some(type => activeFilters.includes(type))) {
-        return false;
-      }
-      
-      // Age filter
-      if (selectedAge !== null) {
-        if (selectedAge < location.ageRange.min || selectedAge > location.ageRange.max) {
-          return false;
-        }
-      }
-      
-      // Open now filter
-      if (openNowFilter) {
-        const now = new Date();
-        const day = now.toLocaleDateString('en-US', { weekday: 'long' });
-        const hours = location.openingHours[day];
-
-        if (!hours || hours === 'Closed' || hours === 'Hours not available') {
-          return false;
-        }
-        if (hours === 'Open 24 hours') {
-          return true;
-        }
-
-        try {
-          const timeParts = hours.split(/[–-]/).map(t => t.trim());
-          if (timeParts.length !== 2) return false;
-          const [start, end] = timeParts;
-          
-          const parseTime = (timeStr: string) => {
-            if (!timeStr) return 0;
-            const parts = timeStr.split(' ');
-            if (parts.length !== 2) return 0;
-            
-            const [time, period] = parts;
-            if (!time || !period) return 0;
-            
-            const [hours, minutes] = time.split(':').map(Number);
-            if (isNaN(hours)) return 0;
-            
-            let totalHours = hours;
-            if (period === 'PM' && hours !== 12) totalHours += 12;
-            if (period === 'AM' && hours === 12) totalHours = 0;
-            
-            return totalHours * 60 + (minutes || 0);
-          };
-
-          const startMinutes = parseTime(start);
-          const endMinutes = parseTime(end);
-          const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-          if (endMinutes < startMinutes) {
-            return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
-          }
-
-          return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
-        } catch (error) {
-          // Silent error in production
-          return false;
-        }
-      }
-      
-      return true;
-    });
-  }, [visibleLocations, lastKnownLocations, activeFilters, selectedAge, openNowFilter]);
+    // No longer applying filters here - locations are pre-filtered by the Map component
+    // Just return the locations as-is with a log for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Drawer: Using ${locationsToUse.length} pre-filtered locations from Map component`);
+    }
+    
+    return locationsToUse;
+  }, [visibleLocations, lastKnownLocations]);
 
   // Wrap displayedLocations in its own useMemo to avoid dependency changes on every render
   const displayedLocations = useMemo(() =>
