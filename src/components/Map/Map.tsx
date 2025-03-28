@@ -380,29 +380,36 @@ const MapComponent: React.FC<MapProps> = () => {
           console.log(`Filtered ${parsedLocations.length} cached locations down to ${filteredLocations.length} matching current filters`);
           
           // Immediately populate visibleLocations with filtered locations on desktop
-          // This ensures the drawer has content before map initialization
-          if (!isMobile) {
-            console.log('Pre-populating filtered visibleLocations for desktop drawer');
-            setVisibleLocations(filteredLocations.slice(0, 15));
+          // DO NOT populate visibleLocations during initial load when there are active filters
+          // This prevents overriding the filtered results that will be calculated in the filter change effect
+          if (activeFilters.length > 0 || selectedAge !== null || openNowFilter || freeActivitiesFilter) {
+            console.log('🔍 LOCATION SOURCE 1: Skipping pre-population because filters are active');
+            // Don't set visibleLocations here - let the filter change effect handle it
           } else {
-            // For mobile, also populate visible locations with filtered results
-            console.log('Pre-populating filtered visibleLocations for mobile');
-            // Get 15 closest filtered locations to default Athens center
-            const defaultCoords = { lat: 37.9838, lng: 23.7275 };
-            const locationsWithDistance = filteredLocations.map((location: Location) => {
-              const distance = Math.sqrt(
-                Math.pow(location.coordinates.lat - defaultCoords.lat, 2) +
-                Math.pow(location.coordinates.lng - defaultCoords.lng, 2)
+            // Only populate visibleLocations when no filters are active
+            if (!isMobile) {
+              console.log('🔍 LOCATION SOURCE 1: Pre-populating filtered visibleLocations for desktop drawer (no active filters)');
+              setVisibleLocations(filteredLocations.slice(0, 15));
+            } else {
+              // For mobile, also populate visible locations with filtered results
+              console.log('🔍 LOCATION SOURCE 2: Pre-populating filtered visibleLocations for mobile (no active filters)');
+              // Get 15 closest filtered locations to default Athens center
+              const defaultCoords = { lat: 37.9838, lng: 23.7275 };
+              const locationsWithDistance = filteredLocations.map((location: Location) => {
+                const distance = Math.sqrt(
+                  Math.pow(location.coordinates.lat - defaultCoords.lat, 2) +
+                  Math.pow(location.coordinates.lng - defaultCoords.lng, 2)
+                );
+                return { location, distance };
+              });
+              locationsWithDistance.sort((a: {location: Location, distance: number}, b: {location: Location, distance: number}) =>
+                a.distance - b.distance
               );
-              return { location, distance };
-            });
-            locationsWithDistance.sort((a: {location: Location, distance: number}, b: {location: Location, distance: number}) =>
-              a.distance - b.distance
-            );
-            const closestLocations = locationsWithDistance
-              .map((item: {location: Location, distance: number}) => item.location)
-              .slice(0, 15);
-            setVisibleLocations(closestLocations);
+              const closestLocations = locationsWithDistance
+                .map((item: {location: Location, distance: number}) => item.location)
+                .slice(0, 15);
+              setVisibleLocations(closestLocations);
+            }
           }
           
           setIsLoadingLocations(false);
@@ -752,50 +759,18 @@ const MapComponent: React.FC<MapProps> = () => {
       if (!initializationCompleteRef.current) {
         console.log('🚀 Map initialization complete - enabling drawer updates on map moves');
         initializationCompleteRef.current = true;
+        
+        // Force trigger bounds_changed to update locations with proper filtering
+        console.log('🔍 LOCATION SOURCE 3: Forcing bounds_changed event');
+        if (map) {
+          // Tiny zoom change to trigger bounds_changed
+          map.setZoom(map.getZoom()!);
+        }
       }
       
-      // Always update visible locations after centering, regardless of drawer state
-      // This ensures locations reflect the current map view
-      if (locations.length > 0) {
-        console.log('🚀 Updating visible locations after map centering');
-        
-        // Get center of map
-        const mapCenter = map.getCenter();
-        if (!mapCenter) {
-          console.log('Map center not available after centering, skipping location update');
-          return;
-        }
-        
-        const mapCenterPosition = {
-          lat: mapCenter.lat(),
-          lng: mapCenter.lng()
-        };
-        
-        // SIMPLIFIED APPROACH: Always show 15 closest locations to map center
-        // Calculate distance for all locations from the current map center
-        const locationsWithDistance = locations.map((location: Location) => {
-          const distance = Math.sqrt(
-            Math.pow(location.coordinates.lat - mapCenterPosition.lat, 2) +
-            Math.pow(location.coordinates.lng - mapCenterPosition.lng, 2)
-          );
-          return { location, distance };
-        });
-        
-        // Sort by distance (closest first)
-        locationsWithDistance.sort((a: {location: Location, distance: number}, b: {location: Location, distance: number}) =>
-          a.distance - b.distance
-        );
-        
-        // Get the 15 closest locations to map center
-        const closestLocations = locationsWithDistance
-          .map((item: {location: Location, distance: number}) => item.location)
-          .slice(0, 15);
-        
-        // Update visible locations with the 15 closest to map center
-        if (closestLocations.length > 0) {
-          setVisibleLocations(closestLocations);
-        }
-      }
+      // Let the bounds_changed event handler update visible locations
+      // This ensures we use consistent filtering logic throughout the app
+      
     }, 300); // Longer timeout to ensure centering completes
   }, [map, userLocation, isMobile, centerMapOnLocation, mapReadyState, locations, visibleLocations.length, setVisibleLocations, drawerState]);
 
@@ -1042,7 +1017,7 @@ const MapComponent: React.FC<MapProps> = () => {
   const updateVisibleLocations = useCallback(() => {
     if (!map || locations.length === 0) return;
     
-    console.log('🔄 Force updating visible locations based on current map view');
+    console.log('🔍 LOCATION SOURCE 5: Force updating visible locations based on current map view');
     
     // Get the map center
     const center = map.getCenter();
@@ -1317,7 +1292,15 @@ const MapComponent: React.FC<MapProps> = () => {
         return;
       }
       
-      // After initialization, always update locations based on map center
+      // CRITICAL: Don't update locations if there are active filters
+      // This prevents bounds_changed from overriding our filtered results
+      if (activeFilters.length > 0 || selectedAge !== null || openNowFilter || freeActivitiesFilter) {
+        console.log('🔍 LOCATION SOURCE 6: Skipping bounds_changed update - active filters detected');
+        return;
+      }
+      
+      // After initialization, only update locations based on map center if no filters are active
+      console.log('🔍 LOCATION SOURCE 6: bounds_changed event updating visible locations (no active filters)');
       
       // Get the map center
       const center = map.getCenter();
@@ -1331,12 +1314,12 @@ const MapComponent: React.FC<MapProps> = () => {
         lng: center.lng()
       };
       
-      // IMPROVED APPROACH: First filter all locations, THEN find 15 closest
-      // 1. Apply all active filters to entire locations dataset
+      // When no filters are active, calculate closest locations based on map center
+      // 1. Apply all active filters to entire locations dataset (should be all locations since no filters active)
       const filteredLocations = filterLocations(locations);
       
       if (process.env.NODE_ENV === 'development') {
-        console.log(`Filtered ${locations.length} locations down to ${filteredLocations.length} matching current filters`);
+        console.log(`Map bounds changed - ${filteredLocations.length} locations matching current view`);
       }
       
       // 2. Calculate distance for filtered locations from the current map center
@@ -1366,7 +1349,7 @@ const MapComponent: React.FC<MapProps> = () => {
       // Using setTimeout to ensure the map is fully rendered
       map.setZoom(map.getZoom()!); // This triggers bounds_changed without changing the view
     }, 300);
-  }, [locations, isMobile, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation, centerMapOnLocation, setDrawerState, setMapReady, drawerState, visibleLocations.length, filterLocations]);
+  }, [locations, isMobile, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation, centerMapOnLocation, setDrawerState, setMapReady, drawerState, visibleLocations.length, filterLocations, activeFilters.length, freeActivitiesFilter, openNowFilter, selectedAge]);
 
   // Handle drawer close action 
   const handleDrawerClose = useCallback(() => {
@@ -1393,6 +1376,140 @@ const MapComponent: React.FC<MapProps> = () => {
     // Clear selected location but keep drawer open
     setSelectedLocation(null);
   }, [updateVisibleLocations, setSelectedLocation]);
+
+  // NEW EFFECT: Update visible locations when filters change
+  useEffect(() => {
+    // Skip during initial load or if no map is available
+    if (!map || !mapReadyState || locations.length === 0) return;
+    
+    console.log('🔍 LOCATION SOURCE 4: Filter change detected - updating visible locations');
+    
+    // Apply all active filters to the entire locations dataset
+    const filteredLocations = filterLocations(locations);
+    console.log(`Filtered ${locations.length} locations down to ${filteredLocations.length} matching current filters`);
+    
+    // If map has a center point, calculate distances from there
+    const mapCenter = map.getCenter();
+    if (mapCenter) {
+      const mapCenterPosition = {
+        lat: mapCenter.lat(),
+        lng: mapCenter.lng()
+      };
+      
+      // Calculate distance for filtered locations from the current map center
+      const locationsWithDistance = filteredLocations.map(location => {
+        const distance = Math.sqrt(
+          Math.pow(location.coordinates.lat - mapCenterPosition.lat, 2) +
+          Math.pow(location.coordinates.lng - mapCenterPosition.lng, 2)
+        );
+        return { location, distance };
+      });
+      
+      // Sort by distance (closest first)
+      locationsWithDistance.sort((a, b) => a.distance - b.distance);
+      
+      // Get up to 15 closest filtered locations to map center
+      const closestLocations = locationsWithDistance
+        .map(item => item.location)
+        .slice(0, 15);
+      
+      // Update visible locations
+      setVisibleLocations(closestLocations);
+    } else {
+      // If no map center available, just take the first 15 filtered locations
+      setVisibleLocations(filteredLocations.slice(0, 15));
+    }
+    
+  }, [activeFilters, selectedAge, openNowFilter, freeActivitiesFilter, map, mapReadyState, locations, filterLocations, setVisibleLocations]);
+
+  // Add validation effect to both monitor and FIX visibleLocations
+  useEffect(() => {
+    console.log(`🔍 VISIBLE LOCATIONS CHANGED: ${visibleLocations.length} locations`);
+    
+    if (visibleLocations.length > 0) {
+      // Only validate when filters are active (no need otherwise)
+      if (activeFilters.length > 0 || selectedAge !== null || freeActivitiesFilter || openNowFilter) {
+        // Check if all visible locations match filters
+        let hasInvalidLocation = false;
+        
+        visibleLocations.forEach(location => {
+          // Filter by activity type
+          if (activeFilters.length > 0 && !location.types.some(type => activeFilters.includes(type))) {
+            console.log(`🔴 Location doesn't match activity filters: ${location.name}`);
+            hasInvalidLocation = true;
+          }
+          
+          // Filter by age
+          if (selectedAge !== null) {
+            if (selectedAge < location.ageRange.min || selectedAge > location.ageRange.max) {
+              console.log(`🔴 Location doesn't match age filter: ${location.name}`);
+              hasInvalidLocation = true;
+            }
+          }
+          
+          // Filter by price (free activities)
+          if (freeActivitiesFilter && location.priceRange !== "Free") {
+            console.log(`🔴 Location doesn't match free filter: ${location.name}`);
+            hasInvalidLocation = true;
+          }
+          
+          // Filter by open now
+          if (openNowFilter) {
+            const now = new Date();
+            const day = now.toLocaleDateString('en-US', { weekday: 'long' });
+            const hours = location.openingHours[day];
+            if (!hours || hours === 'Closed' || hours === 'Hours not available') {
+              console.log(`🔴 Location doesn't match open now filter: ${location.name}`);
+              hasInvalidLocation = true;
+            }
+          }
+        });
+        
+        if (hasInvalidLocation) {
+          console.log(`🔴 WARNING: Some visible locations don't match current filters - ENFORCING FILTERS`);
+          
+          // CRITICAL FIX: Force update visibleLocations to only contain filtered locations
+          // This ensures the drawer always shows properly filtered locations
+          const properlyFilteredLocations = filterLocations(locations);
+          
+          console.log(`🛠️ Fixing visible locations: Filtered ${locations.length} locations down to ${properlyFilteredLocations.length} matching filters`);
+          
+          // Sort by distance if map center is available
+          const mapCenter = map?.getCenter();
+          if (mapCenter && map) {
+            const mapCenterPosition = {
+              lat: mapCenter.lat(),
+              lng: mapCenter.lng()
+            };
+            
+            // Calculate distance for filtered locations
+            const locationsWithDistance = properlyFilteredLocations.map(location => {
+              const distance = Math.sqrt(
+                Math.pow(location.coordinates.lat - mapCenterPosition.lat, 2) +
+                Math.pow(location.coordinates.lng - mapCenterPosition.lng, 2)
+              );
+              return { location, distance };
+            });
+            
+            // Sort by distance and take 15 closest
+            locationsWithDistance.sort((a, b) => a.distance - b.distance);
+            const closestLocations = locationsWithDistance
+              .map(item => item.location)
+              .slice(0, 15);
+            
+            setVisibleLocations(closestLocations);
+          } else {
+            // No map center available, just take first 15 filtered locations
+            setVisibleLocations(properlyFilteredLocations.slice(0, 15));
+          }
+        } else {
+          console.log(`✅ All visible locations match current filters`);
+        }
+      } else {
+        console.log(`✅ No filters active - locations don't need validation`);
+      }
+    }
+  }, [visibleLocations, activeFilters, selectedAge, freeActivitiesFilter, openNowFilter, filterLocations, locations, map, setVisibleLocations]);
 
   // Handle location selection from tile or marker
   const handleLocationSelect = useCallback((location: Location, source: 'map_click' | 'list_item' = 'map_click') => {
