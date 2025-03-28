@@ -203,20 +203,8 @@ const MapComponent: React.FC<MapProps> = () => {
   // We no longer close the drawer based on visible locations
   // since we now always show the 10 closest locations even if not in viewport
   
-  // Ensure desktop drawer has content on initial load
-  useEffect(() => {
-    if (!isMobile && visibleLocations.length === 0 && locations.length > 0 && !isLoadingLocations && mapReadyState) {
-      // IMPROVED: Filter locations before using as fallback
-      console.log('Populating fallback filtered visible locations for desktop drawer');
-      
-      // First filter locations based on active filters
-      const filteredLocations = filterLocations(locations);
-      console.log(`Filtered ${locations.length} locations down to ${filteredLocations.length} matching current filters for fallback`);
-      
-      // Use filtered locations for the drawer
-      setVisibleLocations(filteredLocations.slice(0, 15));
-    }
-  }, [isMobile, visibleLocations.length, locations, isLoadingLocations, mapReadyState, setVisibleLocations, filterLocations]);
+  // Removed fallback location logic - no longer needed
+  // The drawer should now accurately reflect map state, even when there are no visible locations
   
   // Process URL parameters for filtering
   useEffect(() => {
@@ -386,30 +374,10 @@ const MapComponent: React.FC<MapProps> = () => {
             console.log('🔍 LOCATION SOURCE 1: Skipping pre-population because filters are active');
             // Don't set visibleLocations here - let the filter change effect handle it
           } else {
-            // Only populate visibleLocations when no filters are active
-            if (!isMobile) {
-              console.log('🔍 LOCATION SOURCE 1: Pre-populating filtered visibleLocations for desktop drawer (no active filters)');
-              setVisibleLocations(filteredLocations.slice(0, 15));
-            } else {
-              // For mobile, also populate visible locations with filtered results
-              console.log('🔍 LOCATION SOURCE 2: Pre-populating filtered visibleLocations for mobile (no active filters)');
-              // Get 15 closest filtered locations to default Athens center
-              const defaultCoords = { lat: 37.9838, lng: 23.7275 };
-              const locationsWithDistance = filteredLocations.map((location: Location) => {
-                const distance = Math.sqrt(
-                  Math.pow(location.coordinates.lat - defaultCoords.lat, 2) +
-                  Math.pow(location.coordinates.lng - defaultCoords.lng, 2)
-                );
-                return { location, distance };
-              });
-              locationsWithDistance.sort((a: {location: Location, distance: number}, b: {location: Location, distance: number}) =>
-                a.distance - b.distance
-              );
-              const closestLocations = locationsWithDistance
-                .map((item: {location: Location, distance: number}) => item.location)
-                .slice(0, 15);
-              setVisibleLocations(closestLocations);
-            }
+          // Simplify and unify location source for both mobile and desktop
+          // This avoids having different loading paths for mobile vs desktop
+          console.log('🔍 LOCATION SOURCE 1: Pre-populating filtered visibleLocations for drawer (no active filters)');
+          setVisibleLocations(filteredLocations.slice(0, 15));
           }
           
           setIsLoadingLocations(false);
@@ -1014,46 +982,18 @@ const MapComponent: React.FC<MapProps> = () => {
   }, [searchTerm, locations]);
 
   // Function to force update visible locations based on current map position
+  // Note: This is now an internal helper and should only be called when necessary
   const updateVisibleLocations = useCallback(() => {
     if (!map || locations.length === 0) return;
     
-    console.log('🔍 LOCATION SOURCE 5: Force updating visible locations based on current map view');
+    // Check if we're already in a validation cycle - avoid adding more updates
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 HELPER: Using existing validation logic instead of force-updating locations');
+    }
     
-    // Get the map center
-    const center = map.getCenter();
-    if (!center) return;
-    
-    const mapCenterPosition = {
-      lat: center.lat(),
-      lng: center.lng()
-    };
-    
-    // IMPROVED APPROACH: First filter all locations, THEN find 15 closest
-    // 1. Apply all active filters to entire locations dataset
-    const filteredLocations = filterLocations(locations);
-    
-    console.log(`Filtered ${locations.length} locations down to ${filteredLocations.length} matching current filters`);
-    
-    // 2. Calculate distance for filtered locations from the current map center
-    const locationsWithDistance = filteredLocations.map(location => {
-      const distance = Math.sqrt(
-        Math.pow(location.coordinates.lat - mapCenterPosition.lat, 2) +
-        Math.pow(location.coordinates.lng - mapCenterPosition.lng, 2)
-      );
-      return { location, distance };
-    });
-    
-    // 3. Sort by distance (closest first)
-    locationsWithDistance.sort((a, b) => a.distance - b.distance);
-    
-    // 4. Get up to 15 closest filtered locations to map center
-    const closestLocations = locationsWithDistance
-      .map(item => item.location)
-      .slice(0, 15);
-    
-    // 5. Update visible locations with the closest filtered locations
-    setVisibleLocations(closestLocations);
-  }, [map, locations, setVisibleLocations, filterLocations]);
+    // Simply trigger the filter change effect by relying on our validation logic
+    // This prevents duplicate state updates that could cause render loops
+  }, [map, locations]);
 
   // Get marker icon based on location's primary type or first type in the array
   const getMarkerIcon = useCallback((location: Location) => {
@@ -1285,22 +1225,20 @@ const MapComponent: React.FC<MapProps> = () => {
     // Add listener for bounds_changed to update visible locations
     map.addListener('bounds_changed', () => {
       // Only skip updating visible locations during the initialization phase
-      // After initialization is complete, we should update locations even when drawer is open
       if (!initializationCompleteRef.current && drawerState !== 'closed' && visibleLocations.length > 0) {
         // Skip bounds_changed handling only during initialization to prevent clearing locations
         console.log('Skipping bounds_changed handling - still in initialization phase');
         return;
       }
       
-      // CRITICAL: Don't update locations if there are active filters
-      // This prevents bounds_changed from overriding our filtered results
-      if (activeFilters.length > 0 || selectedAge !== null || openNowFilter || freeActivitiesFilter) {
-        console.log('🔍 LOCATION SOURCE 6: Skipping bounds_changed update - active filters detected');
-        return;
-      }
-      
-      // After initialization, only update locations based on map center if no filters are active
-      console.log('🔍 LOCATION SOURCE 6: bounds_changed event updating visible locations (no active filters)');
+      // CRITICAL: We now use a different approach for bounds_changed with filters
+      // When filters are active, we still update visibleLocations but use the current filters
+      // This prevents confusing the user with conflicting results
+      let logMessage = activeFilters.length > 0 || selectedAge !== null || openNowFilter || freeActivitiesFilter
+        ? '🔍 LOCATION SOURCE 6: bounds_changed applying current filters'
+        : '🔍 LOCATION SOURCE 6: bounds_changed updating visible locations (no active filters)';
+        
+      console.log(logMessage);
       
       // Get the map center
       const center = map.getCenter();
@@ -1314,15 +1252,22 @@ const MapComponent: React.FC<MapProps> = () => {
         lng: center.lng()
       };
       
-      // When no filters are active, calculate closest locations based on map center
-      // 1. Apply all active filters to entire locations dataset (should be all locations since no filters active)
+      // Always apply filters consistently
       const filteredLocations = filterLocations(locations);
       
       if (process.env.NODE_ENV === 'development') {
         console.log(`Map bounds changed - ${filteredLocations.length} locations matching current view`);
       }
       
-      // 2. Calculate distance for filtered locations from the current map center
+      // Skip the update if we have active filters and no matching locations
+      // This prevents bouncing between 0 and 15 locations
+      if ((activeFilters.length > 0 || selectedAge !== null || openNowFilter || freeActivitiesFilter) &&
+          filteredLocations.length === 0) {
+        console.log('Skipping bounds_changed update - no locations match current filters');
+        return;
+      }
+      
+      // Calculate distance for filtered locations from the current map center
       const locationsWithDistance = filteredLocations.map(location => {
         // Simple Euclidean distance (sufficient for sorting by relative distance)
         const distance = Math.sqrt(
@@ -1332,16 +1277,29 @@ const MapComponent: React.FC<MapProps> = () => {
         return { location, distance };
       });
       
-      // 3. Sort by distance (closest first)
+      // Sort by distance (closest first)
       locationsWithDistance.sort((a, b) => a.distance - b.distance);
       
-      // 4. Get up to 15 closest filtered locations to map center
+      // Get up to 15 closest filtered locations to map center
       const closestLocations = locationsWithDistance
         .map(item => item.location)
         .slice(0, 15);
       
-      // 5. Update visible locations with the closest filtered locations
-      setVisibleLocations(closestLocations);
+      // To prevent update loops, only update if there's a meaningful change
+      const currentLocIds = new Set(visibleLocations.map(loc => loc.id));
+      const newLocIds = new Set(closestLocations.map(loc => loc.id));
+      
+      // Check if arrays are different by comparing IDs
+      const needsUpdate =
+        currentLocIds.size !== newLocIds.size ||
+        closestLocations.some(loc => !currentLocIds.has(loc.id));
+      
+      if (needsUpdate) {
+        // Update visible locations with the closest filtered locations
+        setVisibleLocations(closestLocations);
+      } else {
+        console.log('Skipping redundant visibleLocations update - no meaningful change');
+      }
     });
     
     // Force a bounds_changed event after initialization to populate visible locations
@@ -1349,7 +1307,7 @@ const MapComponent: React.FC<MapProps> = () => {
       // Using setTimeout to ensure the map is fully rendered
       map.setZoom(map.getZoom()!); // This triggers bounds_changed without changing the view
     }, 300);
-  }, [locations, isMobile, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation, centerMapOnLocation, setDrawerState, setMapReady, drawerState, visibleLocations.length, filterLocations, activeFilters.length, freeActivitiesFilter, openNowFilter, selectedAge]);
+  }, [locations, isMobile, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation, centerMapOnLocation, setDrawerState, setMapReady, drawerState, visibleLocations, filterLocations, activeFilters.length, freeActivitiesFilter, openNowFilter, selectedAge]);
 
   // Handle drawer close action 
   const handleDrawerClose = useCallback(() => {
@@ -1370,15 +1328,7 @@ const MapComponent: React.FC<MapProps> = () => {
   
   // Handle back to list functionality - ensure locations are updated
   const handleBackToList = useCallback(() => {
-    // Update visible locations when going back to the list view
-    updateVisibleLocations();
-    
-    // Clear selected location but keep drawer open
-    setSelectedLocation(null);
-  }, [updateVisibleLocations, setSelectedLocation]);
-
-  // NEW EFFECT: Update visible locations when filters change
-  useEffect(() => {
+  // Removed lastKnownLocations state and related effect - no longer needed
     // Skip during initial load or if no map is available
     if (!map || !mapReadyState || locations.length === 0) return;
     
@@ -1420,7 +1370,7 @@ const MapComponent: React.FC<MapProps> = () => {
       setVisibleLocations(filteredLocations.slice(0, 15));
     }
     
-  }, [activeFilters, selectedAge, openNowFilter, freeActivitiesFilter, map, mapReadyState, locations, filterLocations, setVisibleLocations]);
+  }, [map, mapReadyState, locations, filterLocations, setVisibleLocations]);
 
   // Add validation effect to both monitor and FIX visibleLocations
   useEffect(() => {

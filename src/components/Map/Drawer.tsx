@@ -537,31 +537,18 @@ const Drawer: React.FC<DrawerProps> = memo(({
   // Only show loading state when actively fetching and don't have any photos yet
   const isLoadingPhotos = isLoading && !hasPhotos;
 
-  // Keep a backup of locations to use if visibleLocations is cleared
-  const [lastKnownLocations, setLastKnownLocations] = useState<Location[]>([]);
+  // We directly use visibleLocations from Map component
+  // No need for a backup anymore as this is properly handled by the Map component
   
-  // Update our backup whenever we have valid visibleLocations
-  useEffect(() => {
-    if (visibleLocations && visibleLocations.length > 0) {
-      setLastKnownLocations(visibleLocations);
-    }
-  }, [visibleLocations]);
-  
-  // Filter locations based on active filters for the list view
-  // NOTE: Filtering is now handled in the Map component, so this just passes through the visibleLocations
-  // We keep this structure to avoid breaking dependencies
+  // Simply use visibleLocations that are already filtered by the Map component
+  // No need for lastKnownLocations backup as Map component handles empty states
   const filteredLocations = useMemo(() => {
-    // Use visibleLocations if available, otherwise fall back to our backup
-    const locationsToUse = visibleLocations.length > 0 ? visibleLocations : lastKnownLocations;
-    
-    // No longer applying filters here - locations are pre-filtered by the Map component
-    // Just return the locations as-is with a log for debugging
     if (process.env.NODE_ENV === 'development') {
-      console.log(`Drawer: Using ${locationsToUse.length} pre-filtered locations from Map component`);
+      console.log(`Drawer: Using ${visibleLocations.length} locations from Map component`);
     }
     
-    return locationsToUse;
-  }, [visibleLocations, lastKnownLocations]);
+    return visibleLocations;
+  }, [visibleLocations]);
 
   // Wrap displayedLocations in its own useMemo to avoid dependency changes on every render
   const displayedLocations = useMemo(() =>
