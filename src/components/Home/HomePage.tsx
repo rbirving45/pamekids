@@ -256,7 +256,7 @@ const HomePage: React.FC = () => {
  // Handle featured location selection
  const handleLocationSelect = (locationId: string) => {
    // Navigate to map view with selected location
-   navigate(`/?locationId=${locationId}`);
+   navigate(`/map?locationId=${locationId}`);
  };
  
  return (
@@ -298,7 +298,7 @@ const HomePage: React.FC = () => {
              >
              <div className="flex flex-col items-center">
                <Link
-                 to={`/?filter=${category.id}${category.id === 'free-activities' ? '&price=Free' : ''}`}
+                 to={`/map?filter=${category.id}${category.id === 'free-activities' ? '&price=Free' : ''}`}
                  className={`flex items-center justify-center transition-transform hover:scale-105 ${isMobile ? 'w-20 h-20' : 'w-28 h-28'}`}
                  style={{
                    backgroundColor: category.color,
@@ -335,7 +335,7 @@ const HomePage: React.FC = () => {
            }}
          >
            <Link
-             to="/"
+             to="/map"
              className="bg-white hover:bg-blue-50 text-blue-600 font-medium py-3 px-8 rounded-lg border-2 border-blue-200 transition duration-200 shadow-sm hover:shadow-md"
            >
              View All Activities

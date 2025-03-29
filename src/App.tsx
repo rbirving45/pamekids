@@ -121,7 +121,7 @@ const MainApp = () => {
           } else {
             console.log('Location selected from search but openLocationDetail is not available:', location);
             // If window.openLocationDetail isn't available, navigate to the location using URL parameters
-            window.location.href = `/?locationId=${location.id}`;
+            window.location.href = `/map?locationId=${location.id}`;
           }
         }}
       />
@@ -218,8 +218,9 @@ function App() {
             }}
           >
             <Routes>
-              <Route path="/" element={<MainApp />} />
-              <Route path="/home" element={<HomePage />} />
+              <Route path="/" element={<HomePage />} />
+              <Route path="/home" element={<Navigate to="/" replace />} />
+              <Route path="/map" element={<MainApp />} />
               <Route
                 path="/admin"
                 element={
