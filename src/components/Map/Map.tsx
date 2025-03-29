@@ -3,13 +3,13 @@ import { GoogleMap, LoadScriptNext, Marker, Libraries } from '@react-google-maps
 import { useLocation } from 'react-router-dom';
 import Drawer from './Drawer';
 import { ActivityType, Location } from '../../types/location';
-import { ChevronDown } from 'lucide-react';
 import { trackMarkerClick } from '../../utils/analytics';
 import { useMobile } from '../../contexts/MobileContext';
 import { useTouch } from '../../contexts/TouchContext';
 import { useAppState } from '../../contexts/AppStateContext';
 import MapBlockingOverlay from './MapBlockingOverlay';
 import GroupFilterDropdown from './GroupFilterDropdown';
+import AgeFilterDropdown from './AgeFilterDropdown';
 import { getLocations } from '../../utils/firebase-service';
 
 import { ACTIVITY_CATEGORIES, ACTIVITY_GROUPS } from '../../utils/metadata';
@@ -70,7 +70,6 @@ const MapComponent: React.FC<MapProps> = () => {
   const [freeActivitiesFilter, setFreeActivitiesFilter] = useState(false);
 
   const [selectedAge, setSelectedAge] = useState<number | null>(null);
-  const [isAgeDropdownOpen, setIsAgeDropdownOpen] = useState(false);
   const [maps, setMaps] = useState<typeof google.maps | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [userLocation, setUserLocation] = useState({
@@ -1072,8 +1071,6 @@ const MapComponent: React.FC<MapProps> = () => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (ageDropdownRef.current && !ageDropdownRef.current.contains(event.target as Node)) {
-        setIsAgeDropdownOpen(false);
-        
         // Update filter dropdown state in TouchContext
         if (isMobile) {
           setFilterDropdownOpen(false);
@@ -1083,7 +1080,7 @@ const MapComponent: React.FC<MapProps> = () => {
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [setIsAgeDropdownOpen, isMobile, setFilterDropdownOpen]);
+  }, [isMobile, setFilterDropdownOpen]);
 
 
   
@@ -1222,7 +1219,6 @@ const MapComponent: React.FC<MapProps> = () => {
 
   const handleAgeSelect = (age: number | null) => {
     setSelectedAge(age);
-    setIsAgeDropdownOpen(false);
     // Update filter dropdown state in TouchContext
     if (isMobile) {
       setFilterDropdownOpen(false);
@@ -1669,8 +1665,6 @@ const MapComponent: React.FC<MapProps> = () => {
     };
   }, [handleLocationSelect]);
 
-  const ageOptions = Array.from({ length: 19 }, (_, i) => i);
-
 
   
   return (
@@ -1769,114 +1763,13 @@ const MapComponent: React.FC<MapProps> = () => {
               />
             ))}
 
-            {/* Age Filter */}
-            <div
-              ref={ageDropdownRef}
-              className="relative"
-              onTouchStart={(e) => {
-                e.stopPropagation();
-                // When drawer is open, prevent all interaction
-                if (isMobile && drawerState !== 'closed') {
-                  e.preventDefault();
-                }
-              }}
-              onTouchMove={(e) => {
-                e.stopPropagation();
-                // When drawer is open, prevent all interaction
-                if (isMobile && drawerState !== 'closed') {
-                  e.preventDefault();
-                }
-              }}
-              onTouchEnd={(e) => {
-                e.stopPropagation();
-                // When drawer is open, prevent all interaction
-                if (isMobile && drawerState !== 'closed') {
-                  e.preventDefault();
-                }
-              }}
-            >
-              <button
-                onClick={() => {
-                  const newDropdownState = !isAgeDropdownOpen;
-                  setIsAgeDropdownOpen(newDropdownState);
-                  // Update filter dropdown state in TouchContext
-                  if (isMobile) {
-                    setFilterDropdownOpen(newDropdownState);
-                  }
-                }}
-                onTouchStart={(e) => {
-                  e.stopPropagation();
-                  // When drawer is open, prevent all interaction
-                  if (isMobile && drawerState !== 'closed') {
-                    e.preventDefault();
-                  }
-                }}
-                onTouchEnd={(e) => {
-                  e.stopPropagation();
-                  // When drawer is open, prevent all interaction
-                  if (isMobile && drawerState !== 'closed') {
-                    e.preventDefault();
-                  }
-                }}
-                className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium transition-colors
-                  ${selectedAge !== null
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                style={{
-                  touchAction: 'manipulation', // Optimize for tap/click
-                  pointerEvents: drawerState !== 'closed' ? 'none' : 'auto' // Disable pointer events when drawer is open
-                }}
-                disabled={isMobile && drawerState !== 'closed'} // Disable button when drawer is open
-              >
-                {selectedAge !== null ? `Age ${selectedAge}` : 'Age'}
-                <ChevronDown size={16} className={`transform transition-transform ${isAgeDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
+            {/* Age Filter - new implementation */}
+            <AgeFilterDropdown
+              selectedAge={selectedAge}
+              onSelectAge={handleAgeSelect}
+            />
 
-              {isAgeDropdownOpen && (
-                <div className="fixed mt-1 bg-white rounded-lg shadow-lg py-2 w-32 max-h-60 overflow-y-auto z-age-dropdown" style={{
-                  top: ageDropdownRef.current?.getBoundingClientRect().bottom,
-                  left: ageDropdownRef.current?.getBoundingClientRect().left
-                }}>
-                  <button
-                    onClick={() => handleAgeSelect(null)}
-                    className={`w-full px-4 py-1.5 text-left text-sm hover:bg-gray-50 ${selectedAge === null ? 'bg-blue-50 text-blue-600' : ''}`}
-                  >
-                    Any Age
-                  </button>
-                  {ageOptions.map(age => (
-                    <button
-                      key={age}
-                      onClick={() => handleAgeSelect(age)}
-                      className={`w-full px-4 py-1.5 text-left text-sm hover:bg-gray-50 ${selectedAge === age ? 'bg-blue-50 text-blue-600' : ''}`}
-                    >
-                      Age {age}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Open Now Filter */}
-            <button
-              onClick={() => setOpenNowFilter(!openNowFilter)}
-              onTouchStart={(e) => {
-                e.stopPropagation();
-              }}
-              onTouchEnd={(e) => {
-                e.stopPropagation();
-              }}
-              className={`flex-shrink-0 px-3 py-1 rounded-full text-sm font-medium transition-colors
-                ${openNowFilter
-                  ? 'bg-green-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              style={{
-                touchAction: 'manipulation' // Optimize for tap/click
-              }}
-            >
-              Open Now
-            </button>
+            {/* Open Now Filter removed */}
 
             {/* Clear Filters - visible only on desktop when filters are active */}
             {!isMobile && (activeFilters.length > 0 || activeGroups.length > 0 || selectedAge !== null || openNowFilter) && (
