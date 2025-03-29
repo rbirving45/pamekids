@@ -265,6 +265,14 @@ const MapComponent: React.FC<MapProps> = () => {
       setOpenNowFilter(true);
     }
     
+    // Process locationId parameter (for direct linking to a location)
+    const locationIdParam = queryParams.get('locationId');
+    if (locationIdParam) {
+      console.log(`Found locationId in URL: ${locationIdParam}`);
+      // We'll handle setting the selected location in the next step
+      // This just logs the detection for now
+    }
+    
     // Log all applied filters
     if (process.env.NODE_ENV === 'development') {
       const appliedFilters = [];
@@ -272,6 +280,7 @@ const MapComponent: React.FC<MapProps> = () => {
       if (priceParam) appliedFilters.push(`price=${priceParam}`);
       if (ageParam) appliedFilters.push(`age=${ageParam}`);
       if (openNowParam) appliedFilters.push(`open=${openNowParam}`);
+      if (locationIdParam) appliedFilters.push(`locationId=${locationIdParam}`);
       
       if (appliedFilters.length > 0) {
         console.log('Applied URL filters:', appliedFilters.join(', '));
@@ -281,6 +290,8 @@ const MapComponent: React.FC<MapProps> = () => {
     }
   }, [location.search]);
   
+
+
   // Add dedicated effect to handle filter changes
   useEffect(() => {
     // Skip during initial render or if no map is available yet
@@ -812,6 +823,43 @@ const MapComponent: React.FC<MapProps> = () => {
   const prevUserLocationRef = useRef({ lat: 0, lng: 0 });
   const centeringInProgressRef = useRef(false);
   
+  // New effect to handle locationId parameter from URL
+  useEffect(() => {
+    // Skip if locations aren't loaded yet or map isn't ready
+    if (locations.length === 0) return;
+    
+    // Get locationId from URL parameters
+    const queryParams = new URLSearchParams(location.search);
+    const locationIdParam = queryParams.get('locationId');
+    
+    if (locationIdParam) {
+      console.log(`Looking for location with ID: ${locationIdParam}`);
+      
+      // Find the matching location in our data
+      const matchingLocation = locations.find(loc => loc.id === locationIdParam);
+      
+      if (matchingLocation) {
+        console.log(`Found matching location: ${matchingLocation.name}`);
+        
+        // Select the location (this will show the detail in the drawer)
+        setSelectedLocation(matchingLocation);
+        
+        // On mobile, ensure the drawer is visible
+        if (isMobile) {
+          setDrawerState('partial');
+        }
+        
+        // If map is ready, center on this location
+        if (map && mapReadyState) {
+          // Center map on the location
+          centerMapOnLocation(matchingLocation.coordinates, 'marker-selection');
+        }
+      } else {
+        console.log(`No location found with ID: ${locationIdParam}`);
+      }
+    }
+  }, [locations, location.search, map, mapReadyState, setSelectedLocation, setDrawerState, isMobile, centerMapOnLocation]);
+
   // Re-center when device type or user location changes while map is loaded
   useEffect(() => {
     // Exit early if map isn't ready or location is missing
@@ -1333,6 +1381,24 @@ const MapComponent: React.FC<MapProps> = () => {
 
   // Handle drawer close action 
   const handleDrawerClose = useCallback(() => {
+    // Check if we need to update the URL by removing locationId parameter
+    const queryParams = new URLSearchParams(window.location.search);
+    const hasLocationParam = queryParams.has('locationId');
+    
+    if (hasLocationParam) {
+      // Remove the locationId parameter
+      queryParams.delete('locationId');
+      
+      // Create new URL without the locationId parameter
+      const newUrl = queryParams.toString()
+        ? `${window.location.pathname}?${queryParams.toString()}`
+        : window.location.pathname;
+      
+      // Update the URL without causing a page reload
+      window.history.replaceState({}, '', newUrl);
+      console.log('Removed locationId parameter from URL');
+    }
+    
     if (isMobile) {
       // On mobile: Always close the drawer completely regardless of current state
       setSelectedLocation(null);
