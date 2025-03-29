@@ -146,7 +146,7 @@ const LocationCarousel = ({
      {showLeftArrow && (
        <button
          onClick={() => scroll('left')}
-         className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+         className="absolute left-0 top-1/2 -translate-y-1/2 z-carousel-controls bg-white rounded-full p-2 shadow-md hover:bg-gray-100 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
          aria-label="Scroll left"
        >
          <ChevronLeft size={24} />
@@ -157,7 +157,7 @@ const LocationCarousel = ({
      {showRightArrow && (
        <button
          onClick={() => scroll('right')}
-         className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+         className="absolute right-0 top-1/2 -translate-y-1/2 z-carousel-controls bg-white rounded-full p-2 shadow-md hover:bg-gray-100 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
          aria-label="Scroll right"
        >
          <ChevronRight size={24} />
@@ -266,8 +266,7 @@ const HomePage: React.FC = () => {
        className={`bg-white shadow-md z-header ${isMobile ? 'fixed top-0 left-0 right-0' : 'relative'}`}
        style={{
          position: isMobile ? 'fixed' : 'sticky',
-         top: 0,
-         zIndex: 100 // Use z-index value from z-index.css
+         top: 0
        }}
      >
        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -288,7 +287,7 @@ const HomePage: React.FC = () => {
      </header>
      
      {/* Search Bar - styled to match main app search */}
-     <div className={`bg-white p-4 shadow-sm z-filter-bar ${isMobile ? 'mt-16' : ''}`} style={{ zIndex: 110 }}>
+     <div className={`bg-white p-4 shadow-sm z-filter-bar ${isMobile ? 'mt-16' : ''}`}>
        <div className="max-w-3xl mx-auto flex items-center gap-2 rounded-lg">
          <div className="relative z-search-container flex-1">
            <div className="flex items-center w-full">
@@ -327,7 +326,7 @@ const HomePage: React.FC = () => {
            className={`${isMobile
              ? 'grid grid-rows-2 grid-flow-col auto-cols-[38%] gap-4 overflow-x-auto snap-x snap-mandatory pb-6 px-2 no-scrollbar'
              : 'grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-8 md:gap-10 px-4'}
-             max-w-5xl mx-auto`}
+             max-w-5xl mx-auto z-category-grid`}
            style={{
              scrollbarWidth: 'none',
              msOverflowStyle: 'none'

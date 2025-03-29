@@ -29,8 +29,7 @@ const Header: React.FC<HeaderProps> = ({
       style={{
         touchAction: 'none',
         pointerEvents: 'auto',
-        position: isMobile ? 'fixed' : 'relative',
-        zIndex: 100
+        position: isMobile ? 'fixed' : 'relative'
       }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

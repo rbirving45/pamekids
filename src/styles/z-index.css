@@ -16,6 +16,8 @@
     --z-search-icon: 125;
     --z-filter-buttons: 130;
     --z-filter-buttons-active: 135;
+    --z-carousel-controls: 140;
+    --z-category-grid: 115;
     
   /* Dropdowns (200-299) */
   --z-dropdown-base: 200;
