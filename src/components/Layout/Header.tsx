@@ -46,10 +46,10 @@ const Header: React.FC<HeaderProps> = ({
         // Using z-header class instead of inline z-index
       }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
         <div className="flex items-center h-16 relative">
           {/* Left side: Search */}
-          <div className="absolute left-4 sm:left-6 lg:left-8 z-search-container flex items-center">
+          <div className={`absolute ${isMobile ? 'left-1' : 'left-4 sm:left-6 lg:left-8'} z-search-container flex items-center`}>
             <div className="search-button-wrapper">
               <SearchBar
                 locations={locations}
@@ -68,18 +68,22 @@ const Header: React.FC<HeaderProps> = ({
           <div className="flex-1 flex justify-center">
             <Link to="/" className="relative inline-flex items-baseline">
               {/* Main logo text - smaller on mobile when we have search */}
-              <span className={`font-logo ${isMobile ? 'text-3xl' : 'text-4xl'} font-bold text-blue-500`}>Pame</span>
+              <span className={`font-logo ${isMobile ? 'text-2xl' : 'text-4xl'} font-bold text-blue-500`}>Pame</span>
               
               {/* Sub-brand text - smaller on mobile when we have search */}
-              <span className={`font-logo ${isMobile ? 'text-2xl' : 'text-3xl'} font-semibold text-orange-500`}>Kids</span>
+              <span className={`font-logo ${isMobile ? 'text-xl' : 'text-3xl'} font-semibold text-orange-500`}>Kids</span>
             </Link>
           </div>
           
           {/* Right side: Buttons */}
-          <div className="absolute right-4 sm:right-6 lg:right-8 flex items-center space-x-4">
-            {/* Use the original button components */}
-            <NewsletterButton onClick={onNewsletterClick} />
-            <SuggestActivityButton onClick={onSuggestActivityClick} />
+          <div className={`absolute ${isMobile ? 'right-0 -mr-1' : 'right-4 sm:right-6 lg:right-8'} flex items-center ${isMobile ? 'space-x-1' : 'space-x-4'}`}>
+            {/* Pass mobile context to buttons for responsive sizing */}
+            <div className={isMobile ? 'scale-75 origin-right' : ''}>
+              <NewsletterButton onClick={onNewsletterClick} />
+            </div>
+            <div className={isMobile ? 'scale-75 origin-left' : ''}>
+              <SuggestActivityButton onClick={onSuggestActivityClick} />
+            </div>
           </div>
         </div>
       </div>

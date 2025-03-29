@@ -329,11 +329,11 @@ const SearchBar: React.FC<SearchBarProps> = ({
     );
   };
 
-  // EXACTLY match the styles from the existing buttons - matching precise size & color
+  // Use Tailwind classes for consistent styling
   const searchButtonClass = headerMode
-    ? isMobile || !isMobile
-      ? "bg-[#4679ea] hover:bg-[#3a6ad6] text-white rounded-full flex items-center justify-center w-10 h-10 transition-colors" // Exact size and color match
-      : "bg-[#4679ea] hover:bg-[#3a6ad6] text-white rounded-full flex items-center justify-center w-10 h-10 transition-colors" // Exact size and color match
+    ? isMobile
+      ? "bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center w-8 h-8 transition-colors" // Smaller size for mobile
+      : "bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center w-10 h-10 transition-colors" // Original desktop size
     : "p-2 rounded-full bg-gray-100 hover:bg-gray-200"; // Original map search style (non-header mode)
 
   return (
@@ -352,7 +352,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
             className={searchButtonClass}
             aria-label={searchExpanded ? "Collapse search" : "Expand search"}
           >
-            <Search size={18} className="text-white" strokeWidth={2.5} />
+            <Search size={isMobile ? 16 : 18} className="text-white" strokeWidth={2.5} />
           </button>
           
           {searchExpanded && (
@@ -363,7 +363,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className={`${isMobile ? 'w-full' : 'w-full'} px-4 py-2 rounded-3xl border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#4679ea]`}
-                style={{height: '42px'}}
+                style={{height: isMobile ? '36px' : '42px'}}
                 autoFocus
               />
               
