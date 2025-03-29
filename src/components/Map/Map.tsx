@@ -10,6 +10,7 @@ import { useAppState } from '../../contexts/AppStateContext';
 import MapBlockingOverlay from './MapBlockingOverlay';
 import GroupFilterDropdown from './GroupFilterDropdown';
 import AgeFilterDropdown from './AgeFilterDropdown';
+import PriceFilterDropdown, { PriceOption } from './PriceFilterDropdown';
 import { getLocations } from '../../utils/firebase-service';
 
 import { ACTIVITY_CATEGORIES, ACTIVITY_GROUPS } from '../../utils/metadata';
@@ -67,9 +68,10 @@ const MapComponent: React.FC<MapProps> = () => {
   const [openNowFilter, setOpenNowFilter] = useState(false);
   const [activeFilters, setActiveFilters] = useState<ActivityType[]>([]);
   const [activeGroups, setActiveGroups] = useState<string[]>([]);
-  const [freeActivitiesFilter, setFreeActivitiesFilter] = useState(false);
+  const [freeActivitiesFilter] = useState(false);
 
   const [selectedAge, setSelectedAge] = useState<number | null>(null);
+  const [selectedPrice, setSelectedPrice] = useState<PriceOption>(null);
   const [maps, setMaps] = useState<typeof google.maps | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [userLocation, setUserLocation] = useState({
@@ -109,9 +111,16 @@ const MapComponent: React.FC<MapProps> = () => {
         }
       }
       
-      // Filter by price (free activities)
-      if (freeActivitiesFilter && location.priceRange !== "Free") {
-        return false;
+      // Filter by price
+      if (selectedPrice !== null) {
+        // For "Free" price option
+        if (selectedPrice === "Free" && location.priceRange !== "Free") {
+          return false;
+        }
+        // For the other price options (€, €€, €€€)
+        else if (selectedPrice !== "Free" && location.priceRange !== selectedPrice) {
+          return false;
+        }
       }
       
       // Filter by open now
@@ -168,7 +177,7 @@ const MapComponent: React.FC<MapProps> = () => {
       // If location passes all active filters, include it
       return true;
     });
-  }, [activeFilters, selectedAge, freeActivitiesFilter, openNowFilter]);
+  }, [activeFilters, selectedAge, selectedPrice, openNowFilter]);
 
   // This function has been removed as we now use a simpler approach for map positioning
   
@@ -217,18 +226,14 @@ const MapComponent: React.FC<MapProps> = () => {
     // Clear existing filters first
     setActiveFilters([]);
     setActiveGroups([]);
-    setFreeActivitiesFilter(false);
+    setSelectedPrice(null);
     setSelectedAge(null);
     setOpenNowFilter(false);
     
-    // Process activity group filter or free activities filter
+    // Process activity group filter
     const filterParam = queryParams.get('filter');
     if (filterParam) {
-      if (filterParam === 'free-activities') {
-        // Handle special case for free activities
-        console.log('Applying free activities filter from URL');
-        setFreeActivitiesFilter(true);
-      } else if (Object.keys(ACTIVITY_GROUPS).includes(filterParam)) {
+      if (Object.keys(ACTIVITY_GROUPS).includes(filterParam)) {
         // If the filter parameter matches an activity group, apply that filter
         console.log(`Applying group filter from URL: ${filterParam}`);
         
@@ -242,11 +247,14 @@ const MapComponent: React.FC<MapProps> = () => {
       }
     }
     
-    // Process price filter (alternative to free-activities)
+    // Process price filter
     const priceParam = queryParams.get('price');
-    if (priceParam === 'Free') {
-      console.log('Applying price=Free filter from URL');
-      setFreeActivitiesFilter(true);
+    if (priceParam) {
+      const validPrices: PriceOption[] = ['Free', '€', '€€', '€€€'];
+      if (validPrices.includes(priceParam as PriceOption)) {
+        console.log(`Applying price filter from URL: ${priceParam}`);
+        setSelectedPrice(priceParam as PriceOption);
+      }
     }
     
     // Process age filter
@@ -297,7 +305,7 @@ const MapComponent: React.FC<MapProps> = () => {
     if (!map || !mapReadyState || locations.length === 0) return;
     
     // Log the filter change with clearer formatting
-    console.log(`🔍 FILTER CHANGE DETECTED - activeFilters: ${activeFilters.length}, age: ${selectedAge}, openNow: ${openNowFilter}, freeActivities: ${freeActivitiesFilter}`);
+    console.log(`🔍 FILTER CHANGE DETECTED - activeFilters: ${activeFilters.length}, age: ${selectedAge}, openNow: ${openNowFilter}, price: ${selectedPrice}`);
     
     // Reset the debounce timer to ensure validation runs after this update
     lastValidationTimeRef.current = 0;
@@ -378,7 +386,7 @@ const MapComponent: React.FC<MapProps> = () => {
       lastValidationTimeRef.current = 0;
     }, 100);
     
-  }, [activeFilters, selectedAge, openNowFilter, freeActivitiesFilter, map, mapReadyState, locations, filterLocations]);
+  }, [activeFilters, selectedAge, openNowFilter, selectedPrice, map, mapReadyState, locations, filterLocations]);
   
   // Fetch locations from Firebase on component mount
   useEffect(() => {
@@ -410,9 +418,16 @@ const MapComponent: React.FC<MapProps> = () => {
               }
             }
             
-            // Filter by price (free activities)
-            if (freeActivitiesFilter && location.priceRange !== "Free") {
-              return false;
+            // Filter by price
+            if (selectedPrice !== null) {
+              // Handle the "Free" price option
+              if (selectedPrice === "Free" && location.priceRange !== "Free") {
+                return false;
+              }
+              // Handle the other price options (€, €€, €€€)
+              else if (selectedPrice !== "Free" && location.priceRange !== selectedPrice) {
+                return false;
+              }
             }
             
             // Filter by open now
@@ -473,7 +488,7 @@ const MapComponent: React.FC<MapProps> = () => {
           // Immediately populate visibleLocations with filtered locations on desktop
           // DO NOT populate visibleLocations during initial load when there are active filters
           // This prevents overriding the filtered results that will be calculated in the filter change effect
-          if (activeFilters.length > 0 || selectedAge !== null || openNowFilter || freeActivitiesFilter) {
+          if (activeFilters.length > 0 || selectedAge !== null || openNowFilter || selectedPrice !== null) {
             console.log('🔍 LOCATION SOURCE 1: Skipping pre-population because filters are active');
             // Don't set visibleLocations here - let the filter change effect handle it
           } else {
@@ -513,9 +528,16 @@ const MapComponent: React.FC<MapProps> = () => {
                 }
               }
               
-              // Filter by price (free activities)
-              if (freeActivitiesFilter && location.priceRange !== "Free") {
-                return false;
+              // Filter by price
+              if (selectedPrice !== null) {
+                // Handle the "Free" price option
+                if (selectedPrice === "Free" && location.priceRange !== "Free") {
+                  return false;
+                }
+                // Handle the other price options (€, €€, €€€)
+                else if (selectedPrice !== "Free" && location.priceRange !== selectedPrice) {
+                  return false;
+                }
               }
               
               // Filter by open now
@@ -586,9 +608,16 @@ const MapComponent: React.FC<MapProps> = () => {
             }
           }
           
-          // Filter by price (free activities)
-          if (freeActivitiesFilter && location.priceRange !== "Free") {
-            return false;
+          // Filter by price
+          if (selectedPrice !== null) {
+            // Handle the "Free" price option
+            if (selectedPrice === "Free" && location.priceRange !== "Free") {
+              return false;
+            }
+            // Handle the other price options (€, €€, €€€)
+            else if (selectedPrice !== "Free" && location.priceRange !== selectedPrice) {
+              return false;
+            }
           }
           
           // Filter by open now
@@ -714,7 +743,7 @@ const MapComponent: React.FC<MapProps> = () => {
     };
 
     fetchLocations();
-  }, [isMobile, setVisibleLocations, setLocationsLoaded, setLocationsProcessed, setLocationsLoading, visibleLocations.length, activeFilters, selectedAge, freeActivitiesFilter, openNowFilter]);
+  }, [isMobile, setVisibleLocations, setLocationsLoaded, setLocationsProcessed, setLocationsLoading, visibleLocations.length, activeFilters, selectedAge, selectedPrice, openNowFilter]);
 
   // Get user location on component mount without a timeout to ensure we wait for user permission response
   useEffect(() => {
@@ -1211,7 +1240,7 @@ const MapComponent: React.FC<MapProps> = () => {
     setActiveGroups([]);
     setSelectedAge(null);
     setOpenNowFilter(false);
-    setFreeActivitiesFilter(false);
+    setSelectedPrice(null);
   };
 
 
@@ -1219,6 +1248,14 @@ const MapComponent: React.FC<MapProps> = () => {
 
   const handleAgeSelect = (age: number | null) => {
     setSelectedAge(age);
+    // Update filter dropdown state in TouchContext
+    if (isMobile) {
+      setFilterDropdownOpen(false);
+    }
+  };
+
+  const handlePriceSelect = (price: PriceOption) => {
+    setSelectedPrice(price);
     // Update filter dropdown state in TouchContext
     if (isMobile) {
       setFilterDropdownOpen(false);
@@ -1298,7 +1335,7 @@ const MapComponent: React.FC<MapProps> = () => {
       // CRITICAL CHANGE: The bounds_changed event now ONLY affects map markers (visibleLocations)
       // and no longer impacts the drawer content (drawerLocations)
       
-      let logMessage = activeFilters.length > 0 || selectedAge !== null || openNowFilter || freeActivitiesFilter
+      let logMessage = activeFilters.length > 0 || selectedAge !== null || openNowFilter || selectedPrice !== null
         ? '🔍 LOCATION SOURCE 6: bounds_changed applying current filters to MAP MARKERS ONLY'
         : '🔍 LOCATION SOURCE 6: bounds_changed updating map markers only (no active filters)';
         
@@ -1325,7 +1362,7 @@ const MapComponent: React.FC<MapProps> = () => {
       
       // Skip the update if we have active filters and no matching locations
       // This prevents bouncing between 0 and 15 locations
-      if ((activeFilters.length > 0 || selectedAge !== null || openNowFilter || freeActivitiesFilter) &&
+      if ((activeFilters.length > 0 || selectedAge !== null || openNowFilter || selectedPrice !== null) &&
           filteredLocations.length === 0) {
         console.log('Skipping bounds_changed update - no locations match current filters');
         return;
@@ -1373,7 +1410,7 @@ const MapComponent: React.FC<MapProps> = () => {
       // Using setTimeout to ensure the map is fully rendered
       map.setZoom(map.getZoom()!); // This triggers bounds_changed without changing the view
     }, 300);
-  }, [locations, isMobile, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation, centerMapOnLocation, setDrawerState, setMapReady, drawerState, visibleLocations, filterLocations, activeFilters.length, freeActivitiesFilter, openNowFilter, selectedAge]);
+  }, [locations, isMobile, setSelectedLocation, setHoveredLocation, setVisibleLocations, userLocation, centerMapOnLocation, setDrawerState, setMapReady, drawerState, visibleLocations, filterLocations, activeFilters.length, openNowFilter, selectedAge, selectedPrice]);
 
   // Handle drawer close action 
   const handleDrawerClose = useCallback(() => {
@@ -1488,7 +1525,7 @@ const MapComponent: React.FC<MapProps> = () => {
     
     if (visibleLocations.length > 0) {
       // Only validate when filters are active (no need otherwise)
-      if (activeFilters.length > 0 || selectedAge !== null || freeActivitiesFilter || openNowFilter) {
+      if (activeFilters.length > 0 || selectedAge !== null || selectedPrice !== null || openNowFilter) {
         // Check if all visible locations match filters
         let hasInvalidLocation = false;
         let invalidCount = 0;
@@ -1516,13 +1553,21 @@ const MapComponent: React.FC<MapProps> = () => {
             }
           }
           
-          // Filter by price (free activities)
-          if (freeActivitiesFilter && location.priceRange !== "Free" && isValid) {
-            if (process.env.NODE_ENV === 'development') {
-              console.log(`🔴 Map marker doesn't match free filter: ${location.name}`);
+          // Filter by price
+          if (selectedPrice !== null && isValid) {
+            if (selectedPrice === "Free" && location.priceRange !== "Free") {
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`🔴 Map marker doesn't match Free price filter: ${location.name}`);
+              }
+              isValid = false;
+              invalidCount++;
+            } else if (selectedPrice !== "Free" && location.priceRange !== selectedPrice) {
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`🔴 Map marker doesn't match price filter (${selectedPrice}): ${location.name}`);
+              }
+              isValid = false;
+              invalidCount++;
             }
-            isValid = false;
-            invalidCount++;
           }
           
           // Filter by open now
@@ -1619,7 +1664,7 @@ const MapComponent: React.FC<MapProps> = () => {
         lastValidationResultRef.current = '';
       }
     }
-  }, [visibleLocations, activeFilters, selectedAge, freeActivitiesFilter, openNowFilter, filterLocations, locations, map, setVisibleLocations]);
+  }, [visibleLocations, activeFilters, selectedAge, openNowFilter, filterLocations, locations, map, setVisibleLocations, selectedPrice]);
 
   // Handle location selection from tile or marker
   const handleLocationSelect = useCallback((location: Location, source: 'map_click' | 'list_item' | 'search_result' = 'map_click') => {
@@ -1769,10 +1814,16 @@ const MapComponent: React.FC<MapProps> = () => {
               onSelectAge={handleAgeSelect}
             />
 
+            {/* Price Filter */}
+            <PriceFilterDropdown
+              selectedPrice={selectedPrice}
+              onSelectPrice={handlePriceSelect}
+            />
+
             {/* Open Now Filter removed */}
 
             {/* Clear Filters - visible only on desktop when filters are active */}
-            {!isMobile && (activeFilters.length > 0 || activeGroups.length > 0 || selectedAge !== null || openNowFilter) && (
+            {!isMobile && (activeFilters.length > 0 || activeGroups.length > 0 || selectedAge !== null || selectedPrice !== null || openNowFilter) && (
               <button
                 onClick={clearFilters}
                 onTouchStart={(e) => {
@@ -1794,7 +1845,7 @@ const MapComponent: React.FC<MapProps> = () => {
       </div>
 
       {/* Mobile-only floating Clear All button */}
-      {isMobile && (activeFilters.length > 0 || activeGroups.length > 0 || selectedAge !== null || openNowFilter || freeActivitiesFilter) && (
+      {isMobile && (activeFilters.length > 0 || activeGroups.length > 0 || selectedAge !== null || openNowFilter || selectedPrice !== null) && (
         <button
           onClick={clearFilters}
           className={`fixed z-mobile-button shadow-sm border rounded-full px-3 py-1.5 text-xs flex items-center gap-1 ${
@@ -1806,6 +1857,14 @@ const MapComponent: React.FC<MapProps> = () => {
               // Check against age filter
               if (selectedAge !== null) {
                 if (selectedAge < location.ageRange.min || selectedAge > location.ageRange.max) {
+                  return false;
+                }
+              }
+              // Check against price filter
+              if (selectedPrice !== null) {
+                if (selectedPrice === "Free" && location.priceRange !== "Free") {
+                  return false;
+                } else if (selectedPrice !== "Free" && location.priceRange !== selectedPrice) {
                   return false;
                 }
               }
@@ -1850,9 +1909,13 @@ const MapComponent: React.FC<MapProps> = () => {
                 return false;
               }
             }
-            // Check against free activities filter
-            if (freeActivitiesFilter && location.priceRange !== "Free") {
-              return false;
+            // Check against price filter
+            if (selectedPrice !== null) {
+              if (selectedPrice === "Free" && location.priceRange !== "Free") {
+                return false;
+              } else if (selectedPrice !== "Free" && location.priceRange !== selectedPrice) {
+                return false;
+              }
             }
             // Check against open now filter
             if (openNowFilter) {
