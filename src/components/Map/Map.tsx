@@ -1560,10 +1560,10 @@ const MapComponent: React.FC<MapProps> = () => {
   }, [visibleLocations, activeFilters, selectedAge, freeActivitiesFilter, openNowFilter, filterLocations, locations, map, setVisibleLocations]);
 
   // Handle location selection from tile or marker
-  const handleLocationSelect = useCallback((location: Location, source: 'map_click' | 'list_item' = 'map_click') => {
+  const handleLocationSelect = useCallback((location: Location, source: 'map_click' | 'list_item' | 'search_result' = 'map_click') => {
     setSelectedLocation(location);
     
-    // Track with enhanced parameters to identify interaction source
+    // Track marker clicks with enhanced parameters to identify interaction source
     trackMarkerClick(
       location.name,
       location.id,
@@ -1581,8 +1581,27 @@ const MapComponent: React.FC<MapProps> = () => {
         // Pass 'marker-selection' context to position the marker above the drawer
         centerMapOnLocation(location.coordinates, 'marker-selection');
       }, 20);
+      
+      // For mobile, ensure drawer is shown
+      setDrawerState('partial');
     }
-  }, [map, isMobile, centerMapOnLocation, setSelectedLocation]);
+  }, [map, isMobile, centerMapOnLocation, setSelectedLocation, setDrawerState]);
+  
+  // Register global function to access location selection from outside the component
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.openLocationDetail = (location: Location, source: 'map_click' | 'list_item' | 'search_result' = 'search_result') => {
+        handleLocationSelect(location, source);
+      };
+    }
+    
+    // Clean up on unmount
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete window.openLocationDetail;
+      }
+    };
+  }, [handleLocationSelect]);
 
   const ageOptions = Array.from({ length: 19 }, (_, i) => i);
 

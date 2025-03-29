@@ -138,12 +138,17 @@ const SearchBar: React.FC<SearchBarProps> = ({
     setSearchResults([]);
     setSearchExpanded(expandedByDefault || !isMobile);
     
-    // Call the provided onLocationSelect function if available
+    // Preferred approach: Call the provided onLocationSelect function if available
     if (onLocationSelect) {
       onLocationSelect(location, index);
     } else {
-      // Default behavior: navigate to the map view with this location
-      navigate(`/?locationId=${location.id}`);
+      // Try using the global openLocationDetail function if available
+      if (typeof window !== 'undefined' && window.openLocationDetail) {
+        window.openLocationDetail(location, 'search_result');
+      } else {
+        // Fallback behavior: navigate to the map view with this location
+        navigate(`/?locationId=${location.id}`);
+      }
     }
   };
 

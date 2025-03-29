@@ -113,12 +113,16 @@ const MainApp = () => {
         locations={locations}
         onNewsletterClick={() => setIsNewsletterModalOpen(true)}
         onSuggestActivityClick={() => setIsSuggestModalOpen(true)}
-        onLocationSelect={(location) => {
-          // Handle location selection from search
-          // This would typically be handled by MapComponent
-          // We can pass the location to MapComponent via its ref or props
-          // For now we'll just log it
-          console.log('Location selected from search:', location);
+        onLocationSelect={(location, index) => {
+          // Find the Map component and trigger its location selection
+          // This simulates clicking on the marker for this location
+          if (typeof window !== 'undefined' && window.openLocationDetail) {
+            window.openLocationDetail(location, 'search_result');
+          } else {
+            console.log('Location selected from search but openLocationDetail is not available:', location);
+            // If window.openLocationDetail isn't available, navigate to the location using URL parameters
+            window.location.href = `/?locationId=${location.id}`;
+          }
         }}
       />
       <main className="flex-1 relative overflow-hidden">
