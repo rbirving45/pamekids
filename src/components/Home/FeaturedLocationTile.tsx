@@ -109,7 +109,7 @@ const FeaturedLocationTile: React.FC<FeaturedLocationTileProps> = ({
       </div>
       
       {/* Content section */}
-      <div className="p-4 flex-1 flex flex-col">
+      <div className="p-4 pb-1 flex-1 flex flex-col">
         {/* Location name - moved to top */}
         <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2">{location.name}</h3>
         
@@ -140,8 +140,14 @@ const FeaturedLocationTile: React.FC<FeaturedLocationTileProps> = ({
           )}
         </p>
         
-        {/* Description - limited to 3 lines */}
-        <p className="text-sm text-gray-700 mb-4 line-clamp-3 flex-1">{location.description}</p>
+        {/* Description - limited to exactly 3 lines with consistent height */}
+        <p className="text-sm text-gray-700 mb-4 line-clamp-3 overflow-hidden" style={{
+          display: '-webkit-box',
+          WebkitLineClamp: '3',
+          WebkitBoxOrient: 'vertical',
+          lineHeight: '1.5em',
+          height: '4.5em' // Exactly 3 lines (1.5em * 3)
+        }}>{location.description}</p>
         
         {/* View details link - can be internal link or button */}
         {onSelect ? (
