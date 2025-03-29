@@ -298,7 +298,7 @@ const HomePage: React.FC = () => {
              >
              <div className="flex flex-col items-center">
                <Link
-                 to={`/?filter=${category.id}`}
+                 to={`/?filter=${category.id}${category.id === 'free-activities' ? '&price=Free' : ''}`}
                  className={`flex items-center justify-center transition-transform hover:scale-105 ${isMobile ? 'w-20 h-20' : 'w-28 h-28'}`}
                  style={{
                    backgroundColor: category.color,
