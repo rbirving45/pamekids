@@ -363,7 +363,29 @@ const HomePage: React.FC = () => {
          </div>
        </div>
      </section>
-           
+
+     {/* Banner section */}
+     <section className="bg-blue-50/50 pt-4 pb-2 sm:pb-4">
+       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+         <div
+           className="relative w-full h-[150px] sm:h-[200px] rounded-xl overflow-hidden flex items-center justify-center"
+           style={{
+             backgroundImage: 'url("/images/athens-map-banner.png")',
+             backgroundSize: 'cover',
+             backgroundPosition: 'center',
+             backgroundRepeat: 'no-repeat'
+           }}
+         >
+           <Link
+             to="/"
+             className="bg-white hover:bg-blue-50 text-blue-600 font-medium py-3 px-8 rounded-lg border-2 border-blue-200 transition duration-200 shadow-sm hover:shadow-md"
+           >
+             View All Activities
+           </Link>
+         </div>
+       </div>
+     </section>
+     
      {/* Featured Content section */}
      <section className="pt-8 pb-4 bg-gray-50">
        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -391,15 +413,6 @@ const HomePage: React.FC = () => {
            isLoading={isLoading}
            error={error}
          />
-         
-         <div className="mt-8 text-center">
-           <Link
-             to="/"
-             className="inline-block bg-white hover:bg-gray-50 text-blue-600 font-medium py-2 px-6 rounded-lg border border-blue-600 transition duration-200"
-           >
-             View All Activities
-           </Link>
-         </div>
        </div>
      </section>
      
