@@ -1166,8 +1166,15 @@ const MapComponent: React.FC<MapProps> = () => {
 
   // Get marker icon based on location's primary type or first type in the array
   const getMarkerIcon = useCallback((location: Location) => {
-    // Use primary type if available, otherwise use first type in the array
-    const displayType = location.primaryType || location.types[0];
+    // First check if any of the location's types match the active filters
+    const matchingType = location.types.find(type => activeFilters.includes(type));
+    
+    // If we have active filters and found a matching type, use that
+    // Otherwise fall back to primary type or first type
+    const displayType = (activeFilters.length > 0 && matchingType)
+      ? matchingType
+      : (location.primaryType || location.types[0]);
+
     return {
       fillColor: activityConfig[displayType].color,
       fillOpacity: 1,
@@ -1176,7 +1183,7 @@ const MapComponent: React.FC<MapProps> = () => {
       strokeColor: '#FFFFFF',
       strokeWeight: 2
     };
-  }, []);
+  }, [activeFilters]);
 
   const getUserLocationIcon = useCallback(() => {
     if (!maps) return undefined;

@@ -75,45 +75,71 @@ export interface ActivityCategory {
   color: string;
 }
 
-// App activity categories with colors
+// App activity categories with colors matching their group colors
 export const ACTIVITY_CATEGORIES: Record<string, ActivityCategory> = {
-  'indoor-play': { name: 'Indoor Play', color: '#FF4444' },
-  'outdoor-play': { name: 'Outdoor Play', color: '#33B679' },
-  'sports': { name: 'Sports', color: '#FF8C00' },
-  'arts': { name: 'Arts', color: '#9C27B0' },
-  'music': { name: 'Music', color: '#3F51B5' },
-  'education': { name: 'Education', color: '#4285F4' },
-  'entertainment': { name: 'Entertainment', color: '#FFB300' },
-  'camp': { name: 'Camps', color: '#8BC34A' },
-  'language': { name: 'Language', color: '#009688' },
-  'drama': { name: 'Drama', color: '#E91E63' },
-  'history': { name: 'History', color: '#795548' },
-  'stem': { name: 'STEM', color: '#00BCD4' },
-  'animals': { name: 'Animals', color: '#607D8B' },
-  'playground': { name: 'Playground', color: '#4CAF50' },
-  'play-space': { name: 'Play Space', color: '#FF5722' },
-  'martial-arts': { name: 'Martial Arts', color: '#F44336' },
-  'soccer': { name: 'Soccer', color: '#7CB342' },
-  'basketball': { name: 'Basketball', color: '#FF9800' },
-  'tennis': { name: 'Tennis', color: '#CDDC39' },
-  'horseback-riding': { name: 'Horseback Riding', color: '#8D6E63' },
-  'dance': { name: 'Dance', color: '#BA68C8' },
-  'gymnastics': { name: 'Gymnastics', color: '#26A69A' },
-  'yoga': { name: 'Yoga', color: '#9575CD' },
-  'swim': { name: 'Swimming', color: '#29B6F6' },
-  'movies': { name: 'Movies', color: '#EC407A' },
-  'theme-park': { name: 'Theme Parks', color: '#FFA726' },
-  'event-space': { name: 'Event Spaces', color: '#78909C' },
-  'beach': { name: 'Beaches', color: '#80DEEA' },
-  'hike': { name: 'Hiking', color: '#66BB6A' },
-  'restaurant': { name: 'Restaurants', color: '#EF5350' },
-  'cafe': { name: 'Cafes', color: '#D4E157' },
-  'summer-camp': { name: 'Summer Camp', color: '#8BC34A' },
-  'easter-camp': { name: 'Easter Camp', color: '#AFB42B' },
-  'hotel': { name: 'Hotel', color: '#5D4037' },
-  'resort': { name: 'Resort', color: '#00796B' },
-  'nature': { name: 'Nature', color: '#80DEEA' },
-  'cooking': { name: 'Education', color: '#4285F4' }
+  // Learning group - Soft blue #6BAAD4
+  'music': { name: 'Music', color: '#6BAAD4' },
+  'language': { name: 'Language', color: '#6BAAD4' },
+  'arts': { name: 'Arts', color: '#6BAAD4' },
+  'drama': { name: 'Drama', color: '#6BAAD4' },
+  'history': { name: 'History', color: '#6BAAD4' },
+  'stem': { name: 'STEM', color: '#6BAAD4' },
+  'animals': { name: 'Animals', color: '#6BAAD4' },
+  'education': { name: 'Education', color: '#6BAAD4' },
+  'cooking': { name: 'Cooking', color: '#6BAAD4' },
+
+  // Sports group - Muted navy #4F6490
+  'sports': { name: 'Sports', color: '#4F6490' },
+  'martial-arts': { name: 'Martial Arts', color: '#4F6490' },
+  'soccer': { name: 'Soccer', color: '#4F6490' },
+  'basketball': { name: 'Basketball', color: '#4F6490' },
+  'tennis': { name: 'Tennis', color: '#4F6490' },
+  'horseback-riding': { name: 'Horseback Riding', color: '#4F6490' },
+  'dance': { name: 'Dance', color: '#4F6490' },
+  'gymnastics': { name: 'Gymnastics', color: '#4F6490' },
+  'yoga': { name: 'Yoga', color: '#4F6490' },
+  'swim': { name: 'Swimming', color: '#4F6490' },
+
+  // Outdoor Play group - Soft green #8BC34A
+  'outdoor-play': { name: 'Outdoor Play', color: '#8BC34A' },
+  'playground': { name: 'Playground', color: '#8BC34A' },
+  'sports-field': { name: 'Sports Field', color: '#8BC34A' },
+  'park': { name: 'Park', color: '#8BC34A' },
+
+  // Indoor Play group - Dusty rose #E893B2
+  'indoor-play': { name: 'Indoor Play', color: '#E893B2' },
+  'play-space': { name: 'Play Space', color: '#E893B2' },
+  'indoor-playground': { name: 'Indoor Playground', color: '#E893B2' },
+  'activity-center': { name: 'Activity Center', color: '#E893B2' },
+
+  // Entertainment group - Muted yellow #F9D056
+  'entertainment': { name: 'Entertainment', color: '#F9D056' },
+  'movies': { name: 'Movies', color: '#F9D056' },
+  'theme-park': { name: 'Theme Parks', color: '#F9D056' },
+  'event-space': { name: 'Event Spaces', color: '#F9D056' },
+  'theater': { name: 'Theater', color: '#F9D056' },
+
+  // Camps group - Periwinkle blue #80A4ED
+  'camp': { name: 'Camps', color: '#80A4ED' },
+  'summer-camp': { name: 'Summer Camp', color: '#80A4ED' },
+  'easter-camp': { name: 'Easter Camp', color: '#80A4ED' },
+  'day-camp': { name: 'Day Camp', color: '#80A4ED' },
+
+  // Nature group - Forest green #7CB342
+  'nature': { name: 'Nature', color: '#7CB342' },
+  'beach': { name: 'Beaches', color: '#7CB342' },
+  'hike': { name: 'Hiking', color: '#7CB342' },
+  'garden': { name: 'Garden', color: '#7CB342' },
+
+  // Food group - Soft coral #E57373
+  'restaurant': { name: 'Restaurants', color: '#E57373' },
+  'cafe': { name: 'Cafes', color: '#E57373' },
+  'food-court': { name: 'Food Court', color: '#E57373' },
+
+  // Accommodation group - Muted purple #9575CD
+  'hotel': { name: 'Hotel', color: '#9575CD' },
+  'resort': { name: 'Resort', color: '#9575CD' },
+  'villa': { name: 'Villa', color: '#9575CD' }
 };
 
 // City information
@@ -138,49 +164,49 @@ export interface ActivityGroup {
 
 // Activity groups for filter organization
 export const ACTIVITY_GROUPS: Record<string, ActivityGroup> = {
-  'camps': {
-    name: 'Camps',
-    color: '#8BC34A',
-    types: ['camp', 'summer-camp', 'easter-camp']
-  },
   'learning': {
     name: 'Learning',
-    color: '#4285F4',
+    color: '#6BAAD4', // Soft blue
     types: ['music', 'language', 'arts', 'drama', 'history', 'stem', 'animals', 'education']
+  },
+  'sports': {
+    name: 'Sports',
+    color: '#4F6490', // Muted navy
+    types: ['sports', 'martial-arts', 'soccer', 'basketball', 'tennis', 'horseback-riding', 'dance', 'gymnastics', 'yoga', 'swim']
   },
   'outdoor-play': {
     name: 'Outdoor Play',
-    color: '#33B679',
+    color: '#8BC34A', // Soft green
     types: ['outdoor-play', 'playground']
   },
   'indoor-play': {
     name: 'Indoor Play',
-    color: '#FF4444',
+    color: '#E893B2', // Dusty rose
     types: ['indoor-play', 'play-space']
-  },
-  'sports': {
-    name: 'Sports',
-    color: '#FF8C00',
-    types: ['sports', 'martial-arts', 'soccer', 'basketball', 'tennis', 'horseback-riding', 'dance', 'gymnastics', 'yoga', 'swim']
   },
   'entertainment': {
     name: 'Entertainment',
-    color: '#FFB300',
+    color: '#F9D056', // Muted yellow
     types: ['movies', 'theme-park', 'event-space', 'entertainment']
+  },
+  'camps': {
+    name: 'Camps',
+    color: '#80A4ED', // Periwinkle blue
+    types: ['camp', 'summer-camp', 'easter-camp']
   },
   'nature': {
     name: 'Nature',
-    color: '#66BB6A',
+    color: '#7CB342', // Forest green
     types: ['nature', 'beach', 'hike']
   },
   'food': {
     name: 'Food',
-    color: '#EF5350',
+    color: '#E57373', // Soft coral
     types: ['restaurant', 'cafe']
   },
   'accommodation': {
     name: 'Accommodation',
-    color: '#5D4037',
+    color: '#9575CD', // Muted purple
     types: ['hotel', 'resort']
   }
 };
