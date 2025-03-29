@@ -62,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({
 
   return (
     <header
-      className={`bg-white shadow-md z-header ${isMobile ? 'fixed top-0 left-0 right-0 w-full' : 'relative'}`}
+      className={`bg-white shadow-md z-header w-full`}
       onTouchStart={(e) => {
         e.stopPropagation();
       }}

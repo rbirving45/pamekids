@@ -261,16 +261,18 @@ const HomePage: React.FC = () => {
  
  return (
    <div className="homepage-container min-h-screen flex flex-col">
-     {/* Use the common Header component */}
-     <Header
-       locations={featuredLocations}
-       onNewsletterClick={() => setNewsLetterOpen(true)}
-       onSuggestActivityClick={() => setSuggestActivityOpen(true)}
-       onLocationSelect={location => handleLocationSelect(location.id)}
-     />
+     {/* Use the common Header component with fixed position */}
+     <div className="fixed top-0 left-0 right-0 z-header w-full">
+       <Header
+         locations={featuredLocations}
+         onNewsletterClick={() => setNewsLetterOpen(true)}
+         onSuggestActivityClick={() => setSuggestActivityOpen(true)}
+         onLocationSelect={location => handleLocationSelect(location.id)}
+       />
+     </div>
      
-     {/* Add spacing to account for fixed header on mobile */}
-     <div className={`${isMobile ? 'mt-16' : ''}`}></div>
+     {/* Add spacing to account for fixed header on both mobile and desktop */}
+     <div className="h-16"></div>
      
      {/* Hero section */}
      <section className={`bg-blue-50 ${isMobile ? 'pt-4 pb-4' : 'py-8 md:py-12'}`}>
