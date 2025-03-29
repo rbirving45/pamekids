@@ -20,8 +20,8 @@
     --z-category-grid: 115;
     
   /* Dropdowns (200-299) */
-  --z-dropdown-base: 200;
-  --z-search-results-dropdown: 210;
+  --z-dropdown-base: 800;
+  --z-search-results-dropdown: 800;
   --z-age-dropdown: 220;
   --z-filter-dropdown: 230;
   --z-group-filter-dropdown: 240;

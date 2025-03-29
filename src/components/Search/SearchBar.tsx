@@ -171,11 +171,16 @@ const SearchBar: React.FC<SearchBarProps> = ({
     
     // Calculate position
     const dropdownTop = searchRect.bottom + window.scrollY;
-    const dropdownLeft = searchRect.left + window.scrollX;
     
-    // Determine width - use input width on mobile, wider on desktop
+    // For mobile full-screen mode, align with screen edges
+    // For desktop, align with input field
+    const dropdownLeft = isMobile && searchExpanded
+      ? 0
+      : searchRect.left + window.scrollX;
+    
+    // Determine width - use full screen width on mobile, wider on desktop
     const dropdownWidth = isMobile
-      ? `${searchRect.width}px`
+      ? '100%'
       : `${Math.min(Math.max(searchRect.width * 1.5, 350), 500)}px`;
     
     return (
@@ -314,18 +319,20 @@ const SearchBar: React.FC<SearchBarProps> = ({
     );
   };
 
-  // Different styling for header mode vs filter bar mode
+  // EXACTLY match the styles from the existing buttons - matching precise size & color
   const searchButtonClass = headerMode
-    ? isMobile
-      ? "bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors" // Match existing mobile button style
-      : "bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors" // Match existing desktop button style
-    : "p-2 rounded-full bg-gray-100 hover:bg-gray-200"; // Original map search style
+    ? isMobile || !isMobile
+      ? "bg-[#4679ea] hover:bg-[#3a6ad6] text-white rounded-full flex items-center justify-center w-10 h-10 transition-colors" // Exact size and color match
+      : "bg-[#4679ea] hover:bg-[#3a6ad6] text-white rounded-full flex items-center justify-center w-10 h-10 transition-colors" // Exact size and color match
+    : "p-2 rounded-full bg-gray-100 hover:bg-gray-200"; // Original map search style (non-header mode)
 
   return (
     <div ref={searchRef} className={`relative z-search-container ${className}`}>
       <form onSubmit={handleSubmit}>
         <div className={`flex items-center transition-all duration-200 ${
-          searchExpanded ? (headerMode && !isMobile ? 'w-64' : 'w-64') : 'w-10'
+          searchExpanded ?
+            (isMobile ? 'fixed top-0 left-0 w-full bg-white h-16 px-4 z-header' : 'flex gap-3') :
+            'w-10'
         }`}>
           <button
             type="button"
@@ -335,26 +342,33 @@ const SearchBar: React.FC<SearchBarProps> = ({
             className={searchButtonClass}
             aria-label={searchExpanded ? "Collapse search" : "Expand search"}
           >
-            {headerMode && !isMobile && !searchExpanded ? (
-              <div className="flex items-center">
-                <Search size={16} className="text-blue-600 mr-1" />
-                <span>Search</span>
-              </div>
-            ) : (
-              <Search size={headerMode && isMobile ? 16 : 20} className={headerMode ? "text-blue-600" : "text-gray-600"} />
-            )}
+            <Search size={18} className="text-white" strokeWidth={2.5} />
           </button>
           
           {searchExpanded && (
-            <div className="flex-1 ml-2">
+            <div className={`flex-1 transition-all ${isMobile ? 'ml-3 w-full' : 'ml-3 w-80'}`}>
               <input
                 type="text"
                 placeholder={placeholder}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`${isMobile ? 'w-full' : 'w-full'} px-4 py-2 rounded-3xl border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#4679ea]`}
+                style={{height: '42px'}}
                 autoFocus
               />
+              
+              {isMobile && (
+                <button
+                  type="button"
+                  onClick={() => setSearchExpanded(false)}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              )}
             </div>
           )}
         </div>

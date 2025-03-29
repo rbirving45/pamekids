@@ -47,17 +47,9 @@ const Header: React.FC<HeaderProps> = ({
       }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <Link to="/" className="relative inline-flex items-baseline">
-            {/* Main logo text - smaller on mobile when we have search */}
-            <span className={`font-logo ${isMobile ? 'text-3xl' : 'text-4xl'} font-bold text-blue-500`}>Pame</span>
-            
-            {/* Sub-brand text - smaller on mobile when we have search */}
-            <span className={`font-logo ${isMobile ? 'text-2xl' : 'text-3xl'} font-semibold text-orange-500`}>Kids</span>
-          </Link>
-
-          <div className="flex items-center space-x-3">
-            {/* SearchBar component with styling matching the other buttons */}
+        <div className="flex items-center h-16 relative">
+          {/* Left side: Search */}
+          <div className="absolute left-4 sm:left-6 lg:left-8 z-10 flex items-center">
             <div className="search-button-wrapper">
               <SearchBar
                 locations={locations}
@@ -65,12 +57,26 @@ const Header: React.FC<HeaderProps> = ({
                 onLocationSelect={onLocationSelect}
                 activeFilters={activeFilters}
                 selectedAge={selectedAge}
-                expandedByDefault={!isMobile}
+                expandedByDefault={false}
                 headerMode={true}
                 placeholder="Search activities..."
               />
             </div>
-            
+          </div>
+          
+          {/* Center: Logo - centered regardless of search state */}
+          <div className="flex-1 flex justify-center">
+            <Link to="/" className="relative inline-flex items-baseline">
+              {/* Main logo text - smaller on mobile when we have search */}
+              <span className={`font-logo ${isMobile ? 'text-3xl' : 'text-4xl'} font-bold text-blue-500`}>Pame</span>
+              
+              {/* Sub-brand text - smaller on mobile when we have search */}
+              <span className={`font-logo ${isMobile ? 'text-2xl' : 'text-3xl'} font-semibold text-orange-500`}>Kids</span>
+            </Link>
+          </div>
+          
+          {/* Right side: Buttons */}
+          <div className="absolute right-4 sm:right-6 lg:right-8 flex items-center space-x-4">
             {/* Use the original button components */}
             <NewsletterButton onClick={onNewsletterClick} />
             <SuggestActivityButton onClick={onSuggestActivityClick} />
