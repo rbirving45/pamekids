@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMobile } from '../../contexts/MobileContext';
-import { Search, Tent, BookOpen, Trees, Home, Trophy, Popcorn, Leaf, UtensilsCrossed, Hotel, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Tent, BookOpen, Trees, Home, Trophy, Popcorn, Leaf, UtensilsCrossed, Hotel, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 // Import modal components from existing app
-import { NewsletterButton, NewsletterModal } from '../Newsletter';
-import SuggestActivityButton from '../SuggestActivity/SuggestActivityButton';
+import { NewsletterModal } from '../Newsletter';
 import SuggestActivityModal from '../SuggestActivity/SuggestActivityModal';
+import Header from '../Layout/Header';
 // Import metadata for activity types
 import { ACTIVITY_CATEGORIES } from '../../utils/metadata';
 // Import firebase services and types
@@ -193,7 +193,7 @@ const HomePage: React.FC = () => {
  const navigate = useNavigate();
  const [newsLetterOpen, setNewsLetterOpen] = useState(false);
  const [suggestActivityOpen, setSuggestActivityOpen] = useState(false);
- const [searchTerm, setSearchTerm] = useState('');
+ // Search term is now handled by the SearchBar component
  const [featuredLocations, setFeaturedLocations] = useState<Location[]>([]);
  const [freeActivities, setFreeActivities] = useState<Location[]>([]);
  const [isLoading, setIsLoading] = useState(true);
@@ -261,59 +261,16 @@ const HomePage: React.FC = () => {
  
  return (
    <div className="homepage-container min-h-screen flex flex-col">
-     {/* Sticky header with styling to match main app */}
-     <header
-       className={`bg-white shadow-md z-header ${isMobile ? 'fixed top-0 left-0 right-0' : 'relative'}`}
-       style={{
-         position: isMobile ? 'fixed' : 'sticky',
-         top: 0
-       }}
-     >
-       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-         <div className="flex justify-between items-center h-16">
-           <div className="relative inline-flex items-baseline">
-             {/* Main logo text */}
-             <span className="font-logo text-4xl md:text-4xl font-bold text-blue-500">Pame</span>
-             
-             {/* Sub-brand text */}
-             <span className="font-logo text-3xl md:text-3xl font-semibold text-orange-500">Kids</span>
-           </div>
-           <div className="flex items-center space-x-3">
-             <NewsletterButton onClick={() => setNewsLetterOpen(true)} />
-             <SuggestActivityButton onClick={() => setSuggestActivityOpen(true)} />
-           </div>
-         </div>
-       </div>
-     </header>
+     {/* Use the common Header component */}
+     <Header
+       locations={featuredLocations}
+       onNewsletterClick={() => setNewsLetterOpen(true)}
+       onSuggestActivityClick={() => setSuggestActivityOpen(true)}
+       onLocationSelect={location => handleLocationSelect(location.id)}
+     />
      
-     {/* Search Bar - styled to match main app search */}
-     <div className={`bg-white p-4 shadow-sm z-filter-bar ${isMobile ? 'mt-16' : ''}`}>
-       <div className="max-w-3xl mx-auto flex items-center gap-2 rounded-lg">
-         <div className="relative z-search-container flex-1">
-           <div className="flex items-center w-full">
-             <div className="p-2 rounded-full bg-gray-100">
-               <Search size={20} className="text-gray-600" />
-             </div>
-             
-             <div className="flex-1 ml-2 w-full">
-               <input
-                 type="text"
-                 placeholder="Search for activities..."
-                 value={searchTerm}
-                 onChange={(e) => setSearchTerm(e.target.value)}
-                 className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-               />
-             </div>
-           </div>
-         </div>
-         <Link
-           to={`/?search=${encodeURIComponent(searchTerm)}`}
-           className="bg-blue-500 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium"
-         >
-           Search
-         </Link>
-       </div>
-     </div>
+     {/* Add spacing to account for fixed header on mobile */}
+     <div className={`${isMobile ? 'mt-16' : ''}`}></div>
      
      {/* Hero section */}
      <section className={`bg-blue-50 ${isMobile ? 'pt-4 pb-4' : 'py-8 md:py-12'}`}>

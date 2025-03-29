@@ -6,7 +6,7 @@ import {
   Route,
   Navigate
 } from 'react-router-dom';
-import { MobileProvider, useMobile } from './contexts/MobileContext';
+import { MobileProvider } from './contexts/MobileContext';
 import { TouchProvider, useTouch } from './contexts/TouchContext';
 import { AppStateProvider } from './contexts/AppStateContext';
 import SEO from './components/SEO';
@@ -14,13 +14,14 @@ import HomePage from './components/Home/HomePage';
 
 import MapComponent from './components/Map/Map';
 import MapBlockingOverlay from './components/Map/MapBlockingOverlay';
-import SuggestActivityButton from './components/SuggestActivity/SuggestActivityButton';
 import SuggestActivityModal from './components/SuggestActivity/SuggestActivityModal';
-import { NewsletterButton, NewsletterModal } from './components/Newsletter';
+import { NewsletterModal } from './components/Newsletter';
 import ReportIssueModal from './components/ReportIssue/ReportIssueModal';
 import AdminLogin from './components/Admin/AdminLogin';
 import Dashboard from './components/Admin/Dashboard';
 import AnalyticsDebugger from './components/Analytics/AnalyticsDebugger';
+import Header from './components/Layout/Header';
+import { Location } from './types/location';
 
 // Import activity categories from centralized metadata
 import { ACTIVITY_CATEGORIES as activityConfig } from './utils/metadata';
@@ -35,11 +36,11 @@ interface ReportIssueData {
 
 // Main application layout
 const MainApp = () => {
-  const { isMobile } = useMobile();
   const { setModalOpen } = useTouch();
   const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
   const [isNewsletterModalOpen, setIsNewsletterModalOpen] = useState(false);
   const [isReportIssueModalOpen, setIsReportIssueModalOpen] = useState(false);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [reportIssueData, setReportIssueData] = useState<ReportIssueData>({
     locationId: '',
     locationName: '',
@@ -51,6 +52,23 @@ const MainApp = () => {
     const isAnyModalOpen = isSuggestModalOpen || isNewsletterModalOpen || isReportIssueModalOpen;
     setModalOpen(isAnyModalOpen);
   }, [isSuggestModalOpen, isNewsletterModalOpen, isReportIssueModalOpen, setModalOpen]);
+  
+  // Fetch locations for search functionality
+  React.useEffect(() => {
+    // Try to get locations from session storage first
+    const cachedLocations = sessionStorage.getItem('cachedLocations');
+    if (cachedLocations) {
+      try {
+        const parsedLocations = JSON.parse(cachedLocations);
+        setLocations(parsedLocations);
+      } catch (error) {
+        console.error('Error parsing cached locations:', error);
+      }
+    }
+    
+    // We'll rely on MapComponent to update the locations in session storage
+    // This avoids duplicating the fetch logic
+  }, []);
   
   // Register global function to open report issue modal
   React.useEffect(() => {
@@ -91,44 +109,18 @@ const MainApp = () => {
     <div className="h-screen w-full flex flex-col">
       <SEO /> {/* Use default SEO values from metadata.ts */}
       <MapBlockingOverlay />
-      <header
-        className={`bg-white shadow-md z-header ${isMobile ? 'fixed top-0 left-0 right-0' : 'relative'}`}
-        onTouchStart={(e) => {
-          // Prevent touch events from reaching the map
-          e.stopPropagation();
+      <Header
+        locations={locations}
+        onNewsletterClick={() => setIsNewsletterModalOpen(true)}
+        onSuggestActivityClick={() => setIsSuggestModalOpen(true)}
+        onLocationSelect={(location) => {
+          // Handle location selection from search
+          // This would typically be handled by MapComponent
+          // We can pass the location to MapComponent via its ref or props
+          // For now we'll just log it
+          console.log('Location selected from search:', location);
         }}
-        onTouchMove={(e) => {
-          // Prevent scrolling and stop propagation
-          e.preventDefault();
-          e.stopPropagation();
-        }}
-        onTouchEnd={(e) => {
-          // Prevent touch events from reaching the map
-          e.stopPropagation();
-        }}
-        style={{
-          touchAction: 'none', // Disable browser handling of all touch events
-          pointerEvents: 'auto', // Ensure all pointer events are captured
-          position: isMobile ? 'fixed' : 'relative',
-          zIndex: 100 // Ensure header is above map
-        }}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="relative inline-flex items-baseline">
-              {/* Main logo text */}
-              <span className="font-logo text-4xl md:text-4xl font-bold text-blue-500">Pame</span>
-              
-              {/* Sub-brand text */}
-              <span className="font-logo text-3xl md:text-3xl font-semibold text-orange-500">Kids</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <NewsletterButton onClick={() => setIsNewsletterModalOpen(true)} />
-              <SuggestActivityButton onClick={() => setIsSuggestModalOpen(true)} />
-            </div>
-          </div>
-        </div>
-      </header>
+      />
       <main className="flex-1 relative overflow-hidden">
         <MapComponent />
       </main>
