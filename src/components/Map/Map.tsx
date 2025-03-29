@@ -3,15 +3,15 @@ import { GoogleMap, LoadScriptNext, Marker, Libraries } from '@react-google-maps
 import { useLocation } from 'react-router-dom';
 import Drawer from './Drawer';
 import { ActivityType, Location } from '../../types/location';
-import { Search, ChevronDown } from 'lucide-react';
-import { trackMarkerClick, trackSearchQuery, trackSearchResultClick } from '../../utils/analytics';
+import { ChevronDown } from 'lucide-react';
+import { trackMarkerClick } from '../../utils/analytics';
 import { useMobile } from '../../contexts/MobileContext';
 import { useTouch } from '../../contexts/TouchContext';
 import { useAppState } from '../../contexts/AppStateContext';
 import MapBlockingOverlay from './MapBlockingOverlay';
 import GroupFilterDropdown from './GroupFilterDropdown';
 import { getLocations } from '../../utils/firebase-service';
-import { performEnhancedSearch, SearchMatch } from '../../utils/search-utils';
+
 import { ACTIVITY_CATEGORIES, ACTIVITY_GROUPS } from '../../utils/metadata';
 
 // Using MobileContext instead of local mobile detection
@@ -24,8 +24,7 @@ interface MapProps {
   // No longer need locations as props, as we'll fetch them from Firebase
 }
 
-// Using our enhanced SearchMatch type from search-utils.ts
-type SearchResult = SearchMatch;
+
 
 // Use activity categories from centralized metadata
 const activityConfig = ACTIVITY_CATEGORIES;
@@ -69,9 +68,7 @@ const MapComponent: React.FC<MapProps> = () => {
   const [activeFilters, setActiveFilters] = useState<ActivityType[]>([]);
   const [activeGroups, setActiveGroups] = useState<string[]>([]);
   const [freeActivitiesFilter, setFreeActivitiesFilter] = useState(false);
-  const [searchExpanded, setSearchExpanded] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+
   const [selectedAge, setSelectedAge] = useState<number | null>(null);
   const [isAgeDropdownOpen, setIsAgeDropdownOpen] = useState(false);
   const [maps, setMaps] = useState<typeof google.maps | null>(null);
@@ -85,7 +82,7 @@ const MapComponent: React.FC<MapProps> = () => {
   const [mapReadyState, setMapReadyState] = useState(false);
   // This ref was removed as we simplified the map initialization logic
 
-  const searchRef = useRef<HTMLDivElement>(null);
+
   const ageDropdownRef = useRef<HTMLDivElement>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const drawerInitializedRef = useRef<boolean>(false);
@@ -1026,15 +1023,6 @@ const MapComponent: React.FC<MapProps> = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // For search, only close if click is outside AND not on a search result
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        // Check if the click was on a search result item
-        const clickedOnSearchResult = (event.target as Element)?.closest('[data-search-result]');
-        if (!clickedOnSearchResult) {
-          setSearchExpanded(false);
-        }
-      }
-      
       if (ageDropdownRef.current && !ageDropdownRef.current.contains(event.target as Node)) {
         setIsAgeDropdownOpen(false);
         
@@ -1047,76 +1035,11 @@ const MapComponent: React.FC<MapProps> = () => {
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [setSearchExpanded, setIsAgeDropdownOpen, isMobile, setFilterDropdownOpen]);
+  }, [setIsAgeDropdownOpen, isMobile, setFilterDropdownOpen]);
 
-  // Track the last search term that was actually sent to analytics
-  const lastTrackedSearchTermRef = useRef<string>("");
+
   
-  useEffect(() => {
-    if (!searchTerm) {
-      setSearchResults([]);
-      return;
-    }
 
-    // Short debounce for UI responsiveness (search results)
-    const uiDebounceTimeout = setTimeout(() => {
-      // Use our enhanced search function that understands activities and ages
-      const results = performEnhancedSearch(locations, searchTerm, activityConfig);
-      
-      // Limit to first 10 results for better performance
-      setSearchResults(results.slice(0, 10));
-      
-      // Debug logging only when explicitly enabled via localStorage
-      if (process.env.NODE_ENV === 'development' && localStorage.getItem('enableSearchDebug') === 'true') {
-        console.groupCollapsed(`Enhanced search for: "${searchTerm}"`);
-        console.log(`Found ${results.length} results`);
-        if (results.length > 0) {
-          console.table(results.map(r => ({
-            name: r.location.name,
-            matchField: r.matchField,
-            matchType: r.matchType,
-            priority: r.priority,
-            ageMatch: r.ageMatch,
-            activityMatch: r.activityMatch
-          })));
-        }
-        console.groupEnd();
-      }
-    }, 150); // 150ms debounce for UI updates
-    
-    // Longer debounce for analytics tracking (only track after user stops typing)
-    const analyticsDebounceTimeout = setTimeout(() => {
-      // Only track the search if:
-      // 1. The search term is valid (at least 3 characters)
-      // 2. It's different from the last tracked search
-      if (searchTerm.trim().length >= 3 && searchTerm !== lastTrackedSearchTermRef.current) {
-        // Update the last tracked search term
-        lastTrackedSearchTermRef.current = searchTerm;
-        
-        // Get fresh results for accurate count
-        const results = performEnhancedSearch(locations, searchTerm, activityConfig);
-        
-        // Track the search query with analytics
-        trackSearchQuery(
-          searchTerm,
-          results.length,
-          activeFilters.length > 0,
-          selectedAge !== null
-        );
-        
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`🔍 Analytics: Tracked completed search for "${searchTerm}" with ${results.length} results`);
-        }
-      }
-    }, 1500); // 1.5 second debounce for analytics (wait until user stops typing)
-    
-    return () => {
-      clearTimeout(uiDebounceTimeout);
-      clearTimeout(analyticsDebounceTimeout);
-    };
-  // activityConfig is defined at the module level and won't change between renders
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, locations]);
 
   // Function to force update both drawer locations and map markers based on current filters and map position
   // This is a helper function that manually triggers updates when needed
@@ -1245,88 +1168,9 @@ const MapComponent: React.FC<MapProps> = () => {
     setOpenNowFilter(false);
     setFreeActivitiesFilter(false);
   };
-  // Handle search select
-  const handleSearchSelect = (location: Location, index: number = 0) => {
-    console.log('Search item selected:', location.name);
-    setSelectedLocation(location);
-    setSearchExpanded(false);
-    
-    // When a user clicks a result, we need to ensure we track both the search and the click
-    if (searchTerm) {
-      // Force immediate tracking of the search term when a result is clicked
-      // This ensures we capture the search even if the user clicks before the debounce period
-      if (searchTerm.trim().length >= 3 && searchTerm !== lastTrackedSearchTermRef.current) {
-        // Get fresh results for accurate count
-        const results = performEnhancedSearch(locations, searchTerm, activityConfig);
-        
-        // Track the search immediately (override the debounce)
-        trackSearchQuery(
-          searchTerm,
-          results.length,
-          activeFilters.length > 0,
-          selectedAge !== null
-        );
-        
-        // Update the last tracked search term
-        lastTrackedSearchTermRef.current = searchTerm;
-        
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`🔍 Analytics: Force-tracked search for "${searchTerm}" on result click`);
-        }
-      }
-      
-      // Track the result click with the search term that led to it
-      trackSearchResultClick(
-        searchTerm,
-        location.name,
-        index,
-        location.id,       // Include location ID for better reporting
-        location.types     // Track activity types to analyze popular categories
-      );
-    }
-    
-    // Clear search term after tracking
-    setSearchTerm('');
-    
-    // Track the marker click for analytics with enhanced parameters
-    // Use 'search_result' as interaction method to differentiate from map clicks
-    trackMarkerClick(
-      location.name,
-      location.id,
-      location.types,
-      'search_result'
-    );
-    
-    if (map) {
-      // On mobile, ensure the drawer opens and map pans correctly
-      if (isMobile) {
-        // First do a simple pan to the location
-        map.panTo(location.coordinates);
-        
-        // Set drawer state to partial by default
-            // Set drawer state to partial by default
-            setDrawerState('partial');
-        
-        // Use enhanced centering with a slight delay to ensure proper positioning
-        setTimeout(() => {
-          // Pass 'marker-selection' context to position the marker above the drawer
-          centerMapOnLocation(location.coordinates, 'marker-selection');
-        }, 50);
-      } else {
-        // On desktop, simply pan to the location
-        map.panTo(location.coordinates);
-      }
-    }
-  };
 
-  // Debug helper for search results - only enabled when explicitly turned on
-  useEffect(() => {
-    if (searchResults.length > 0 && process.env.NODE_ENV === 'development' && localStorage.getItem('enableSearchDebug') === 'true') {
-      console.log(`Search results updated: ${searchResults.length} items found`);
-      console.log('Search expanded:', searchExpanded);
-      console.log('Is mobile:', isMobile);
-    }
-  }, [searchResults, searchExpanded, isMobile]);
+
+
 
   const handleAgeSelect = (age: number | null) => {
     setSelectedAge(age);
@@ -1742,163 +1586,7 @@ const MapComponent: React.FC<MapProps> = () => {
 
   const ageOptions = Array.from({ length: 19 }, (_, i) => i);
 
-  // Render search results dropdown outside the map container
-  const renderSearchDropdown = () => {
-    if (!searchExpanded || searchResults.length === 0) return null;
-    
-    // Get position for dropdown from the search reference
-    const searchRect = searchRef.current?.getBoundingClientRect();
-    if (!searchRect) return null;
-    
-    // Calculate position with a small offset to prevent input overlap
-    // Calculate position with an offset to prevent input overlap
-    // Use a larger offset on mobile devices to account for touch targets
-    const dropdownOffset = isMobile ? 24 : 8; // 24px for mobile, 8px for desktop
-    const dropdownTop = searchRect.bottom + window.scrollY + dropdownOffset;
-    
-    // For both mobile and desktop, align with search field like in Map component
-    const dropdownLeft = searchRect.left + window.scrollX;
-    
-    // Determine width - use input width on mobile, and wider width for desktop
-    const dropdownWidth = isMobile
-      ? `${searchRect.width}px`
-      : `${Math.min(Math.max(searchRect.width * 2, 350), 600)}px`; // min 350px, max 600px, approx twice as wide on desktop
-    
-    return (
-      <div
-        className="fixed bg-white rounded-lg shadow-lg overflow-y-auto z-search-dropdown"
-        style={{
-          top: `${dropdownTop}px`,
-          left: `${dropdownLeft}px`,
-          width: dropdownWidth,
-          maxHeight: '300px',
-          zIndex: 2000, // High z-index to ensure visibility
-        }}
-      >
-        {searchResults.map((result, index) => (
-          <button
-            key={`${result.location.id}-${result.matchField}-${index}`}
-            onClick={() => handleSearchSelect(result.location, index)}
-            data-search-result="true"
-            className="w-full py-2 px-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-0 flex flex-col"
-          >
-            {/* Location name is always shown as the primary text */}
-            <div className="font-medium text-gray-900 mb-1">{result.location.name}</div>
-            
-            {/* Activity type badges */}
-            <div className="flex flex-wrap gap-1 mb-1">
-              {/* Show only first 3 types on mobile to save space */}
-              {result.location.types.slice(0, isMobile ? 2 : 3).map(type => (
-                <span
-                  key={type}
-                  className="inline-block px-1.5 py-0.5 text-xs font-medium rounded-full"
-                  style={{
-                    backgroundColor: activityConfig[type].color + '20',
-                    color: activityConfig[type].color,
-                    // Highlight activity types that matched the search query
-                    border: result.activityMatch &&
-                           result.matchField === 'activityType' &&
-                           result.location.types.includes(type) ?
-                           `1px solid ${activityConfig[type].color}` : 'none'
-                  }}
-                >
-                  {activityConfig[type].name}
-                </span>
-              ))}
-              {/* Show indicator for additional types if there are more than shown */}
-              {result.location.types.length > (isMobile ? 2 : 3) && (
-                <span className="inline-block px-1.5 py-0.5 text-xs font-medium text-gray-500">
-                  +{result.location.types.length - (isMobile ? 2 : 3)} more
-                </span>
-              )}
-            </div>
-            
-            {/* Location address */}
-            <div className="text-xs text-gray-600 truncate flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1 flex-shrink-0">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                <circle cx="12" cy="10" r="3"></circle>
-              </svg>
-              {result.location.address}
-            </div>
-            
-            {/* Enhanced match information - show why this result matched */}
-            <div className="flex flex-wrap mt-1 gap-x-2">
-              {/* Show match reason */}
-              {result.matchField === 'name' && (
-                <div className="text-xs text-green-600 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-0.5">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                  </svg>
-                  Name match
-                </div>
-              )}
-              
-              {result.matchField === 'activityType' && (
-                <div className="text-xs text-purple-600 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-0.5">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="22" y1="12" x2="18" y2="12"></line>
-                    <line x1="6" y1="12" x2="2" y2="12"></line>
-                    <line x1="12" y1="6" x2="12" y2="2"></line>
-                    <line x1="12" y1="22" x2="12" y2="18"></line>
-                  </svg>
-                  Activity: {result.matchText}
-                </div>
-              )}
-              
-              {result.matchField === 'ageRange' && (
-                <div className="text-xs text-orange-600 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-0.5">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                  </svg>
-                  {result.matchText}
-                </div>
-              )}
-              
-              {result.matchField === 'description' && (
-                <div className="text-xs text-blue-600 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-0.5">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                    <polyline points="10 9 9 9 8 9"></polyline>
-                  </svg>
-                  Matched description
-                </div>
-              )}
-              
-              {result.matchField === 'address' && (
-                <div className="text-xs text-blue-600 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-0.5">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                    <circle cx="12" cy="10" r="3"></circle>
-                  </svg>
-                  Matched address
-                </div>
-              )}
-              
-              {/* Show age match indicator if matched by age and not already showing age match field */}
-              {result.ageMatch && result.matchField !== 'ageRange' && (
-                <div className="text-xs text-orange-600 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-0.5">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                  </svg>
-                  Ages {result.location.ageRange.min}-{result.location.ageRange.max}
-                </div>
-              )}
-            </div>
-          </button>
-        ))}
-      </div>
-    );
-  };
+
   
   return (
     <div className="relative h-full w-full flex flex-col">
@@ -1961,79 +1649,6 @@ const MapComponent: React.FC<MapProps> = () => {
         }}
       >
         <div className="flex items-center gap-2">
-          {/* Search Component */}
-          <div ref={searchRef} className="relative z-search-container">
-            <div className={`flex items-center transition-all duration-200 ${
-              searchExpanded ? 'w-64' : 'w-10'
-            }`}>
-              <button
-                onClick={() => {
-                  const newExpandedState = !searchExpanded;
-                  setSearchExpanded(newExpandedState);
-                  
-                  // Update filter dropdown state in TouchContext for mobile
-                  if (isMobile) {
-                    setFilterDropdownOpen(newExpandedState);
-                  }
-                }}
-                className="p-2 rounded-full bg-gray-100 hover:bg-gray-200"
-                onTouchStart={(e) => {
-                  e.stopPropagation();
-                  // When drawer is open, prevent all interaction
-                  if (isMobile && drawerState !== 'closed') {
-                    e.preventDefault();
-                  }
-                }}
-                onTouchEnd={(e) => {
-                  e.stopPropagation();
-                  // When drawer is open, prevent all interaction
-                  if (isMobile && drawerState !== 'closed') {
-                    e.preventDefault();
-                  }
-                }}
-                disabled={isMobile && drawerState !== 'closed'} // Disable when drawer is open
-              >
-                <Search size={20} className="text-gray-600" />
-              </button>
-              
-              {searchExpanded && (
-                <div className="flex-1 ml-2">
-                  <input
-                    type="text"
-                    placeholder="Search by name, activity, age (e.g. 'swimming for 6 year old')..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    autoFocus
-                    onTouchStart={(e) => {
-                      e.stopPropagation();
-                      // When drawer is open, prevent all interaction
-                      if (isMobile && drawerState !== 'closed') {
-                        e.preventDefault();
-                      }
-                    }}
-                    onTouchMove={(e) => {
-                      e.stopPropagation();
-                      // When drawer is open, prevent all interaction
-                      if (isMobile && drawerState !== 'closed') {
-                        e.preventDefault();
-                      }
-                    }}
-                    onTouchEnd={(e) => {
-                      e.stopPropagation();
-                      // When drawer is open, prevent all interaction
-                      if (isMobile && drawerState !== 'closed') {
-                        e.preventDefault();
-                      }
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Vertical divider */}
-          <div className="h-6 w-px bg-gray-200"></div>
 
           {/* Activity Group Filters */}
           <div
@@ -2759,8 +2374,7 @@ const MapComponent: React.FC<MapProps> = () => {
         </div>
       )}
       
-      {/* Render search dropdown outside map container */}
-      {renderSearchDropdown()}
+
     </div>
   );
 };
