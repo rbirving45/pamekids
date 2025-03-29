@@ -39,10 +39,8 @@ const GroupFilterDropdown: React.FC<GroupFilterDropdownProps> = ({
   ).length;
   const isPartiallyActive = !isGroupActive && activeTypesInGroup > 0;
   
-  // Display text with count if partially selected
-  const displayText = isGroupActive
-    ? `${groupName} (${activeTypesInGroup})`
-    : groupName;
+  // Display text is always just the group name
+  const displayText = groupName;
 
   // Handle clicking on the main part of the button (toggles group)
   const handleMainButtonClick = (e: React.MouseEvent) => {
