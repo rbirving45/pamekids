@@ -170,18 +170,23 @@ const SearchBar: React.FC<SearchBarProps> = ({
     const searchRect = searchRef.current?.getBoundingClientRect();
     if (!searchRect) return null;
     
-    // Calculate position - match exactly how Map component calculates it
-    const dropdownTop = searchRect.bottom + window.scrollY;
+  // Calculate position with a small offset to prevent input overlap
+  // Calculate position with an offset to prevent input overlap
+  // Use a larger offset on mobile devices to account for touch targets
+  const dropdownOffset = isMobile ? 24 : 8; // 24px for mobile, 8px for desktop
+  const dropdownTop = searchRect.bottom + window.scrollY + dropdownOffset;
+  
+  // For mobile and desktop, align with search field like in Map component
+  const dropdownLeft = isMobile && searchExpanded
+    ? 0
+    : searchRect.left + window.scrollX;
     
-    // For mobile and desktop, align with search field like in Map component
-    const dropdownLeft = searchRect.left + window.scrollX;
-    
-    // Determine width - match Map component's approach
+    // Determine width - use full screen width on mobile, wider on desktop
     const dropdownWidth = isMobile
-      ? `${searchRect.width}px`
-      : `${Math.min(Math.max(searchRect.width * 2, 350), 600)}px`; // min 350px, max 600px
+      ? '100%'
+      : `${Math.min(Math.max(searchRect.width * 1.5, 350), 500)}px`;
     
-    // Create portal content
+    // Create portal content - using same styles and structure as the original SearchBar
     const dropdownContent = (
       <div
         className="fixed bg-white rounded-lg shadow-lg overflow-y-auto z-search-dropdown"

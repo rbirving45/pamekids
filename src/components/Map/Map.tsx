@@ -1750,10 +1750,13 @@ const MapComponent: React.FC<MapProps> = () => {
     const searchRect = searchRef.current?.getBoundingClientRect();
     if (!searchRect) return null;
     
-    // Calculate position
-    const dropdownTop = searchRect.bottom + window.scrollY;
+    // Calculate position with a small offset to prevent input overlap
+    // Calculate position with an offset to prevent input overlap
+    // Use a larger offset on mobile devices to account for touch targets
+    const dropdownOffset = isMobile ? 24 : 8; // 24px for mobile, 8px for desktop
+    const dropdownTop = searchRect.bottom + window.scrollY + dropdownOffset;
     
-    // For both mobile and desktop, align the dropdown's left edge with the input's left edge
+    // For both mobile and desktop, align with search field like in Map component
     const dropdownLeft = searchRect.left + window.scrollX;
     
     // Determine width - use input width on mobile, and wider width for desktop
