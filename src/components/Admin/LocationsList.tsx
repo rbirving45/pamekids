@@ -390,9 +390,9 @@ const LocationsList: React.FC = () => {
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Primary Type</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age Range</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price Range</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Added / Updated</th>
             </tr>
           </thead>
@@ -441,8 +441,8 @@ const LocationsList: React.FC = () => {
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                     {location.ageRange.min}-{location.ageRange.max} years
                   </td>
-                  <td className="px-4 py-4 text-sm text-gray-500 max-w-xs truncate">
-                    {location.address}
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {location.priceRange || 'Not specified'}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div>Added: {formatTimestamp(location.created_at)}</div>

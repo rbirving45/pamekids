@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import LocationsList from './LocationsList';
 import AddLocationForm from './AddLocationForm';
-import BatchAddLocations from './BatchAddLocations';
+
 import CacheManager from './CacheManager';
 
 interface Subscription {
@@ -253,28 +253,9 @@ const Dashboard: React.FC = () => {
                   </TabsContent>
                   
                   <TabsContent value="add">
-                    <Tabs defaultValue="single" className="w-full">
-                      <TabsList className="mb-4">
-                        <TabsTrigger value="single" className="px-4 py-1">
-                          Add Single Location
-                        </TabsTrigger>
-                        <TabsTrigger value="batch" className="px-4 py-1">
-                          Batch Add Locations
-                        </TabsTrigger>
-                      </TabsList>
-                      
-                      <TabsContent value="single">
-                        <AddLocationForm
-                          onLocationAdded={() => setLocationsRefreshKey(prev => prev + 1)}
-                        />
-                      </TabsContent>
-                      
-                      <TabsContent value="batch">
-                        <BatchAddLocations
-                          onComplete={() => setLocationsRefreshKey(prev => prev + 1)}
-                        />
-                      </TabsContent>
-                    </Tabs>
+                    <AddLocationForm
+                      onLocationAdded={() => setLocationsRefreshKey(prev => prev + 1)}
+                    />
                   </TabsContent>
                   
                   <TabsContent value="cache">
