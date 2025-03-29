@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { useMobile } from '../../contexts/MobileContext';
@@ -161,7 +162,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
     }
   };
 
-  // Render search results dropdown
+  // Render search results dropdown using portal to document body
   const renderSearchDropdown = () => {
     if (!searchExpanded || searchResults.length === 0) return null;
     
@@ -169,21 +170,19 @@ const SearchBar: React.FC<SearchBarProps> = ({
     const searchRect = searchRef.current?.getBoundingClientRect();
     if (!searchRect) return null;
     
-    // Calculate position
+    // Calculate position - match exactly how Map component calculates it
     const dropdownTop = searchRect.bottom + window.scrollY;
     
-    // For mobile full-screen mode, align with screen edges
-    // For desktop, align with input field
-    const dropdownLeft = isMobile && searchExpanded
-      ? 0
-      : searchRect.left + window.scrollX;
+    // For mobile and desktop, align with search field like in Map component
+    const dropdownLeft = searchRect.left + window.scrollX;
     
-    // Determine width - use full screen width on mobile, wider on desktop
+    // Determine width - match Map component's approach
     const dropdownWidth = isMobile
-      ? '100%'
-      : `${Math.min(Math.max(searchRect.width * 1.5, 350), 500)}px`;
+      ? `${searchRect.width}px`
+      : `${Math.min(Math.max(searchRect.width * 2, 350), 600)}px`; // min 350px, max 600px
     
-    return (
+    // Create portal content
+    const dropdownContent = (
       <div
         className="fixed bg-white rounded-lg shadow-lg overflow-y-auto z-search-dropdown"
         style={{
@@ -191,7 +190,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
           left: `${dropdownLeft}px`,
           width: dropdownWidth,
           maxHeight: '300px',
-          zIndex: 2000,
+          // Let the z-search-dropdown class handle the z-index
         }}
       >
         {searchResults.map((result, index) => (
@@ -316,6 +315,12 @@ const SearchBar: React.FC<SearchBarProps> = ({
           </button>
         ))}
       </div>
+    );
+    
+    // Render directly to document body with portal - this breaks out of any stacking context limitations
+    return ReactDOM.createPortal(
+      dropdownContent,
+      document.body
     );
   };
 

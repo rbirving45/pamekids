@@ -20,11 +20,11 @@
     --z-category-grid: 115;
     
   /* Dropdowns (200-299) */
-  --z-dropdown-base: 800;
-  --z-search-results-dropdown: 800;
-  --z-age-dropdown: 220;
+  --z-dropdown-base: 200;
   --z-filter-dropdown: 230;
   --z-group-filter-dropdown: 240;
+  --z-age-dropdown: 250;
+  --z-search-results-dropdown: 1000; /* Set to 1000 to ensure it's above everything except modals */
     
   /* Map Interactive Elements (300-399) */
   --z-marker-normal: 300;

@@ -42,14 +42,14 @@ const Header: React.FC<HeaderProps> = ({
       style={{
         touchAction: 'none',
         pointerEvents: 'auto',
-        position: isMobile ? 'fixed' : 'relative',
-        zIndex: 100 // Ensure header is above map
+        position: isMobile ? 'fixed' : 'relative'
+        // Using z-header class instead of inline z-index
       }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center h-16 relative">
           {/* Left side: Search */}
-          <div className="absolute left-4 sm:left-6 lg:left-8 z-10 flex items-center">
+          <div className="absolute left-4 sm:left-6 lg:left-8 z-search-container flex items-center">
             <div className="search-button-wrapper">
               <SearchBar
                 locations={locations}
