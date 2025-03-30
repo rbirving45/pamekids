@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import LocationsList from './LocationsList';
 import AddLocationForm from './AddLocationForm';
+import FeaturedLocationsManager from './FeaturedLocationsManager';
 
 import CacheManager from './CacheManager';
 
@@ -243,6 +244,9 @@ const Dashboard: React.FC = () => {
                     <TabsTrigger value="add" className="px-4 py-1">
                       Add Location
                     </TabsTrigger>
+                    <TabsTrigger value="featured" className="px-4 py-1">
+                      Featured Locations
+                    </TabsTrigger>
                     <TabsTrigger value="cache" className="px-4 py-1">
                       Cache Management
                     </TabsTrigger>
@@ -256,6 +260,10 @@ const Dashboard: React.FC = () => {
                     <AddLocationForm
                       onLocationAdded={() => setLocationsRefreshKey(prev => prev + 1)}
                     />
+                  </TabsContent>
+                  
+                  <TabsContent value="featured">
+                    <FeaturedLocationsManager />
                   </TabsContent>
                   
                   <TabsContent value="cache">

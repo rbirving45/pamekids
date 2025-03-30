@@ -206,24 +206,13 @@ const HomePage: React.FC = () => {
        setIsLoading(true);
        const locationsData = await getLocations();
        
-       // Filter for featured locations (up to 9 now)
+       // Use only manually selected featured locations (up to 9)
        const featured = locationsData
          .filter(loc => loc.featured === true)
          .slice(0, 9);
          
-       // If we don't have enough featured locations, add some more based on rating
-       if (featured.length < 9) {
-         const highestRated = locationsData
-           .filter(loc => !loc.featured) // Exclude already featured locations
-           .filter(loc => loc.placeData?.rating && loc.placeData.rating >= 4.0) // Only high ratings
-           .filter(loc => loc.placeData?.storedPhotoUrls?.length) // Only locations with images
-           .sort((a, b) => (b.placeData?.rating || 0) - (a.placeData?.rating || 0)) // Sort by rating
-           .slice(0, 9 - featured.length); // Take only what we need
-           
-         setFeaturedLocations([...featured, ...highestRated]);
-       } else {
-         setFeaturedLocations(featured);
-       }
+       // Set featured locations without supplementing with high-rated locations
+       setFeaturedLocations(featured);
        
        // Get free activities (up to 9)
        const free = locationsData
