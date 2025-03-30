@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Location } from '../../types/location';
 import { getLocations, updateLocation } from '../../utils/firebase-service';
 import { Star } from 'lucide-react';
+import SearchableDropdown from './SearchableDropdown';
 
 const FeaturedLocationsManager: React.FC = () => {
   const [locations, setLocations] = useState<Location[]>([]);
@@ -164,21 +165,14 @@ const FeaturedLocationsManager: React.FC = () => {
             </div>
             
             <div className="mb-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Select Location
-              </label>
-              <select
-                className="w-full p-2 border rounded-md"
+              <SearchableDropdown
+                label="Select Location"
+                items={getAvailableLocations(index)}
                 value={location?.id || ''}
-                onChange={(e) => handleLocationSelect(index, e.target.value || null)}
-              >
-                <option value="">-- Select a location --</option>
-                {getAvailableLocations(index).map((loc) => (
-                  <option key={loc.id} value={loc.id}>
-                    {loc.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => handleLocationSelect(index, value)}
+                placeholder="Search for a location..."
+                className="w-full"
+              />
             </div>
             
             {location && (
