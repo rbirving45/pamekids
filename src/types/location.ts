@@ -41,6 +41,7 @@ export interface Location {
   };
   images?: string[];
   featured?: boolean;
+  featuredPosition?: number | null; // Position in the featured locations list (0-8), null when not featured
   // Pro Tips field - contains insider information for each location
   proTips?: string;
   // Optional timestamps - these won't interfere with existing location processing

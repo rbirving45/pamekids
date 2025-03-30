@@ -27,13 +27,33 @@ const FeaturedLocationsManager: React.FC = () => {
           .filter(loc => loc.featured === true)
           .slice(0, 9);
         
-        // Create a new array with featured locations in the slots
+        // Create a new array with featured locations in the slots based on featuredPosition
         const newFeaturedLocations = Array(9).fill(null);
-        featured.forEach((loc, index) => {
-          if (index < 9) {
-            newFeaturedLocations[index] = loc;
+        
+        // First place locations with defined featuredPosition in their correct slots
+        featured.forEach(loc => {
+          if (loc.featuredPosition !== null && loc.featuredPosition !== undefined
+              && loc.featuredPosition >= 0 && loc.featuredPosition < 9) {
+            newFeaturedLocations[loc.featuredPosition] = loc;
           }
         });
+        
+        // Then handle any featured locations without a position (backward compatibility)
+        let nextAvailableSlot = 0;
+        featured
+          .filter(loc => loc.featuredPosition === null || loc.featuredPosition === undefined)
+          .forEach(loc => {
+            // Find the next empty slot
+            while (nextAvailableSlot < 9 && newFeaturedLocations[nextAvailableSlot] !== null) {
+              nextAvailableSlot++;
+            }
+            
+            // Place the location in the available slot if there is one
+            if (nextAvailableSlot < 9) {
+              newFeaturedLocations[nextAvailableSlot] = loc;
+              nextAvailableSlot++;
+            }
+          });
         
         setFeaturedLocations(newFeaturedLocations);
         setIsLoading(false);
@@ -54,16 +74,35 @@ const FeaturedLocationsManager: React.FC = () => {
       setSuccessMessage(null);
       setError(null);
       
+      console.log(`Slot ${slotIndex}: Changing to location ID ${locationId || 'null'}`);
+      
       // First, create a copy of the current featured locations
       const updatedFeaturedLocations = [...featuredLocations];
       
       // If locationId is null, clear the slot
       if (locationId === null) {
-        // If there was a location in this slot before, update its featured status
+        // If there was a location in this slot before, update its featured status and clear position
         if (updatedFeaturedLocations[slotIndex]) {
           const prevLocationId = updatedFeaturedLocations[slotIndex]?.id;
+          
           if (prevLocationId) {
-            await updateLocation(prevLocationId, { featured: false });
+            console.log(`Clearing location ${prevLocationId} from slot ${slotIndex}`);
+            
+            // Check if the location is in any other slots
+            const inOtherSlots = updatedFeaturedLocations.some(
+              (loc, idx) => loc?.id === prevLocationId && idx !== slotIndex
+            );
+            
+            if (inOtherSlots) {
+              console.log(`Location ${prevLocationId} also exists in other slots, not changing featured status`);
+            } else {
+              console.log(`Updating location ${prevLocationId}: featured=false, featuredPosition=null`);
+              // Only set featured: false if this location isn't in any other slot
+              await updateLocation(prevLocationId, {
+                featured: false,
+                featuredPosition: null
+              });
+            }
           }
         }
         
@@ -81,8 +120,25 @@ const FeaturedLocationsManager: React.FC = () => {
         // If there was a location in this slot before, update its featured status
         if (updatedFeaturedLocations[slotIndex]) {
           const prevLocationId = updatedFeaturedLocations[slotIndex]?.id;
+          
           if (prevLocationId && prevLocationId !== locationId) {
-            await updateLocation(prevLocationId, { featured: false });
+            console.log(`Removing location ${prevLocationId} from slot ${slotIndex}`);
+            
+            // Check if the location is in any other slots
+            const inOtherSlots = updatedFeaturedLocations.some(
+              (loc, idx) => loc?.id === prevLocationId && idx !== slotIndex
+            );
+            
+            if (inOtherSlots) {
+              console.log(`Location ${prevLocationId} also exists in other slots, not changing featured status`);
+            } else {
+              console.log(`Updating location ${prevLocationId}: featured=false, featuredPosition=null`);
+              // Only set featured: false if this location isn't in any other slot
+              await updateLocation(prevLocationId, {
+                featured: false,
+                featuredPosition: null
+              });
+            }
           }
         }
         
@@ -92,20 +148,79 @@ const FeaturedLocationsManager: React.FC = () => {
         );
         
         if (existingSlotIndex !== -1 && existingSlotIndex !== slotIndex) {
-          // Remove it from the other slot
+          console.log(`Location ${locationId} already in slot ${existingSlotIndex}, moving to slot ${slotIndex}`);
+          // Clear the other slot
           updatedFeaturedLocations[existingSlotIndex] = null;
         }
         
-        // Update the location's featured status in Firestore
-        await updateLocation(locationId, { featured: true });
+        // Make a copy of the selected location to update in our UI
+        const updatedLocation = { ...selectedLocation };
+        updatedLocation.featuredPosition = slotIndex;
         
-        // Update the slot with the selected location
-        updatedFeaturedLocations[slotIndex] = selectedLocation;
+        console.log(`Updating location ${locationId}: featured=true, featuredPosition=${slotIndex}`);
+        
+        // Update the location's featured status and position in Firestore
+        await updateLocation(locationId, {
+          featured: true,
+          featuredPosition: slotIndex
+        });
+        
+        // Update the slot with the updated location
+        updatedFeaturedLocations[slotIndex] = updatedLocation;
       }
       
       // Update state with the new arrangement
       setFeaturedLocations(updatedFeaturedLocations);
       setSuccessMessage('Featured locations updated successfully.');
+      
+      // Wait a moment then refresh the locations data to ensure we have the latest from Firestore
+      setTimeout(async () => {
+        try {
+          // Force a refresh of locations data
+          console.log('Refreshing locations data from Firestore');
+          const refreshedLocations = await getLocations(true); // Force refresh
+          setLocations(refreshedLocations);
+          
+          // Filter out featured locations and re-populate slots
+          const featured = refreshedLocations
+            .filter(loc => loc.featured === true);
+            
+          console.log('Refreshed featured locations:', featured);
+          
+          // Create a new array with featured locations in the slots based on featuredPosition
+          const refreshedFeaturedLocations = Array(9).fill(null);
+          
+          // First place locations with defined featuredPosition in their correct slots
+          featured.forEach(loc => {
+            console.log(`Location ${loc.name} (${loc.id}): featuredPosition=${loc.featuredPosition}`);
+            if (loc.featuredPosition !== null && loc.featuredPosition !== undefined
+                && loc.featuredPosition >= 0 && loc.featuredPosition < 9) {
+              refreshedFeaturedLocations[loc.featuredPosition] = loc;
+            }
+          });
+          
+          // Then handle any featured locations without a position (backward compatibility)
+          let nextAvailableSlot = 0;
+          featured
+            .filter(loc => loc.featuredPosition === null || loc.featuredPosition === undefined)
+            .forEach(loc => {
+              // Find the next empty slot
+              while (nextAvailableSlot < 9 && refreshedFeaturedLocations[nextAvailableSlot] !== null) {
+                nextAvailableSlot++;
+              }
+              
+              // Place the location in the available slot if there is one
+              if (nextAvailableSlot < 9) {
+                refreshedFeaturedLocations[nextAvailableSlot] = loc;
+                nextAvailableSlot++;
+              }
+            });
+            
+          setFeaturedLocations(refreshedFeaturedLocations);
+        } catch (refreshErr) {
+          console.error('Error refreshing locations data:', refreshErr);
+        }
+      }, 1000);
     } catch (err) {
       console.error('Error updating featured location:', err);
       setError('Failed to update featured location. Please try again.');

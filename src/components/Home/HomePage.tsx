@@ -206,10 +206,30 @@ const HomePage: React.FC = () => {
        setIsLoading(true);
        const locationsData = await getLocations();
        
-       // Use only manually selected featured locations (up to 9)
+       // Log all featured locations with their positions for debugging
+       console.log("Featured locations before sorting:",
+         locationsData
+           .filter(loc => loc.featured === true)
+           .map(loc => ({ name: loc.name, id: loc.id, position: loc.featuredPosition }))
+       );
+       
+       // Get featured locations and sort them by featuredPosition using a simpler approach
        const featured = locationsData
          .filter(loc => loc.featured === true)
+         .sort((a, b) => {
+           const posA = typeof a.featuredPosition === 'number' ? a.featuredPosition : 999;
+           const posB = typeof b.featuredPosition === 'number' ? b.featuredPosition : 999;
+           return posA - posB;
+         })
          .slice(0, 9);
+       
+       // Log final order of featured locations
+       console.log("Featured locations after sorting:",
+         featured.map(loc => ({ name: loc.name, id: loc.id, position: loc.featuredPosition }))
+       );
+
+       // Log the final order for clearer visualization
+       console.log("Final featured order:", featured.map(loc => loc.name).join(' → '));
          
        // Set featured locations without supplementing with high-rated locations
        setFeaturedLocations(featured);

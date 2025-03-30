@@ -439,6 +439,7 @@ export const getLocations = async (forceRefresh = false): Promise<Location[]> =>
             placeData: data.placeData,
             images: data.images,
             featured: data.featured,
+            featuredPosition: data.featuredPosition, // Include featuredPosition from Firestore
             proTips: data.proTips || '', // Add proTips field with empty string default
             created_at: data.created_at || null,
             updated_at: data.updated_at || null
@@ -577,7 +578,7 @@ export const updateLocation = async (id: string, data: Partial<Location>) => {
     // Verify admin authentication
     verifyAdminAuth();
     
-    console.log(`Updating location with ID ${id}`);
+    console.log(`Updating location with ID ${id}`, data);
     const docRef = doc(db, COLLECTIONS.LOCATIONS, id);
     
     // Deep clean function to handle complex nested objects
