@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Location } from '../../types/location';
 import { getLocations, updateLocation } from '../../utils/firebase-service';
+import { Star } from 'lucide-react';
 
 const FeaturedLocationsManager: React.FC = () => {
   const [locations, setLocations] = useState<Location[]>([]);
@@ -182,9 +183,29 @@ const FeaturedLocationsManager: React.FC = () => {
             
             {location && (
               <div className="mt-2 text-sm">
-                <p><strong>Type:</strong> {location.primaryType || location.types[0]}</p>
+                <p><strong>Primary Type:</strong> {location.primaryType || location.types[0]}</p>
                 <p className="mt-1"><strong>Age Range:</strong> {location.ageRange.min}-{location.ageRange.max}</p>
-                <p className="mt-1 line-clamp-2">{location.description}</p>
+                <p className="mt-1"><strong>Price Range:</strong> {location.priceRange || 'Not specified'}</p>
+                
+                {/* Star Rating with number of ratings */}
+                {location.placeData?.rating && location.placeData.userRatingsTotal ? (
+                  <div className="mt-1 flex items-center">
+                    <strong className="mr-1">Rating:</strong>
+                    <div className="flex items-center">
+                      <Star size={16} className="text-yellow-400 fill-yellow-400" />
+                      <span className="ml-1 text-sm font-medium text-gray-800">
+                        {location.placeData.rating.toFixed(1)}
+                      </span>
+                      <span className="text-xs text-gray-600 ml-1">
+                        ({location.placeData.userRatingsTotal > 1000
+                          ? `${Math.floor(location.placeData.userRatingsTotal / 1000)}k`
+                          : location.placeData.userRatingsTotal})
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-1"><strong>Rating:</strong> No ratings yet</p>
+                )}
               </div>
             )}
             
