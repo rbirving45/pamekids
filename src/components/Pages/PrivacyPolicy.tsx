@@ -91,6 +91,20 @@ const PrivacyPolicy: React.FC = () => {
               <li>Opt out of analytics tracking through our consent management tool</li>
               <li>Unsubscribe from our newsletter at any time</li>
               <li>Request that we delete any personal information you've provided</li>
+              <li>
+                Manage your consent preferences by{' '}
+                <button
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      const event = new CustomEvent('openWelcomeModal');
+                      window.dispatchEvent(event);
+                    }
+                  }}
+                  className="text-blue-500 hover:text-blue-700 underline cursor-pointer"
+                >
+                  clicking here
+                </button>
+              </li>
             </ul>
             
             <h2 className="text-2xl font-semibold text-blue-500 mt-8 mb-4">Contact Us</h2>

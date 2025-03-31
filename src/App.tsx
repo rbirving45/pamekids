@@ -49,6 +49,25 @@ const WelcomeModalWrapper: React.FC = () => {
   
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
   
+  // Listen for custom event to open modal from Privacy Policy page
+  useEffect(() => {
+    const handleOpenModal = () => {
+      setIsWelcomeModalOpen(true);
+    };
+    
+    // Add event listener
+    if (typeof window !== 'undefined') {
+      window.addEventListener('openWelcomeModal', handleOpenModal);
+    }
+    
+    // Clean up event listener on unmount
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('openWelcomeModal', handleOpenModal);
+      }
+    };
+  }, []);
+  
   // Show welcome modal for new users or users who haven't made consent decisions
   useEffect(() => {
     // Debug logging to understand modal visibility conditions
