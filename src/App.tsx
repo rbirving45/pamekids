@@ -24,6 +24,7 @@ import AdminLogin from './components/Admin/AdminLogin';
 import Dashboard from './components/Admin/Dashboard';
 import AnalyticsDebugger from './components/Analytics/AnalyticsDebugger';
 import Header from './components/Layout/Header';
+import Footer from './components/Layout/Footer';
 // Import activity categories from centralized metadata
 import { ACTIVITY_CATEGORIES as activityConfig } from './utils/metadata';
 import { injectSchemaOrgData } from './utils/schema';
@@ -274,6 +275,7 @@ function App() {
                       noIndex={true}
                     />
                     <AdminLogin />
+                    <Footer />
                   </>
                 }
               />
@@ -287,6 +289,7 @@ function App() {
                       noIndex={true}
                     />
                     <Dashboard />
+                    <Footer />
                   </>
                 }
               />
