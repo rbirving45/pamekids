@@ -55,18 +55,14 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) => {
           </button>
           <h2 className="text-2xl font-bold text-primary-800">Welcome to PameKids!</h2>
           <p className="mt-1 text-gray-600">
-            Find the best children's activities in Athens, Greece
+            We help parents discover amazing activities for children
+            in Greece, and we just need a couple things from you to get started.
           </p>
         </div>
 
         {/* Content */}
         {!showCustomize ? (
           <div className="p-6">
-            <p className="mb-4">
-              Thank you for visiting PameKids! We help parents discover amazing activities for children
-              in Athens, from playgrounds and sports to arts and educational experiences.
-            </p>
-
             <div className="space-y-4 mb-6">
               <div className="flex items-start">
                 <div className="flex-shrink-0 pt-1">
@@ -93,33 +89,29 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) => {
               </div>
             </div>
 
-            <p className="text-sm text-gray-500 mb-6">
-              By using PameKids, you agree to our <a href="/privacy-policy" className="text-blue-500 hover:underline">Privacy Policy</a> and
-              <a href="/terms" className="text-blue-500 hover:underline"> Terms of Service</a>.
-            </p>
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col gap-3">
               <button
                 onClick={handleAcceptAll}
-                className="flex-1 bg-blue-500 text-white rounded-lg px-4 py-2 font-medium hover:bg-blue-600 flex items-center justify-center"
+                className="w-full bg-blue-500 text-white rounded-lg px-4 py-2 font-medium hover:bg-blue-600 flex items-center justify-center"
               >
                 <Check size={18} className="mr-2" />
                 Accept All
               </button>
               <button
                 onClick={() => setShowCustomize(true)}
-                className="flex-1 bg-gray-100 text-gray-800 rounded-lg px-4 py-2 font-medium hover:bg-gray-200 flex items-center justify-center"
+                className="w-full bg-white text-gray-500 border border-gray-300 rounded-lg px-4 py-2 font-medium hover:bg-gray-50 flex items-center justify-center"
               >
                 <Settings size={18} className="mr-2" />
                 Customize
               </button>
-              <button
-                onClick={handleRejectAll}
-                className="flex-1 bg-white text-gray-500 border border-gray-300 rounded-lg px-4 py-2 font-medium hover:bg-gray-50"
-              >
-                Reject All
-              </button>
             </div>
+            
+            <p className="text-sm text-gray-500 mb-6">
+              By using PameKids, you agree to our <a href="/privacy-policy" className="text-blue-500 hover:underline">Privacy Policy</a> and
+              <a href="/terms" className="text-blue-500 hover:underline"> Terms of Service</a>.
+            </p>
+
           </div>
         ) : (
           <div className="p-6">
@@ -134,7 +126,7 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) => {
                   <div className="ml-3">
                     <h4 className="font-medium">Analytics</h4>
                     <p className="text-sm text-gray-500">
-                      Help us improve by collecting anonymous usage data
+                    Collect anonymous usage data to improve our app
                     </p>
                   </div>
                 </div>
@@ -179,18 +171,24 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) => {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col gap-3">
               <button
                 onClick={handleSavePreferences}
-                className="flex-1 bg-blue-500 text-white rounded-lg px-4 py-2 font-medium hover:bg-blue-600"
+                className="w-full bg-blue-500 text-white rounded-lg px-4 py-2 font-medium hover:bg-blue-600"
               >
                 Save Preferences
               </button>
               <button
                 onClick={() => setShowCustomize(false)}
-                className="flex-1 bg-gray-100 text-gray-800 rounded-lg px-4 py-2 font-medium hover:bg-gray-200"
+                className="w-full bg-gray-100 text-gray-800 rounded-lg px-4 py-2 font-medium hover:bg-gray-200"
               >
                 Back
+              </button>
+              <button
+                onClick={handleRejectAll}
+                className="w-full bg-white text-gray-500 rounded-lg px-4 py-2 font-medium hover:bg-gray-50"
+              >
+                Reject All
               </button>
             </div>
           </div>
