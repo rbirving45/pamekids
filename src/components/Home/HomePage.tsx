@@ -339,7 +339,6 @@ const HomePage: React.FC = () => {
      {/* Use the common Header component with fixed position */}
      <div className="fixed top-0 left-0 right-0 z-header w-full">
        <Header
-         locations={featuredLocations}
          onNewsletterClick={() => setNewsLetterOpen(true)}
          onSuggestActivityClick={() => setSuggestActivityOpen(true)}
          onLocationSelect={location => handleLocationSelect(location.id)}

@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMobile } from '../../contexts/MobileContext';
+import { useLocations } from '../../contexts/LocationsContext';
 import SearchBar from '../Search/SearchBar';
 import { Location, ActivityType } from '../../types/location';
 import { ACTIVITY_CATEGORIES } from '../../utils/metadata';
@@ -10,7 +11,7 @@ import SuggestActivityButton from '../SuggestActivity/SuggestActivityButton';
 interface HeaderProps {
   onNewsletterClick?: () => void;
   onSuggestActivityClick?: () => void;
-  locations?: Location[];
+  locations?: Location[]; // Keep for backward compatibility, but we'll use context
   onLocationSelect?: (location: Location, index: number) => void;
   activeFilters?: ActivityType[];
   selectedAge?: number | null;
@@ -19,12 +20,13 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({
   onNewsletterClick = () => {},
   onSuggestActivityClick = () => {},
-  locations = [],
+  locations: locationsProp = [], // Renamed to avoid confusion
   onLocationSelect,
   activeFilters = [],
   selectedAge = null
 }) => {
   const { isMobile } = useMobile();
+  const { allLocations } = useLocations(); // Get locations from context
   const searchRef = useRef<HTMLDivElement>(null);
   const buttonsRef = useRef<HTMLDivElement>(null);
   const [logoPosition, setLogoPosition] = useState<number | null>(null);
@@ -88,7 +90,7 @@ const Header: React.FC<HeaderProps> = ({
           >
             <div className="search-button-wrapper">
               <SearchBar
-                locations={locations}
+                locations={allLocations}
                 activityConfig={ACTIVITY_CATEGORIES}
                 onLocationSelect={onLocationSelect}
                 activeFilters={activeFilters}

@@ -11,6 +11,7 @@ import { TouchProvider, useTouch } from './contexts/TouchContext';
 import { AppStateProvider } from './contexts/AppStateContext';
 import UserLocationProvider from './contexts/UserLocationContext';
 import ConsentProvider, { useConsent } from './contexts/ConsentContext';
+import { LocationsProvider } from './contexts/LocationsContext';
 import SEO from './components/SEO';
 import HomePage from './components/Home/HomePage';
 import PrivacyPolicy from './components/Pages/PrivacyPolicy';
@@ -270,8 +271,9 @@ function App() {
     <ConsentProvider>
       <MobileProvider>
         <UserLocationProvider>
-          <AppStateProvider>
-            <TouchProvider>
+          <LocationsProvider>
+            <AppStateProvider>
+              <TouchProvider>
               <Router
               future={{
                 v7_startTransition: true,
@@ -318,7 +320,8 @@ function App() {
             </Routes>
           </Router>
           </TouchProvider>
-        </AppStateProvider>
+          </AppStateProvider>
+        </LocationsProvider>
       </UserLocationProvider>
     </MobileProvider>
     </ConsentProvider>
