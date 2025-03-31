@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMobile } from '../../contexts/MobileContext';
+import { useUserLocation } from '../../contexts/UserLocationContext';
 import { Tent, BookOpen, Trees, Home, Trophy, Popcorn, Leaf, UtensilsCrossed, Hotel, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 // Import modal components from existing app
 import { NewsletterModal } from '../Newsletter';
@@ -191,6 +192,7 @@ const LocationCarousel = ({
 const HomePage: React.FC = () => {
  const { isMobile } = useMobile();
  const navigate = useNavigate();
+ const { userLocation } = useUserLocation();
  const [newsLetterOpen, setNewsLetterOpen] = useState(false);
  const [suggestActivityOpen, setSuggestActivityOpen] = useState(false);
  // Search term is now handled by the SearchBar component
@@ -198,6 +200,20 @@ const HomePage: React.FC = () => {
  const [freeActivities, setFreeActivities] = useState<Location[]>([]);
  const [isLoading, setIsLoading] = useState(true);
  const [error, setError] = useState<string | null>(null);
+
+ // Helper function to calculate distance between two coordinates (in km)
+ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+   const R = 6371; // Radius of the earth in km
+   const dLat = (lat2 - lat1) * Math.PI / 180;
+   const dLon = (lon2 - lon1) * Math.PI / 180;
+   const a =
+     Math.sin(dLat/2) * Math.sin(dLat/2) +
+     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+     Math.sin(dLon/2) * Math.sin(dLon/2);
+   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+   const distance = R * c; // Distance in km
+   return distance;
+ };
 
  // Fetch locations from Firestore
  useEffect(() => {
@@ -234,21 +250,58 @@ const HomePage: React.FC = () => {
        // Set featured locations without supplementing with high-rated locations
        setFeaturedLocations(featured);
        
-       // Get free activities (up to 9)
-       const free = locationsData
-         .filter(loc => loc.priceRange?.toLowerCase().includes('free'))
-         .slice(0, 9);
+       // Get all free activities
+       const freeLocations = locationsData
+         .filter(loc => loc.priceRange?.toLowerCase().includes('free'));
+       
+       // Calculate distance for each free location from user's position
+       const freeLocationsWithDistance = freeLocations.map(location => {
+         const distance = calculateDistance(
+           userLocation.lat,
+           userLocation.lng,
+           location.coordinates.lat,
+           location.coordinates.lng
+         );
+         return { location, distance };
+       });
+       
+       // Sort by distance (closest first)
+       freeLocationsWithDistance.sort((a, b) => a.distance - b.distance);
+       
+       // Take the 9 closest free locations (or fewer if not enough exist)
+       const closestFreeLocations = freeLocationsWithDistance
+         .slice(0, 9)
+         .map(item => item.location);
+       
+       console.log(`Found ${freeLocations.length} free locations, using closest ${closestFreeLocations.length}`);
        
        // If we don't have enough free activities, add some regular activities
-       if (free.length < 9) {
-         const additionalActivities = locationsData
-           .filter(loc => !free.some(freeItem => freeItem.id === loc.id)) // Exclude already included free activities
+       if (closestFreeLocations.length < 9) {
+         // Get all non-free locations with distance
+         const nonFreeLocationsWithDistance = locationsData
+           .filter(loc => !freeLocations.some(freeItem => freeItem.id === loc.id)) // Exclude all free locations
            .filter(loc => loc.placeData?.storedPhotoUrls?.length) // Only locations with images
-           .slice(0, 9 - free.length);
-           
-         setFreeActivities([...free, ...additionalActivities]);
+           .map(location => {
+             const distance = calculateDistance(
+               userLocation.lat,
+               userLocation.lng,
+               location.coordinates.lat,
+               location.coordinates.lng
+             );
+             return { location, distance };
+           });
+         
+         // Sort non-free locations by distance
+         nonFreeLocationsWithDistance.sort((a, b) => a.distance - b.distance);
+         
+         // Take just enough to fill our list to 9 items
+         const additionalActivities = nonFreeLocationsWithDistance
+           .slice(0, 9 - closestFreeLocations.length)
+           .map(item => item.location);
+         
+         setFreeActivities([...closestFreeLocations, ...additionalActivities]);
        } else {
-         setFreeActivities(free);
+         setFreeActivities(closestFreeLocations);
        }
        
        setIsLoading(false);
@@ -260,7 +313,7 @@ const HomePage: React.FC = () => {
    };
    
    fetchLocationsData();
- }, []);
+ }, [userLocation.lat, userLocation.lng]);
  
  // Handle featured location selection
  const handleLocationSelect = (locationId: string) => {

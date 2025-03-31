@@ -7,6 +7,7 @@ import { trackMarkerClick } from '../../utils/analytics';
 import { useMobile } from '../../contexts/MobileContext';
 import { useTouch } from '../../contexts/TouchContext';
 import { useAppState } from '../../contexts/AppStateContext';
+import { useUserLocation } from '../../contexts/UserLocationContext';
 import MapBlockingOverlay from './MapBlockingOverlay';
 import GroupFilterDropdown from './GroupFilterDropdown';
 import AgeFilterDropdown from './AgeFilterDropdown';
@@ -40,6 +41,8 @@ const MapComponent: React.FC<MapProps> = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   // Use context hooks for mobile detection and UI state
   const { isMobile } = useMobile();
+  // Get user location from context
+  const { userLocation: contextUserLocation, locationLoaded } = useUserLocation();
   // Get drawer state and map blocking state from TouchContext
   const { drawerState, setDrawerState, isMapBlocked, setLocationClearCallback, setFilterDropdownOpen } = useTouch();
   
@@ -73,10 +76,8 @@ const MapComponent: React.FC<MapProps> = () => {
   const [selectedPrice, setSelectedPrice] = useState<PriceOption>(null);
   const [maps, setMaps] = useState<typeof google.maps | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [userLocation, setUserLocation] = useState({
-    lat: 37.9838,
-    lng: 23.7275
-  });
+  // Use location from context instead of managing location state locally
+  const [userLocation] = useState(contextUserLocation);
   const [visibleLocations, setVisibleLocations] = useState<Location[]>([]);
   const [drawerLocations, setDrawerLocations] = useState<Location[]>([]);
   const [mapReadyState, setMapReadyState] = useState(false);
@@ -744,48 +745,15 @@ const MapComponent: React.FC<MapProps> = () => {
     fetchLocations();
   }, [isMobile, setVisibleLocations, setLocationsLoaded, setLocationsProcessed, setLocationsLoading, visibleLocations.length, activeFilters, selectedAge, selectedPrice, openNowFilter]);
 
-  // Get user location on component mount without a timeout to ensure we wait for user permission response
+  // Set map ready state based on location loaded status from context
   useEffect(() => {
-    const defaultLocation = { lat: 37.9838, lng: 23.7275 }; // Athens center
-    
-    // Initially, set map as not ready until we get location
-    setMapReadyState(false);
-    
-    if (navigator.geolocation) {
-      // No timeout - we'll wait for an explicit response from the user
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          // User granted permission and we have their position
-          const rawLocation = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
-          
-          // Store the raw location and signal map can render
-          setUserLocation(rawLocation);
-          setMapReadyState(true);
-          console.log('Location permission granted, using user location');
-        },
-        (error) => {
-          // User denied permission or there was an error
-          console.log('Geolocation not supported by browser, using default Athens location');
-          setUserLocation(defaultLocation);
-          setMapReadyState(true);
-          console.log('Using default Athens location');
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000, // Increased timeout to give more time for user to respond
-          maximumAge: 0
-        }
-      );
-    } else {
-      // No geolocation support, use default immediately
-      console.log('Geolocation not supported by browser, using default Athens location');
-      setUserLocation(defaultLocation);
+    if (locationLoaded) {
       setMapReadyState(true);
+      console.log('Using location from context:', userLocation);
+    } else {
+      setMapReadyState(false);
     }
-  }, []);
+  }, [locationLoaded, userLocation]);
   
   // Specialized function to position markers optimally based on context
   const centerMapOnLocation = useCallback((targetLocation: google.maps.LatLngLiteral, context?: 'marker-selection' | 'initial-load') => {
@@ -2372,28 +2340,9 @@ const MapComponent: React.FC<MapProps> = () => {
           <button
             onClick={() => {
               if (map && userLocation && userLocation.lat && userLocation.lng) {
-                // Re-center the map on the user's location with appropriate context
+                // Simply re-center the map on the user's location from context
                 centerMapOnLocation(userLocation, 'initial-load');
-                
-                // Request fresh location data
-                navigator.geolocation.getCurrentPosition(
-                  (position) => {
-                    const freshLocation = {
-                      lat: position.coords.latitude,
-                      lng: position.coords.longitude
-                    };
-                    setUserLocation(freshLocation);
-                    centerMapOnLocation(freshLocation, 'initial-load');
-                  },
-                  (error) => {
-                    console.log('Geolocation error when refreshing position:', error.message);
-                  },
-                  {
-                    enableHighAccuracy: true,
-                    timeout: 5000,
-                    maximumAge: 0
-                  }
-                );
+                console.log('Re-centered map on user location from context');
               }
             }}
             className="bg-white rounded-full shadow-md border border-gray-200 hover:bg-gray-50 transition-all duration-150 flex items-center justify-center"

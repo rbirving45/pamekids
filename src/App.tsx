@@ -9,6 +9,7 @@ import {
 import { MobileProvider } from './contexts/MobileContext';
 import { TouchProvider, useTouch } from './contexts/TouchContext';
 import { AppStateProvider } from './contexts/AppStateContext';
+import UserLocationProvider from './contexts/UserLocationContext';
 import SEO from './components/SEO';
 import HomePage from './components/Home/HomePage';
 
@@ -209,9 +210,10 @@ function App() {
 
   return (
     <MobileProvider>
-      <AppStateProvider>
-        <TouchProvider>
-          <Router
+      <UserLocationProvider>
+        <AppStateProvider>
+          <TouchProvider>
+            <Router
             future={{
               v7_startTransition: true,
               v7_relativeSplatPath: true
@@ -250,8 +252,9 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Router>
-        </TouchProvider>
-      </AppStateProvider>
+          </TouchProvider>
+        </AppStateProvider>
+      </UserLocationProvider>
     </MobileProvider>
   );
 }
