@@ -16,7 +16,10 @@ if (typeof window !== 'undefined') {
   
   // Also set up route change tracking for single page application
   window.addEventListener('popstate', () => {
-    if (typeof window.gtag === 'function') {
+    // Check for analytics consent before tracking page views
+    const hasAnalyticsConsent = localStorage.getItem('pamekids_analytics_consent') === 'true';
+    
+    if (typeof window.gtag === 'function' && hasAnalyticsConsent) {
       window.gtag('event', 'page_view', {
         page_title: document.title,
         page_location: window.location.href,

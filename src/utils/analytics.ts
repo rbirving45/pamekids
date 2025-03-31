@@ -27,47 +27,109 @@ declare global {
   }
 }
 
-// Initialize Google Analytics - handles configuration when script is already loaded in index.html
+// Check for user consent to analytics
+const hasAnalyticsConsent = (): boolean => {
+  // Check localStorage for consent preference
+  const consentSetting = localStorage.getItem('pamekids_analytics_consent');
+  
+  // Return true only if explicitly granted (default to false otherwise)
+  return consentSetting === 'true';
+};
+
+// Initialize Google Analytics with respect for user consent - handles configuration when script is already loaded in index.html
 export const initGA = () => {
   // Get measurement ID from centralized metadata
   const measurementId = ANALYTICS.GA_MEASUREMENT_ID;
   
-  // Log successful initialization
-  console.log(`Google Analytics initialized with ID: ${measurementId}`);
-  
-  // Check if gtag is already defined
+  // Prepare gtag even if we don't have consent (for later use if consent is given)
   if (typeof window.gtag !== 'function') {
     // Provide fallback implementation to prevent errors
     window.dataLayer = window.dataLayer || [];
     window.gtag = function() {
       window.dataLayer.push(arguments);
     };
-    
-    // As a backup, dynamically load the GA script if it wasn't included in index.html
-    console.warn('Google Analytics script not found in index.html, loading dynamically');
-    const script = document.createElement('script');
-    script.async = true;
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
-    document.head.appendChild(script);
   }
   
-  // Configure GA with centralized measurement ID
+  // Set initial consent state based on user preferences
   if (typeof window.gtag === 'function') {
-    // Initialize GA4 with proper configuration
-    window.gtag('config', measurementId, {
-      send_page_view: true,
-      cookie_flags: 'max-age=7200;secure;samesite=none',
-      cookie_domain: 'auto',
-      cookie_update: true
+    const analyticsConsent = hasAnalyticsConsent();
+    
+    // Update consent mode with user preferences
+    window.gtag('consent', 'update', {
+      'analytics_storage': analyticsConsent ? 'granted' : 'denied',
+      'ad_storage': 'denied', // Always deny ad storage for this app
+      'functionality_storage': 'granted', // Allow basic functionality cookies
+      'personalization_storage': 'denied', // No personalization
+      'security_storage': 'granted' // Allow security-related cookies
     });
     
-    // Send initial page view for SPA tracking
-    window.gtag('event', 'page_view', {
-      page_title: document.title,
-      page_location: window.location.href,
-      page_path: window.location.pathname
-    });
+    // Log consent state for debugging
+    console.log(`Analytics consent state: ${analyticsConsent ? 'Granted' : 'Denied'}`);
   }
+  
+  // Only continue with full GA initialization if we have consent
+  if (hasAnalyticsConsent()) {
+    // Log successful initialization
+    console.log(`Google Analytics initialized with ID: ${measurementId}`);
+    
+    // Load GA script if not already present and we have consent
+    if (!document.querySelector(`script[src*="googletagmanager.com/gtag/js"]`)) {
+      console.log('Loading Google Analytics script with consent');
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
+      document.head.appendChild(script);
+    }
+    
+    // Configure GA with centralized measurement ID
+    if (typeof window.gtag === 'function') {
+      // Initialize GA4 with proper configuration
+      window.gtag('config', measurementId, {
+        send_page_view: true,
+        cookie_flags: 'max-age=7200;secure;samesite=none',
+        cookie_domain: 'auto',
+        cookie_update: true
+      });
+      
+      // Send initial page view for SPA tracking
+      window.gtag('event', 'page_view', {
+        page_title: document.title,
+        page_location: window.location.href,
+        page_path: window.location.pathname
+      });
+    }
+  } else {
+    console.log('Google Analytics disabled due to user consent preferences');
+    // Ensure gtag is still available but acts as a no-op when consent is denied
+    DEBUG_CONFIG.disableSending = true;
+  }
+};
+
+// Function to update analytics consent at runtime
+export const updateAnalyticsConsent = (consent: boolean) => {
+  // Store the new consent preference
+  localStorage.setItem('pamekids_analytics_consent', consent.toString());
+  
+  // Update consent in Google Analytics
+  if (typeof window.gtag === 'function') {
+    window.gtag('consent', 'update', {
+      'analytics_storage': consent ? 'granted' : 'denied'
+    });
+    
+    // If consent is granted, enable sending
+    if (consent) {
+      enableAnalyticsSending();
+      // Re-initialize GA with new consent
+      initGA();
+    } else {
+      // If consent is withdrawn, disable sending
+      disableAnalyticsSending();
+    }
+    
+    console.log(`Analytics consent updated: ${consent ? 'Granted' : 'Denied'}`);
+  }
+  
+  return true;
 };
 
 // Throttle events to prevent excessive tracking
@@ -172,8 +234,8 @@ export const enableAnalyticsSending = () => {
 
 // Add event to analytics queue
 const queueAnalyticsEvent = (eventName: string, params: Record<string, any>) => {
-  // Don't queue if window or gtag is not available
-  if (typeof window === 'undefined' || !window.gtag) return;
+  // Don't queue if window or gtag is not available or if user hasn't given consent
+  if (typeof window === 'undefined' || !window.gtag || !hasAnalyticsConsent()) return;
   
   analyticsQueue.push({ eventName, params });
   
@@ -191,7 +253,8 @@ export const trackExternalLink = (
   locationId?: string,
   source?: 'map' | 'list' | 'search' | 'detail'
 ) => {
-  if (!window.gtag) return;
+  // Check if gtag is available and if we have consent
+  if (!window.gtag || !hasAnalyticsConsent()) return;
   
   const eventParams = {
     event_category: 'External Link',
