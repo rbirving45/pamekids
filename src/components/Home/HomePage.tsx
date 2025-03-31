@@ -192,13 +192,14 @@ const LocationCarousel = ({
 const HomePage: React.FC = () => {
  const { isMobile } = useMobile();
  const navigate = useNavigate();
- const { userLocation } = useUserLocation();
+ const { userLocation, locationLoaded } = useUserLocation();
  const [newsLetterOpen, setNewsLetterOpen] = useState(false);
  const [suggestActivityOpen, setSuggestActivityOpen] = useState(false);
  // Search term is now handled by the SearchBar component
  const [featuredLocations, setFeaturedLocations] = useState<Location[]>([]);
  const [freeActivities, setFreeActivities] = useState<Location[]>([]);
  const [isLoading, setIsLoading] = useState(true);
+ const [isFreeActivitiesLoading, setIsFreeActivitiesLoading] = useState(true);
  const [error, setError] = useState<string | null>(null);
 
  // Helper function to calculate distance between two coordinates (in km)
@@ -217,6 +218,15 @@ const HomePage: React.FC = () => {
 
  // Fetch locations from Firestore
  useEffect(() => {
+   // Don't fetch and sort locations until we have confirmed location data
+   if (!locationLoaded) {
+     console.log('Waiting for location data before fetching activities...');
+     return;
+   }
+
+   console.log('Location loaded, fetching and sorting activities by proximity...');
+   setIsFreeActivitiesLoading(true);
+   
    const fetchLocationsData = async () => {
      try {
        setIsLoading(true);
@@ -312,8 +322,10 @@ const HomePage: React.FC = () => {
      }
    };
    
-   fetchLocationsData();
- }, [userLocation.lat, userLocation.lng]);
+   fetchLocationsData().finally(() => {
+     setIsFreeActivitiesLoading(false);
+   });
+ }, [userLocation.lat, userLocation.lng, locationLoaded]);
  
  // Handle featured location selection
  const handleLocationSelect = (locationId: string) => {
@@ -424,13 +436,13 @@ const HomePage: React.FC = () => {
      {/* Free Activities section */}
      <section className="pt-4 pb-12 bg-gray-50">
        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-         <h2 className="text-3xl md:text-2xl font-bold text-blue-500 mb-6">Free Activities</h2>
+         <h2 className="text-3xl md:text-2xl font-bold text-blue-500 mb-6">Free Activities Near You</h2>
          
          <LocationCarousel
            locations={freeActivities}
            activityConfig={ACTIVITY_CATEGORIES}
            onSelect={handleLocationSelect}
-           isLoading={isLoading}
+           isLoading={isFreeActivitiesLoading}
            error={error}
          />
        </div>
