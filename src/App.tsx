@@ -13,6 +13,7 @@ import UserLocationProvider from './contexts/UserLocationContext';
 import ConsentProvider, { useConsent } from './contexts/ConsentContext';
 import SEO from './components/SEO';
 import HomePage from './components/Home/HomePage';
+import PrivacyPolicy from './components/Pages/PrivacyPolicy';
 
 import MapComponent from './components/Map/Map';
 import MapBlockingOverlay from './components/Map/MapBlockingOverlay';
@@ -265,6 +266,7 @@ function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/home" element={<Navigate to="/" replace />} />
               <Route path="/map" element={<MainApp />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route
                 path="/admin"
                 element={
