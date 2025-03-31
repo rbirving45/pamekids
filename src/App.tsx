@@ -24,8 +24,6 @@ import AdminLogin from './components/Admin/AdminLogin';
 import Dashboard from './components/Admin/Dashboard';
 import AnalyticsDebugger from './components/Analytics/AnalyticsDebugger';
 import Header from './components/Layout/Header';
-import { Location } from './types/location';
-
 // Import activity categories from centralized metadata
 import { ACTIVITY_CATEGORIES as activityConfig } from './utils/metadata';
 import { injectSchemaOrgData } from './utils/schema';
@@ -51,14 +49,26 @@ const WelcomeModalWrapper: React.FC = () => {
   
   // Show welcome modal for new users or users who haven't made consent decisions
   useEffect(() => {
+    // Debug logging to understand modal visibility conditions
+    console.log('GDPR Modal Debug:', {
+      hasShownWelcomeModal,
+      analyticsConsent,
+      locationConsent,
+      shouldShowModal: !hasShownWelcomeModal && (analyticsConsent === null || locationConsent === null)
+    });
+    
     // Only show the modal if the user hasn't seen it and hasn't already set preferences
     if (!hasShownWelcomeModal && (analyticsConsent === null || locationConsent === null)) {
+      console.log('GDPR Modal: Conditions met to show modal');
       // Small delay to allow the app to load first
       const timer = setTimeout(() => {
+        console.log('GDPR Modal: Setting modal to open after timeout');
         setIsWelcomeModalOpen(true);
       }, 500);
       
       return () => clearTimeout(timer);
+    } else {
+      console.log('GDPR Modal: Conditions not met to show modal');
     }
   }, [hasShownWelcomeModal, analyticsConsent, locationConsent]);
   
@@ -87,7 +97,6 @@ const MainApp = () => {
   const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
   const [isNewsletterModalOpen, setIsNewsletterModalOpen] = useState(false);
   const [isReportIssueModalOpen, setIsReportIssueModalOpen] = useState(false);
-  const [locations, setLocations] = useState<Location[]>([]);
   const [reportIssueData, setReportIssueData] = useState<ReportIssueData>({
     locationId: '',
     locationName: '',
@@ -100,22 +109,7 @@ const MainApp = () => {
     setModalOpen(isAnyModalOpen);
   }, [isSuggestModalOpen, isNewsletterModalOpen, isReportIssueModalOpen, setModalOpen]);
   
-  // Fetch locations for search functionality
-  React.useEffect(() => {
-    // Try to get locations from session storage first
-    const cachedLocations = sessionStorage.getItem('cachedLocations');
-    if (cachedLocations) {
-      try {
-        const parsedLocations = JSON.parse(cachedLocations);
-        setLocations(parsedLocations);
-      } catch (error) {
-        console.error('Error parsing cached locations:', error);
-      }
-    }
-    
-    // We'll rely on MapComponent to update the locations in session storage
-    // This avoids duplicating the fetch logic
-  }, []);
+
   
   // Register global function to open report issue modal
   React.useEffect(() => {
@@ -202,9 +196,6 @@ const MainApp = () => {
       {(process.env.NODE_ENV === 'development' || window.location.search.includes('debug=analytics')) && (
         <AnalyticsDebugger />
       )}
-      
-      {/* Welcome and GDPR Consent Modal */}
-      <WelcomeModalWrapper />
     </div>
   );
 };
@@ -266,6 +257,9 @@ function App() {
                 v7_relativeSplatPath: true
               }}
             >
+            {/* Welcome and GDPR Consent Modal - Now visible on all routes */}
+            <WelcomeModalWrapper />
+            
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/home" element={<Navigate to="/" replace />} />

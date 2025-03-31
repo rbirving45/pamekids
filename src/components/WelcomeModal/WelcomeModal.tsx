@@ -42,8 +42,8 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-modal-backdrop bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto overflow-hidden">
+    <div className="fixed inset-0 z-modal-backdrop bg-black bg-opacity-70 flex items-center justify-center p-4 animate-fadeIn">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto overflow-hidden z-modal-container animation-popup">
         {/* Header */}
         <div className="relative bg-primary-100 p-5 border-b border-gray-200">
           <button
