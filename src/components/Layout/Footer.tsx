@@ -15,6 +15,7 @@ const Footer: React.FC = () => {
           </div>
           
           <div className="flex gap-6">
+            <Link to="/blog" className="text-gray-300 hover:text-white">Blog</Link>
             <Link to="mailto:info@pamekids.com" className="text-gray-300 hover:text-white">Contact</Link>
             <Link to="/privacy" className="text-gray-300 hover:text-white">Privacy</Link>
             <Link to="/terms" className="text-gray-300 hover:text-white">Terms</Link>
