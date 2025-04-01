@@ -108,7 +108,7 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) => {
             </div>
             
             <p className="text-sm text-gray-500 mb-6">
-              By using PameKids, you agree to our <a href="/privacy-policy" className="text-blue-500 hover:underline">Privacy Policy</a> and
+              By using PameKids, you agree to our <a href="/privacy" className="text-blue-500 hover:underline">Privacy Policy</a> and
               <a href="/terms" className="text-blue-500 hover:underline"> Terms of Service</a>.
             </p>
 
