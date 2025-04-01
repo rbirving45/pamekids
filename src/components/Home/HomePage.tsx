@@ -352,7 +352,7 @@ const HomePage: React.FC = () => {
      <section className={`bg-blue-50 ${isMobile ? 'pt-4 pb-4' : 'py-8 md:py-12'}`}>
        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
          <h1 className="text-3xl md:text-5xl font-bold text-blue-500 mb-8">
-           Discover the best activities for kids in your area
+           Discover the best kids' activities in Greece
          </h1>
          {/* Mobile-optimized scrollable grid for main category buttons */}
          <div
