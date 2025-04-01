@@ -27,6 +27,10 @@ const BlogPostHeader: React.FC<BlogPostHeaderProps> = ({
   tags,
   categories,
 }) => {
+  // TEMPORARY: Disable tags and categories
+  const showTagsAndCategories = false; // Set to true to re-enable
+  // TEMPORARY: Disable author information
+  const showAuthorInfo = false; // Set to true to re-enable
   // Format date for display
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
@@ -49,30 +53,34 @@ const BlogPostHeader: React.FC<BlogPostHeaderProps> = ({
       {/* Author and metadata section */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
         {/* Author info with avatar */}
-        <div className="flex items-center">
-          {author.avatar ? (
-            <img
-              src={author.avatar}
-              alt={`${author.name}'s avatar`}
-              className="w-10 h-10 rounded-full mr-3"
-            />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center mr-3">
-              <span className="text-blue-600 font-medium">
-                {author.name.charAt(0).toUpperCase()}
-              </span>
+        {showAuthorInfo && (
+          <>
+            <div className="flex items-center">
+              {author.avatar ? (
+                <img
+                  src={author.avatar}
+                  alt={`${author.name}'s avatar`}
+                  className="w-10 h-10 rounded-full mr-3"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center mr-3">
+                  <span className="text-blue-600 font-medium">
+                    {author.name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+              <div>
+                <p className="font-medium text-gray-800">{author.name}</p>
+                {author.role && (
+                  <p className="text-sm text-gray-600">{author.role}</p>
+                )}
+              </div>
             </div>
-          )}
-          <div>
-            <p className="font-medium text-gray-800">{author.name}</p>
-            {author.role && (
-              <p className="text-sm text-gray-600">{author.role}</p>
-            )}
-          </div>
-        </div>
-        
-        {/* Divider for mobile */}
-        <div className="hidden sm:block sm:h-10 sm:w-px sm:bg-gray-300 sm:mx-1"></div>
+            
+            {/* Divider for mobile */}
+            <div className="hidden sm:block sm:h-10 sm:w-px sm:bg-gray-300 sm:mx-1"></div>
+          </>
+        )}
         
         {/* Date and reading time */}
         <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm text-gray-600">
@@ -99,7 +107,7 @@ const BlogPostHeader: React.FC<BlogPostHeaderProps> = ({
       </div>
       
       {/* Tags/categories */}
-      {(tags && tags.length > 0) || (categories && categories.length > 0) ? (
+      {showTagsAndCategories && ((tags && tags.length > 0) || (categories && categories.length > 0)) ? (
         <div className="flex flex-wrap gap-2 mb-4">
           {tags?.map(tag => (
             <span

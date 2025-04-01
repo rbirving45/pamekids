@@ -1,5 +1,5 @@
 import React from 'react';
-import { Facebook, Twitter, Linkedin, Mail, Link as LinkIcon, Copy } from 'lucide-react';
+import { Facebook, Twitter, Linkedin, Mail, Copy } from 'lucide-react';
 import { trackCustomEvent } from '../../utils/analytics';
 
 interface ShareButtonsProps {

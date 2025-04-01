@@ -11,6 +11,9 @@ const BlogIndexPage: React.FC = () => {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // TEMPORARY: Disable category filters
+  const showCategoryFilters = false; // Set to true to re-enable
 
   // Get unique categories from all blog posts
   const allCategories = Array.from(
@@ -67,34 +70,36 @@ const BlogIndexPage: React.FC = () => {
           </div>
           
           {/* Category Filters */}
-          <div className="mb-8">
-            <div className="flex flex-wrap justify-center gap-2">
-              <button
-                onClick={() => setSelectedCategory(null)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  selectedCategory === null
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                }`}
-              >
-                All Posts
-              </button>
-              
-              {allCategories.map(category => (
+          {showCategoryFilters && (
+            <div className="mb-8">
+              <div className="flex flex-wrap justify-center gap-2">
                 <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
+                  onClick={() => setSelectedCategory(null)}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    selectedCategory === category
+                    selectedCategory === null
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
                   }`}
                 >
-                  {category}
+                  All Posts
                 </button>
-              ))}
+                
+                {allCategories.map(category => (
+                  <button
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                      selectedCategory === category
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           
           {/* Blog Post Grid */}
           {isLoading ? (
@@ -146,6 +151,11 @@ const BlogIndexPage: React.FC = () => {
 
 // Blog post card component
 const BlogPostCard: React.FC<{ post: BlogPost }> = ({ post }) => {
+  // TEMPORARY: Disable category badges on cards
+  const showCategoryBadges = false; // Set to true to re-enable
+  // TEMPORARY: Disable author information
+  const showAuthorInfo = false; // Set to true to re-enable
+  
   // Generate fallback image based on post title
   const getFallbackImage = (title: string) => {
     // Choose a color based on the first character of the title
@@ -198,7 +208,7 @@ const BlogPostCard: React.FC<{ post: BlogPost }> = ({ post }) => {
         )}
         
         {/* Categories overlay */}
-        {post.categories && post.categories.length > 0 && (
+        {showCategoryBadges && post.categories && post.categories.length > 0 && (
           <div className="absolute top-2 right-2 flex flex-wrap gap-1 justify-end">
             {post.categories.slice(0, 2).map(category => (
               <span
@@ -229,24 +239,28 @@ const BlogPostCard: React.FC<{ post: BlogPost }> = ({ post }) => {
         
         <div className="mt-auto flex items-center">
           {/* Author info */}
-          <div className="flex items-center">
-            {post.author.avatar ? (
-              <img
-                src={post.author.avatar}
-                alt={post.author.name}
-                className="w-8 h-8 rounded-full mr-2"
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-2">
-                <span className="text-blue-600 font-medium">
-                  {post.author.name.charAt(0).toUpperCase()}
-                </span>
-              </div>
-            )}
-            <span className="text-sm font-medium text-gray-700">{post.author.name}</span>
-          </div>
+          {showAuthorInfo ? (
+            <div className="flex items-center">
+              {post.author.avatar ? (
+                <img
+                  src={post.author.avatar}
+                  alt={post.author.name}
+                  className="w-8 h-8 rounded-full mr-2"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-2">
+                  <span className="text-blue-600 font-medium">
+                    {post.author.name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+              <span className="text-sm font-medium text-gray-700">{post.author.name}</span>
+            </div>
+          ) : (
+            <div></div> /* Empty div to maintain layout */
+          )}
           
-          <span className="ml-auto text-blue-500 font-medium">Read More →</span>
+          <span className={`${showAuthorInfo ? 'ml-auto' : ''} text-blue-500 font-medium`}>Read More →</span>
         </div>
       </div>
     </Link>

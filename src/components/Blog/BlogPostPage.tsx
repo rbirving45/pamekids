@@ -56,6 +56,9 @@ const BlogPostPage: React.FC = () => {
     return <Navigate to="/blog" replace />;
   }
 
+  // TEMPORARY: Disable image carousel/slider
+  const showImageCarousel = false; // Set to true to re-enable
+  
   // Loading state
   if (isLoading || !post) {
     return (
@@ -116,7 +119,7 @@ const BlogPostPage: React.FC = () => {
       {post.mainImage && <MainImage image={post.mainImage} />}
       
       {/* Image slider for posts with multiple images */}
-      {post.images && post.images.length > 0 && (
+      {showImageCarousel && post.images && post.images.length > 0 && (
         <ImageSlider
           images={post.images}
           blogTitle={post.title}
