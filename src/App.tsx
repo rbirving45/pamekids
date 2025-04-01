@@ -16,6 +16,8 @@ import SEO from './components/SEO';
 import HomePage from './components/Home/HomePage';
 import PrivacyPolicy from './components/Pages/PrivacyPolicy';
 import TermsOfService from './components/Pages/TermsOfService';
+import BlogIndexPage from './components/Blog/BlogIndexPage';
+import BlogPostPage from './components/Blog/BlogPostPage';
 
 import MapComponent from './components/Map/Map';
 import MapBlockingOverlay from './components/Map/MapBlockingOverlay';
@@ -290,6 +292,8 @@ function App() {
               <Route path="/map" element={<MainApp />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/blog" element={<BlogIndexPage />} />
+              <Route path="/blog/:slug" element={<BlogPostPage />} />
               <Route
                 path="/admin"
                 element={
