@@ -4,21 +4,21 @@ import { BlogPost } from '../types/blog';
 export const sampleBlogPosts: BlogPost[] = [
   {
     id: '1',
-    slug: 'top-10-playgrounds-in-athens',
-    title: 'Top 10 Playgrounds in Athens for Kids',
-    subtitle: 'Discover the best outdoor play areas for children of all ages',
+    slug: 'free-easter-activities-athens-2025',
+    title: 'Free Easter Activities Around Athens',
+    subtitle: 'Discover the best camps and activities for Easter 2025',
     author: {
-      name: 'Maria Papadopoulos',
+      name: 'Meni Marinakis',
       bio: 'Parent of two and Athens local with a passion for finding family-friendly activities',
-      avatar: '/images/blog/avatars/maria.jpg'
+      avatar: '/images/blog/avatars/meni.jpg'
     },
     publishDate: '2025-02-15T08:00:00Z',
     mainImage: {
-      url: '/images/blog/playgrounds-athens-cover.jpg',
-      alt: 'Children playing at a colorful playground in Athens',
-      caption: 'The renovated playground at the National Garden is popular with local families'
+      url: '/images/blog/free-easter-activities-athens-2025.png',
+      alt: 'Free Easter Activities Around Athens',
+      caption: 'Free Easter Activities Around Athens'
     },
-    summary: 'Athens offers numerous playgrounds where children can enjoy outdoor play. From the National Garden to the coastal parks, here are our top picks for safe and fun playgrounds across the city.',
+    summary: `Spring has finally arrived in Greece and with it, so has the Easter season. Get ready for some egg-stra special children's activities happening around Athens to celebrate Easter with your little ones. Reserve your spot today - they are filling up fast!`,
     content: `
     <h2>What's Hoppin’?</h2>
     <p>Spring has finally arrived in Greece and with it, so has the Easter season. Get ready for some egg-stra special children's activities happening around Athens to celebrate Easter with your little ones. Reserve your spot today - they are filling up fast!<br>

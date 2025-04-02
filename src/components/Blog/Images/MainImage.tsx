@@ -22,20 +22,19 @@ const MainImage: React.FC<MainImageProps> = ({ image }) => {
   }
 
   return (
-    <figure className="mb-8">
-      <div className="w-full overflow-hidden rounded-lg">
+    <figure style={{margin: 0, padding: 0}}>
+      <div className="w-full rounded-lg">
         <img
           src={image.url}
           alt={image.alt}
-          className="w-full h-auto object-cover"
-          style={{ maxHeight: '500px' }}
+          className="w-full h-auto rounded-lg"
           onError={() => setImageError(true)}
-          loading="eager" // Load hero image immediately
+          loading="eager"
         />
       </div>
       
       {(image.caption || image.credit) && (
-        <figcaption className="mt-2 text-sm text-gray-600 italic">
+        <figcaption className="text-sm text-gray-600 italic">
           {image.caption}
           {image.caption && image.credit && <span> — </span>}
           {image.credit && <span className="not-italic font-medium">Photo: {image.credit}</span>}
