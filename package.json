@@ -52,6 +52,7 @@
     ]
   },
   "devDependencies": {
+    "@tailwindcss/typography": "^0.5.16",
     "autoprefixer": "^10.4.14",
     "netlify-cli": "^19.0.2",
     "postcss": "^8.4.31",

@@ -16,29 +16,16 @@ const BlogPostBody: React.FC<BlogPostBodyProps> = ({
   className = ''
 }) => {
   // Custom prose classes to match PameKids styling
-  const proseClasses = `
-    prose prose-blue
-    max-w-none
-    prose-headings:text-blue-500
-    prose-h2:text-2xl prose-h2:font-bold prose-h2:mt-8 prose-h2:mb-4
-    prose-h3:text-xl prose-h3:font-semibold prose-h3:mt-6 prose-h3:mb-3
-    prose-p:text-gray-700 prose-p:leading-relaxed
-    prose-a:text-blue-600 prose-a:font-medium prose-a:no-underline hover:prose-a:underline
-    prose-ul:mb-4 prose-ol:mb-4
-    prose-li:text-gray-700 prose-li:mb-1
-    prose-blockquote:border-orange-400 prose-blockquote:bg-orange-50 prose-blockquote:rounded-md prose-blockquote:py-1 prose-blockquote:px-4
-    prose-img:rounded-lg prose-img:shadow-sm
-    prose-hr:border-gray-200
-    prose-strong:font-bold prose-strong:text-gray-800
-    ${className}
-  `;
+  const proseClasses = `prose prose-blue max-w-none prose-headings:text-blue-500 prose-h2:text-2xl prose-h2:font-bold prose-h2:mt-8 prose-h2:mb-4 prose-h3:text-xl prose-h3:font-semibold prose-h3:mt-6 prose-h3:mb-3 prose-h4:text-lg prose-h4:font-medium prose-h4:mt-5 prose-h4:mb-2 prose-h5:text-base prose-h5:font-medium prose-h5:mt-4 prose-h5:mb-2 prose-h6:text-sm prose-h6:font-medium prose-h6:mt-4 prose-h6:mb-2 prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:font-medium prose-a:no-underline hover:prose-a:underline prose-ul:mb-4 prose-ol:mb-4 prose-li:text-gray-700 prose-li:mb-1 prose-blockquote:border-orange-400 prose-blockquote:bg-orange-50 prose-blockquote:rounded-md prose-blockquote:py-1 prose-blockquote:px-4 prose-img:rounded-lg prose-img:shadow-sm prose-hr:border-gray-200 prose-strong:font-bold prose-strong:text-gray-800 ${className}`;
 
   // If HTML content string is provided
   if (content) {
+    // Clean up content by trimming whitespace to ensure proper HTML parsing
+    const cleanedContent = content.trim();
     return (
       <div
         className={proseClasses}
-        dangerouslySetInnerHTML={{ __html: content }}
+        dangerouslySetInnerHTML={{ __html: cleanedContent }}
       />
     );
   }
