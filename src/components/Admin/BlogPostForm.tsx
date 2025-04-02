@@ -149,11 +149,6 @@ const BlogPostForm: React.FC<BlogPostFormProps> = ({
       return;
     }
     
-    if (!mainImage?.url) {
-      setError('Main image URL is required');
-      return;
-    }
-    
     try {
       setIsSubmitting(true);
       setError(null);
@@ -282,7 +277,7 @@ const BlogPostForm: React.FC<BlogPostFormProps> = ({
                   Image URL
                 </label>
                 <input
-                  type="url"
+                  type="text"
                   id="mainImageUrl"
                   value={mainImage?.url || ''}
                   onChange={(e) => handleMainImageUrlChange(e.target.value)}
