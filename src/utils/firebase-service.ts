@@ -340,6 +340,38 @@ const saveLocationsToLocalStorage = (locations: Location[]) => {
 
 // Blog post functions
 
+// Create a new blog post
+export const createBlogPost = async (blogPost: Omit<BlogPost, 'id'>): Promise<{ id: string }> => {
+  try {
+    // Verify admin authentication
+    verifyAdminAuth();
+    
+    // Generate a slug from the title if not provided
+    if (!blogPost.slug) {
+      blogPost.slug = blogPost.title
+        .toLowerCase()
+        .replace(/[^\w\s]/gi, '')
+        .replace(/\s+/g, '-');
+    }
+    
+    // Add timestamps
+    const blogPostWithTimestamps = {
+      ...blogPost,
+      created_at: serverTimestamp(),
+      updated_at: serverTimestamp()
+    };
+    
+    // Add to Firestore
+    const docRef = await addDoc(collection(db, COLLECTIONS.BLOG_POSTS), blogPostWithTimestamps);
+    console.log(`Blog post created with ID: ${docRef.id}`);
+    
+    return { id: docRef.id };
+  } catch (error) {
+    console.error('Error creating blog post:', error);
+    throw new Error(formatFirestoreError(error));
+  }
+};
+
 // Get all blog posts
 export const getBlogPosts = async (): Promise<BlogPost[]> => {
   try {
@@ -368,6 +400,96 @@ export const getBlogPosts = async (): Promise<BlogPost[]> => {
     });
   } catch (error) {
     console.error('Error getting blog posts:', error);
+    throw new Error(formatFirestoreError(error));
+  }
+};
+
+// Update an existing blog post
+export const updateBlogPost = async (id: string, data: Partial<BlogPost>): Promise<{ success: boolean }> => {
+  try {
+    // Verify admin authentication
+    verifyAdminAuth();
+    
+    const docRef = doc(db, COLLECTIONS.BLOG_POSTS, id);
+    
+    // Check if post exists
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      throw new Error(`Blog post with ID ${id} not found`);
+    }
+    
+    // Add updated timestamp
+    const updatedData = {
+      ...data,
+      updated_at: serverTimestamp()
+    };
+    
+    // Update the document
+    await setDoc(docRef, updatedData, { merge: true });
+    console.log(`Blog post ${id} updated successfully`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`Error updating blog post ${id}:`, error);
+    throw new Error(formatFirestoreError(error));
+  }
+};
+
+// Delete a blog post
+export const deleteBlogPost = async (id: string): Promise<{ success: boolean }> => {
+  try {
+    // Verify admin authentication
+    verifyAdminAuth();
+    
+    const docRef = doc(db, COLLECTIONS.BLOG_POSTS, id);
+    
+    // Check if post exists
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      throw new Error(`Blog post with ID ${id} not found`);
+    }
+    
+    // Delete the document
+    await deleteDoc(docRef);
+    console.log(`Blog post ${id} deleted successfully`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`Error deleting blog post ${id}:`, error);
+    throw new Error(formatFirestoreError(error));
+  }
+};
+
+// Get a blog post by ID
+export const getBlogPostById = async (id: string): Promise<BlogPost | null> => {
+  try {
+    const docRef = doc(db, COLLECTIONS.BLOG_POSTS, id);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      return null;
+    }
+    
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      slug: data.slug || '',
+      title: data.title || '',
+      subtitle: data.subtitle,
+      author: data.author || { name: 'Anonymous' },
+      publishDate: data.publishDate || '',
+      updatedDate: data.updatedDate,
+      mainImage: data.mainImage,
+      images: data.images || [],
+      summary: data.summary || '',
+      content: data.content || '',
+      readingTime: data.readingTime,
+      tags: data.tags || [],
+      categories: data.categories || [],
+      relatedPosts: data.relatedPosts || []
+    };
+  } catch (error) {
+    console.error(`Error getting blog post with ID ${id}:`, error);
     throw new Error(formatFirestoreError(error));
   }
 };

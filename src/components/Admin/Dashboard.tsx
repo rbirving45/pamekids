@@ -7,6 +7,9 @@ import AddLocationForm from './AddLocationForm';
 import FeaturedLocationsManager from './FeaturedLocationsManager';
 
 import CacheManager from './CacheManager';
+import { BlogPost } from '../../types/blog';
+import BlogPostsList from './BlogPostsList';
+import BlogPostForm from './BlogPostForm';
 
 interface Subscription {
   id: string;
@@ -72,6 +75,9 @@ const Dashboard: React.FC = () => {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [activities, setActivities] = useState<ActivitySuggestion[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
+  const [blogPostsRefreshKey, setBlogPostsRefreshKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [locationsRefreshKey, setLocationsRefreshKey] = useState(0);
@@ -118,10 +124,11 @@ const Dashboard: React.FC = () => {
         };
   
         // Fetch data from all endpoints
-        const [subscriptionsData, activitiesData, reportsData] = await Promise.all([
+        const [subscriptionsData, activitiesData, reportsData, blogPostsData] = await Promise.all([
           fetchEndpoint('newsletter'),
           fetchEndpoint('activities'),
-          fetchEndpoint('reports')
+          fetchEndpoint('reports'),
+          fetchEndpoint('blog-posts')
         ]);
         
         // Process data if available - handle Firebase data structures
@@ -153,6 +160,16 @@ const Dashboard: React.FC = () => {
           })));
         }
         
+        if (blogPostsData) {
+          const posts = blogPostsData.posts || [];
+          setBlogPosts(posts.map((post: any) => ({
+            ...post,
+            // Convert Firebase timestamp to readable format if needed
+            publishDate: post.publishDate || '',
+            updatedDate: post.updatedDate || ''
+          })));
+        }
+        
         // Set error if any endpoint failed
         if (errorMessages.length > 0) {
           setError(`Some data could not be loaded: ${errorMessages.join(', ')}`);
@@ -169,6 +186,42 @@ const Dashboard: React.FC = () => {
   }, [navigate]);
 
   const formatDate = formatTimestamp;
+  
+  // Function to refresh blog posts
+  const refreshBlogPosts = () => {
+    setBlogPostsRefreshKey(prev => prev + 1);
+  };
+  
+  // Effect to refresh blog posts when blogPostsRefreshKey changes
+  useEffect(() => {
+    // Only fetch if we've already loaded the page once (to avoid duplicate requests)
+    if (!isLoading) {
+      const fetchBlogPosts = async () => {
+        try {
+          const token = localStorage.getItem('adminToken');
+          if (!token) return;
+          
+          const response = await fetch(`/api/blog-posts?adminToken=${token}`);
+          if (!response.ok) {
+            throw new Error('Failed to fetch blog posts');
+          }
+          
+          const data = await response.json();
+          const posts = data.posts || [];
+          
+          setBlogPosts(posts.map((post: any) => ({
+            ...post,
+            publishDate: post.publishDate || '',
+            updatedDate: post.updatedDate || ''
+          })));
+        } catch (err) {
+          console.error('Error refreshing blog posts:', err);
+        }
+      };
+      
+      fetchBlogPosts();
+    }
+  }, [blogPostsRefreshKey, isLoading]);
   
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
@@ -224,6 +277,9 @@ const Dashboard: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger value="subscriptions" className="px-4 py-2">
               Newsletter Subscribers ({subscriptions.length})
+            </TabsTrigger>
+            <TabsTrigger value="blogposts" className="px-4 py-2">
+              Blog Posts ({blogPosts.length})
             </TabsTrigger>
           </TabsList>
 
@@ -419,6 +475,72 @@ const Dashboard: React.FC = () => {
                     </table>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="blogposts">
+            <Card>
+              <CardHeader>
+                <CardTitle>Blog Posts</CardTitle>
+                <CardDescription>
+                  Manage your blog posts, create new posts, and edit existing content.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="list" className="w-full">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="list" className="px-4 py-1">
+                      All Posts
+                    </TabsTrigger>
+                    <TabsTrigger value="add" className="px-4 py-1">
+                      {editingPost ? `Edit: ${editingPost.title}` : 'Add New Post'}
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="list">
+                    <BlogPostsList
+                      posts={blogPosts}
+                      onRefresh={refreshBlogPosts}
+                      onEditPost={(post) => {
+                        setEditingPost(post);
+                        // Switch to the edit tab
+                        const editTab = document.querySelector('[data-state="inactive"][value="add"]') as HTMLElement;
+                        if (editTab) {
+                          editTab.click();
+                        }
+                      }}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="add">
+                    <BlogPostForm
+                      editPost={editingPost}
+                      onSuccess={(post, isEdit) => {
+                        setEditingPost(null);
+                        refreshBlogPosts();
+                        
+                        // Show success message (could be replaced with a toast notification)
+                        alert(`Blog post ${isEdit ? 'updated' : 'created'} successfully!`);
+                        
+                        // Switch back to the list tab
+                        const listTab = document.querySelector('[data-state="inactive"][value="list"]') as HTMLElement;
+                        if (listTab) {
+                          listTab.click();
+                        }
+                      }}
+                      onCancel={() => {
+                        setEditingPost(null);
+                        
+                        // Switch back to the list tab
+                        const listTab = document.querySelector('[data-state="inactive"][value="list"]') as HTMLElement;
+                        if (listTab) {
+                          listTab.click();
+                        }
+                      }}
+                    />
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </TabsContent>

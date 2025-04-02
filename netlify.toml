@@ -82,3 +82,11 @@
   # Ensure environment variables are properly set
   [functions."delete-location-photos-background".environment]
     NODE_ENV = "production"
+    
+# Configuration for blog posts API function
+[functions."blog-posts"]
+  # Set a reasonable timeout for blog operations
+  timeout = 30
+  # Ensure environment variables are properly set
+  [functions."blog-posts".environment]
+    NODE_ENV = "production"
