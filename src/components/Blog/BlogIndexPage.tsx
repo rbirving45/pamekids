@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar } from 'lucide-react';
-import { sampleBlogPosts } from '../../data/sampleBlogPosts';
+import { sampleBlogPosts } from '../../data/sampleBlogPosts'; // Keep for fallback
+import { getBlogPosts } from '../../utils/firebase-service';
 import { BlogPost } from '../../types/blog';
 import Header from '../Layout/Header';
 import Footer from '../Layout/Footer';
@@ -15,33 +16,63 @@ const BlogIndexPage: React.FC = () => {
   // TEMPORARY: Disable category filters
   const showCategoryFilters = false; // Set to true to re-enable
 
-  // Get unique categories from all blog posts
+  // Get unique categories from posts (will be populated once posts are loaded)
   const allCategories = Array.from(
     new Set(
-      sampleBlogPosts.flatMap(post => post.categories || [])
+      posts.length > 0
+        ? posts.flatMap(post => post.categories || [])
+        : sampleBlogPosts.flatMap(post => post.categories || [])
     )
   );
 
   // Fetch and filter blog posts
   useEffect(() => {
-    // Simulate loading delay
-    const timer = setTimeout(() => {
-      const filteredPosts = selectedCategory
-        ? sampleBlogPosts.filter(post =>
-            post.categories && post.categories.includes(selectedCategory)
-          )
-        : sampleBlogPosts;
-      
-      // Sort by publish date (newest first)
-      const sortedPosts = [...filteredPosts].sort(
-        (a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime()
-      );
-      
-      setPosts(sortedPosts);
-      setIsLoading(false);
-    }, 500);
+    // Set loading state
+    setIsLoading(true);
     
-    return () => clearTimeout(timer);
+    // Fetch posts from Firestore
+    const fetchPosts = async () => {
+      try {
+        // Get posts from Firestore
+        const blogPosts = await getBlogPosts();
+        
+        // Filter by category if one is selected
+        const filteredPosts = selectedCategory
+          ? blogPosts.filter(post =>
+              post.categories && post.categories.includes(selectedCategory)
+            )
+          : blogPosts;
+        
+        // Sort by publish date (newest first)
+        const sortedPosts = [...filteredPosts].sort(
+          (a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime()
+        );
+        
+        setPosts(sortedPosts);
+      } catch (error) {
+        console.error('Error fetching blog posts:', error);
+        
+        // Fallback to sample data in case of error
+        console.log('Falling back to sample blog post data');
+        const filteredPosts = selectedCategory
+          ? sampleBlogPosts.filter(post =>
+              post.categories && post.categories.includes(selectedCategory)
+            )
+          : sampleBlogPosts;
+        
+        const sortedPosts = [...filteredPosts].sort(
+          (a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime()
+        );
+        
+        setPosts(sortedPosts);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchPosts();
+    
+    // No need for a cleanup function since we're using async/await
   }, [selectedCategory]);
 
   return (

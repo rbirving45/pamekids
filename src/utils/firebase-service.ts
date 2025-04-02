@@ -1,5 +1,6 @@
 import { db } from './firebase';
 import { Location } from '../types/location';
+import { BlogPost } from '../types/blog';
 import { 
   collection, 
   addDoc, 
@@ -9,6 +10,7 @@ import {
   getDocs, 
   deleteDoc,
   query, 
+  where,
   Timestamp, 
   DocumentData,
   serverTimestamp
@@ -19,7 +21,8 @@ const COLLECTIONS = {
   NEWSLETTER: 'newsletter-subscribers',
   REPORTS: 'location-reports',
   ACTIVITIES: 'activity-suggestions',
-  LOCATIONS: 'locations' // Ensure this matches exactly with Firebase rules
+  LOCATIONS: 'locations', // Ensure this matches exactly with Firebase rules
+  BLOG_POSTS: 'blog-posts' // Collection for blog posts
 };
 
 // Helper function to check if user is authenticated as admin
@@ -332,6 +335,80 @@ const saveLocationsToLocalStorage = (locations: Location[]) => {
     localStorage.setItem(CACHE_KEYS.LOCATIONS_LIST, JSON.stringify(cacheData));
   } catch (error) {
     console.warn('Error saving to localStorage cache:', error);
+  }
+};
+
+// Blog post functions
+
+// Get all blog posts
+export const getBlogPosts = async (): Promise<BlogPost[]> => {
+  try {
+    const q = query(collection(db, COLLECTIONS.BLOG_POSTS));
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        slug: data.slug || '',
+        title: data.title || '',
+        subtitle: data.subtitle,
+        author: data.author || { name: 'Anonymous' },
+        publishDate: data.publishDate || '',
+        updatedDate: data.updatedDate,
+        mainImage: data.mainImage,
+        images: data.images || [],
+        summary: data.summary || '',
+        content: data.content || '',
+        readingTime: data.readingTime,
+        tags: data.tags || [],
+        categories: data.categories || [],
+        relatedPosts: data.relatedPosts || []
+      };
+    });
+  } catch (error) {
+    console.error('Error getting blog posts:', error);
+    throw new Error(formatFirestoreError(error));
+  }
+};
+
+// Get a single blog post by slug
+export const getBlogPostBySlug = async (slug: string): Promise<BlogPost | null> => {
+  try {
+    const q = query(
+      collection(db, COLLECTIONS.BLOG_POSTS),
+      where('slug', '==', slug)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      return null;
+    }
+    
+    const doc = querySnapshot.docs[0];
+    const data = doc.data();
+    
+    return {
+      id: doc.id,
+      slug: data.slug || '',
+      title: data.title || '',
+      subtitle: data.subtitle,
+      author: data.author || { name: 'Anonymous' },
+      publishDate: data.publishDate || '',
+      updatedDate: data.updatedDate,
+      mainImage: data.mainImage,
+      images: data.images || [],
+      summary: data.summary || '',
+      content: data.content || '',
+      readingTime: data.readingTime,
+      tags: data.tags || [],
+      categories: data.categories || [],
+      relatedPosts: data.relatedPosts || []
+    };
+  } catch (error) {
+    console.error(`Error getting blog post with slug ${slug}:`, error);
+    throw new Error(formatFirestoreError(error));
   }
 };
 

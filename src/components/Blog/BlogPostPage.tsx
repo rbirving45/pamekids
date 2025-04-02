@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
-import { getBlogPostBySlug, getRelatedBlogPosts } from '../../data/sampleBlogPosts';
+import { getBlogPostBySlug as getSampleBlogPostBySlug, getRelatedBlogPosts as getSampleRelatedBlogPosts } from '../../data/sampleBlogPosts';
+import { getBlogPostBySlug, getBlogPosts } from '../../utils/firebase-service';
 import { BlogPost } from '../../types/blog';
 import {
   BlogPostLayout,
@@ -31,24 +32,91 @@ const BlogPostPage: React.FC = () => {
       return;
     }
     
-    // Simulate network delay to show loading state
-    const timer = setTimeout(() => {
-      const blogPost = getBlogPostBySlug(slug);
-      
-      if (blogPost) {
-        setPost(blogPost);
+    const fetchBlogPost = async () => {
+      try {
+        // Try to get the blog post from Firestore
+        const blogPost = await getBlogPostBySlug(slug);
         
-        // Get related posts
-        const related = getRelatedBlogPosts(blogPost.id);
-        setRelatedPosts(related);
-      } else {
-        setNotFound(true);
+        if (blogPost) {
+          setPost(blogPost);
+          
+          // Handle related posts
+          try {
+            // Get all posts first - in a production app, we'd optimize this
+            const allPosts = await getBlogPosts();
+            
+            // Filter to get related posts based on IDs or use a fallback method
+            let related: BlogPost[] = [];
+            
+            if (blogPost.relatedPosts && blogPost.relatedPosts.length > 0) {
+              // Filter posts by related IDs
+              related = allPosts.filter(p =>
+                blogPost.relatedPosts?.includes(p.id)
+              );
+            } else {
+              // Fallback: get recent posts in the same category (excluding current post)
+              related = allPosts
+                .filter(p => p.id !== blogPost.id)
+                .filter(p =>
+                  p.categories?.some(c =>
+                    blogPost.categories?.includes(c)
+                  )
+                )
+                .sort((a, b) =>
+                  new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime()
+                )
+                .slice(0, 3);
+            }
+            
+            if (related.length === 0) {
+              // If still no related posts, just get the most recent ones
+              related = allPosts
+                .filter(p => p.id !== blogPost.id)
+                .sort((a, b) =>
+                  new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime()
+                )
+                .slice(0, 3);
+            }
+            
+            setRelatedPosts(related);
+          } catch (relatedError) {
+            console.error('Error getting related posts:', relatedError);
+            // Fallback to empty related posts
+            setRelatedPosts([]);
+          }
+        } else {
+          // Fallback to local sample data if not found in Firestore
+          console.log('Post not found in Firestore, checking sample data');
+          const samplePost = getSampleBlogPostBySlug(slug);
+          
+          if (samplePost) {
+            setPost(samplePost);
+            const related = getSampleRelatedBlogPosts(samplePost.id);
+            setRelatedPosts(related);
+          } else {
+            setNotFound(true);
+          }
+        }
+      } catch (error) {
+        console.error(`Error fetching blog post ${slug}:`, error);
+        
+        // Fallback to sample data if Firestore request fails
+        console.log('Falling back to sample blog post data');
+        const samplePost = getSampleBlogPostBySlug(slug);
+        
+        if (samplePost) {
+          setPost(samplePost);
+          const related = getSampleRelatedBlogPosts(samplePost.id);
+          setRelatedPosts(related);
+        } else {
+          setNotFound(true);
+        }
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
-    }, 500);
+    };
     
-    return () => clearTimeout(timer);
+    fetchBlogPost();
   }, [slug]);
 
   // Handle 404 case
