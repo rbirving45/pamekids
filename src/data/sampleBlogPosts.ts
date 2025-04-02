@@ -6,7 +6,7 @@ export const sampleBlogPosts: BlogPost[] = [
     id: '1',
     slug: 'free-easter-activities-athens-2025',
     title: 'Free Easter Activities Around Athens',
-    subtitle: 'Discover the best camps and activities for Easter 2025',
+    subtitle: `Discover the best free kids' activities for Easter 2025`,
     author: {
       name: 'Meni Marinakis',
       bio: 'Parent of two and Athens local with a passion for finding family-friendly activities',
@@ -78,7 +78,7 @@ export const sampleBlogPosts: BlogPost[] = [
     <strong>"A beautiful butterfly at the Resurrection"</strong><br>
     Clay and ceramics workshop for the whole family with clay butterfly molding. Registrations at tel. 210 9247031 (Monday & Friday: 15:00 - 20:00 & Tuesday, Wednesday, Thursday: 10:00 - 15:00).</p>
 `,
-    readingTime: 7,
+    readingTime: 2,
     tags: ['playgrounds', 'outdoor-play', 'athens'],
     categories: ['Outdoor Activities']
   },
