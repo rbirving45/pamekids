@@ -6,6 +6,9 @@ const { getFirestore } = require('./firebase-admin');
  * Handles CRUD operations for blog posts
  */
 exports.handler = async (event, context) => {
+  console.log('Blog posts function called with method:', event.httpMethod);
+  console.log('Path:', event.path);
+  console.log('Query params:', event.queryStringParameters);
   // Set headers for CORS
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -42,26 +45,35 @@ exports.handler = async (event, context) => {
     const blogsCollection = db.collection('blog-posts');
 
     // GET: Retrieve all blog posts
-    if (event.httpMethod === 'GET' && !event.path.split('/').pop().includes('-')) {
-      // Get all blog posts ordered by publish date
-      const snapshot = await blogsCollection
-        .orderBy('publishDate', 'desc')
-        .get();
-      
-      const posts = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ posts })
-      };
+    if (event.httpMethod === 'GET' && !event.path.includes('/blog-posts/')) {
+      try {
+        // Get all blog posts ordered by publish date
+        const snapshot = await blogsCollection
+          .orderBy('publishDate', 'desc')
+          .get();
+        
+        const posts = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ posts })
+        };
+      } catch (error) {
+        console.error('Error fetching blog posts:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: 'Error fetching blog posts: ' + error.message })
+        };
+      }
     }
 
     // GET: Retrieve a single blog post by ID
-    if (event.httpMethod === 'GET' && event.path.includes('/')) {
+    if (event.httpMethod === 'GET' && event.path.includes('/blog-posts/')) {
       const id = event.path.split('/').pop();
       const doc = await blogsCollection.doc(id).get();
 
