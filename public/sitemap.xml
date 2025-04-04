@@ -40,13 +40,13 @@
 
   <!-- Legal Pages -->
   <url>
-    <loc>https://www.pamekids.com/privacy-policy</loc>
+    <loc>https://www.pamekids.com/privacy</loc>
     <lastmod>2025-03-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://www.pamekids.com/terms-of-service</loc>
+    <loc>https://www.pamekids.com/terms</loc>
     <lastmod>2025-03-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
