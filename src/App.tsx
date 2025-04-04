@@ -173,7 +173,7 @@ const MainApp = () => {
   
   return (
     <div className="h-screen w-full flex flex-col">
-      <SEO /> {/* Use default SEO values from metadata.ts */}
+      <SEO pageType="map" /> {/* Map-specific SEO from centralized configs */}
       <MapBlockingOverlay />
       <Header
         onLocationSelect={(location, index) => {
@@ -298,11 +298,7 @@ function App() {
                 path="/admin"
                 element={
                   <>
-                    <SEO
-                      title="Admin Login"
-                      description="PameKids admin login"
-                      noIndex={true}
-                    />
+                    <SEO pageType="admin" />
                     <AdminLogin />
                     <Footer />
                   </>
@@ -312,11 +308,7 @@ function App() {
                 path="/admin/dashboard"
                 element={
                   <>
-                    <SEO
-                      title="Admin Dashboard"
-                      description="PameKids admin dashboard"
-                      noIndex={true}
-                    />
+                    <SEO pageType="admin" />
                     <Dashboard />
                     <Footer />
                   </>

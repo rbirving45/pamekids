@@ -1,4 +1,5 @@
 import { APP_NAME, APP_URL, APP_DESCRIPTION, CITY } from './metadata';
+import { BlogPost } from '../types/blog';
 
 /**
  * Generates schema.org structured data for the PameKids web application
@@ -64,25 +65,88 @@ export const getOrganizationSchema = () => {
 };
 
 /**
+ * Generates schema.org structured data for a blog post
+ * This helps search engines display rich results for blog content
+ *
+ * @param post The blog post object containing all necessary data
+ * @returns The schema.org BlogPosting object as a JavaScript object
+ */
+export const getBlogPostSchema = (post: BlogPost) => {
+  // Convert publish date to ISO format if it's not already
+  const publishDate = new Date(post.publishDate).toISOString();
+  
+  // Convert update date to ISO format if it exists
+  const modifiedDate = post.updatedDate
+    ? new Date(post.updatedDate).toISOString()
+    : publishDate;
+  
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": `${APP_URL}/blog/${post.slug}`
+    },
+    "headline": post.title,
+    "description": post.summary,
+    "image": post.mainImage?.url || `${APP_URL}/og-image.jpg`,
+    "author": {
+      "@type": "Person",
+      "name": post.author.name
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": APP_NAME,
+      "logo": {
+        "@type": "ImageObject",
+        "url": `${APP_URL}/logo512.png`
+      }
+    },
+    "datePublished": publishDate,
+    "dateModified": modifiedDate,
+    "keywords": post.tags?.join(', ') || '',
+    "articleSection": post.categories?.join(', ') || ''
+  };
+};
+
+/**
  * Helper function to inject schema.org structured data into the document head
  * Call this function in a useEffect to add the schema to the page
+ *
+ * @param type The type of schema to inject ('application', 'organization', or 'blog')
+ * @param data Optional data needed for specific schema types (e.g., blog post data)
  */
-export const injectSchemaOrgData = () => {
+export const injectSchemaOrgData = (type: 'application' | 'organization' | 'blog' = 'application', data?: any) => {
   // Remove any existing schema.org scripts to prevent duplicates
   const existingScripts = document.querySelectorAll('script[type="application/ld+json"]');
   existingScripts.forEach(script => script.remove());
   
-  // Create and inject the application schema
-  const appScript = document.createElement('script');
-  appScript.type = 'application/ld+json';
-  appScript.text = JSON.stringify(getApplicationSchema());
-  document.head.appendChild(appScript);
+  let schemaData;
   
-  // Create and inject the organization schema
-  const orgScript = document.createElement('script');
-  orgScript.type = 'application/ld+json';
-  orgScript.text = JSON.stringify(getOrganizationSchema());
-  document.head.appendChild(orgScript);
+  // Generate the appropriate schema based on the type
+  switch (type) {
+    case 'blog':
+      if (data && 'id' in data) {
+        schemaData = getBlogPostSchema(data);
+      } else {
+        console.error('Blog post data is required for blog schema');
+        return;
+      }
+      break;
+    case 'organization':
+      schemaData = getOrganizationSchema();
+      break;
+    case 'application':
+    default:
+      schemaData = getApplicationSchema();
+      break;
+  }
+  
+  // Create and inject the schema script
+  const script = document.createElement('script');
+  script.type = 'application/ld+json';
+  script.text = JSON.stringify(schemaData);
+  document.head.appendChild(script);
 };
 
 // Named exports only, no default export

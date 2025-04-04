@@ -13,7 +13,7 @@ import GroupFilterDropdown from './GroupFilterDropdown';
 import AgeFilterDropdown from './AgeFilterDropdown';
 import PriceFilterDropdown, { PriceOption } from './PriceFilterDropdown';
 import { getLocations } from '../../utils/firebase-service';
-
+import SEO from '../SEO'; // Import SEO component
 import { ACTIVITY_CATEGORIES, ACTIVITY_GROUPS } from '../../utils/metadata';
 
 // Using MobileContext instead of local mobile detection
@@ -1681,6 +1681,9 @@ const MapComponent: React.FC<MapProps> = () => {
   
   return (
     <div className="relative h-full w-full flex flex-col">
+      {/* Enhanced SEO for map */}
+      <SEO pageType="map" />
+
       {/* Add loading overlay */}
       {isLoadingLocations && (
         <div className="absolute inset-0 bg-white bg-opacity-80 z-50 flex items-center justify-center">

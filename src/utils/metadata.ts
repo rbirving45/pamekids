@@ -34,7 +34,7 @@ export const LOGOS = {
   ogImage: "og-image.jpg",
 };
 
-// SEO metadata
+// Default SEO metadata - used when no page-specific values are provided
 export const SEO = {
   title: `${APP_NAME} - Children's Activities in Greece`,
   description: APP_DESCRIPTION,
@@ -67,6 +67,81 @@ export const TWITTER = {
   // Use the same image as Open Graph for consistency across platforms
   image: LOGOS.ogImage,
   imageAlt: OPEN_GRAPH.imageAlt,
+};
+
+// Page-specific SEO configurations
+export const PAGE_SEO = {
+  // Home page
+  home: {
+    title: `${APP_NAME} - Children's Activities in Greece`,
+    description: "Discover the best children's activities in Athens, Greece. Indoor play, outdoor activities, sports, arts, music, education and entertainment for kids.",
+    keywords: "children activities, Athens, Greece, kids, indoor play, outdoor activities",
+    canonicalUrl: APP_URL,
+    image: LOGOS.ogImage,
+    imageAlt: "PameKids - Find children's activities in Greece",
+    type: "website"
+  },
+  
+  // Map page
+  map: {
+    title: "Map of Children's Activities - PameKids",
+    description: "Interactive map of children's activities in Athens, Greece. Find nearby playgrounds, indoor play areas, sports facilities, and more.",
+    keywords: "children activities map, Athens map, kid-friendly locations, activity finder",
+    canonicalUrl: `${APP_URL}/map`,
+    image: LOGOS.ogImage,
+    imageAlt: "Interactive Map of Children's Activities in Greece",
+    type: "website"
+  },
+  
+  // Blog index page
+  blogIndex: {
+    title: "Blog - PameKids",
+    description: "Articles, guides and reviews about children's activities in Greece.",
+    keywords: "children activities blog, Athens kids blog, parenting tips, activity guides",
+    canonicalUrl: `${APP_URL}/blog`,
+    image: LOGOS.ogImage,
+    imageAlt: "PameKids Blog - Articles about Children's Activities",
+    type: "website"
+  },
+  
+  // Blog post - defaults used when blog post doesn't provide values
+  blogPost: {
+    titleSuffix: "PameKids Blog", // Used as: "Post Title | PameKids Blog"
+    fallbackImage: LOGOS.ogImage,
+    fallbackImageAlt: "PameKids Blog - Children's Activities in Greece",
+    keywords: "children activities, Athens, Greece, kids, blog, guide",
+    type: "article"
+  },
+  
+  // Privacy Policy page
+  privacy: {
+    title: "Privacy Policy - PameKids",
+    description: "Privacy policy for PameKids - Children's Activities in Greece",
+    keywords: "privacy policy, PameKids, children's activities, data protection",
+    canonicalUrl: `${APP_URL}/privacy`,
+    image: LOGOS.ogImage,
+    imageAlt: "PameKids - Privacy Policy",
+    type: "website"
+  },
+  
+  // Terms of Service page
+  terms: {
+    title: "Terms of Service - PameKids",
+    description: "Terms of service for PameKids - Children's Activities in Greece",
+    keywords: "terms of service, PameKids, children's activities, legal",
+    canonicalUrl: `${APP_URL}/terms`,
+    image: LOGOS.ogImage,
+    imageAlt: "PameKids - Terms of Service",
+    type: "website"
+  },
+  
+  // Admin pages - typically we'd set noIndex to true for admin pages
+  admin: {
+    title: "Admin - PameKids",
+    description: "Administration area for PameKids",
+    noIndex: true, // Prevent indexing of admin pages
+    type: "website"
+  }
 };
 
 // Define type for activity category structure

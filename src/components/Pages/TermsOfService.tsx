@@ -7,10 +7,7 @@ import SEO from '../SEO';
 const TermsOfService: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col">
-      <SEO
-        title="Terms of Service - PameKids"
-        description="Terms of Service for PameKids - Children's Activities in Athens, Greece"
-      />
+      <SEO pageType="terms" />
       
       <div className="fixed top-0 left-0 right-0 z-header w-full">
         <Header />

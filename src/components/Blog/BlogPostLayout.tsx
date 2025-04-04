@@ -2,6 +2,7 @@ import React, { ReactNode } from 'react';
 import Header from '../Layout/Header';
 import Footer from '../Layout/Footer';
 import SEO from '../SEO';
+import { BlogPost } from '../../types/blog';
 
 interface BlogPostLayoutProps {
   children: ReactNode;
@@ -10,6 +11,7 @@ interface BlogPostLayoutProps {
   imageUrl?: string;
   imageAlt?: string;
   canonicalUrl?: string;
+  post?: BlogPost; // Full blog post object for enhanced SEO
 }
 
 /**
@@ -24,18 +26,28 @@ const BlogPostLayout: React.FC<BlogPostLayoutProps> = ({
   imageUrl,
   imageAlt,
   canonicalUrl,
+  post, // Add post to destructuring
 }) => {
   return (
     <div className="min-h-screen flex flex-col">
-      {/* SEO metadata using existing SEO component */}
-      <SEO
-        title={title}
-        description={description}
-        image={imageUrl}
-        imageAlt={imageAlt || title}
-        canonicalUrl={canonicalUrl}
-        type="article"
-      />
+      {/* Enhanced SEO using pageType and blog post data */}
+      {post ? (
+        // If we have the full post object, use it for enhanced SEO
+        <SEO
+          pageType="blogPost"
+          blogPost={post}
+        />
+      ) : (
+        // Fallback to individual props if post object isn't available
+        <SEO
+          title={title}
+          description={description}
+          image={imageUrl}
+          imageAlt={imageAlt || title}
+          canonicalUrl={canonicalUrl}
+          type="article"
+        />
+      )}
       
       {/* Fixed header from existing component */}
       <div className="fixed top-0 left-0 right-0 z-header w-full">

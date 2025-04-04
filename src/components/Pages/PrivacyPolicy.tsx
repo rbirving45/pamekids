@@ -7,10 +7,7 @@ import SEO from '../SEO';
 const PrivacyPolicy: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col">
-      <SEO
-        title="Privacy Policy - PameKids"
-        description="Privacy policy for PameKids - Children's Activities in Athens, Greece"
-      />
+      <SEO pageType="privacy" />
       
       <div className="fixed top-0 left-0 right-0 z-header w-full">
         <Header />

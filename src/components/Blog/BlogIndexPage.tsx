@@ -77,10 +77,7 @@ const BlogIndexPage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <SEO
-        title="Blog - PameKids"
-        description="Articles, guides and reviews about children's activities in Athens, Greece."
-      />
+      <SEO pageType="blogIndex" />
       
       {/* Fixed header */}
       <div className="fixed top-0 left-0 right-0 z-header w-full">

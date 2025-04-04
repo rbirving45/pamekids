@@ -159,6 +159,7 @@ const BlogPostPage: React.FC = () => {
       imageUrl={post.mainImage?.url}
       imageAlt={post.mainImage?.alt}
       canonicalUrl={`https://www.pamekids.com/blog/${post.slug}`}
+      post={post} // Pass the full post object for enhanced SEO
     >
       {/* Back to blog link */}
       <div className="mb-6">

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMobile } from '../../contexts/MobileContext';
 import { useUserLocation } from '../../contexts/UserLocationContext';
+import SEO from '../SEO'; // Import SEO component
 import { Tent, BookOpen, Trees, Home, Trophy, Popcorn, Leaf, UtensilsCrossed, Hotel, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 // Import modal components from existing app
 import { NewsletterModal } from '../Newsletter';
@@ -336,6 +337,9 @@ const HomePage: React.FC = () => {
  
  return (
    <div className="homepage-container min-h-screen flex flex-col">
+     {/* Enhanced SEO for homepage */}
+     <SEO pageType="home" />
+     
      {/* Use the common Header component with fixed position */}
      <div className="fixed top-0 left-0 right-0 z-header w-full">
        <Header
